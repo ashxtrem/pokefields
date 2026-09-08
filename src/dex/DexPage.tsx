@@ -352,6 +352,14 @@ export function PokemonDetail({ id }: { id: string }) {
             {p.habitats.length ? (
               p.habitats.map((h) => (
                 <div className="habitat-detail" key={h.id}>
+                  {h.image && (
+                    <img
+                      className="habitat-image"
+                      src={h.image}
+                      alt={`${h.name} habitat`}
+                      loading="lazy"
+                    />
+                  )}
                   <div>
                     <span className="eyebrow">ATTRACTING HABITAT</span>
                     <h3>{h.name}</h3>

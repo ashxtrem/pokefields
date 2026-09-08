@@ -925,6 +925,15 @@ input[type="checkbox"] {
   padding: 22px 0;
   border-bottom: 1px solid #e6eadd;
 }
+.habitat-image {
+  display: block;
+  width: min(100%, 280px);
+  max-height: 180px;
+  margin: 0 0 14px;
+  border-radius: 12px;
+  object-fit: contain;
+  background: #f1f3ea;
+}
 .habitat-detail:first-child {
   padding-top: 0;
 }

@@ -37,6 +37,9 @@ describe("shipped reference catalog", () => {
       .habitats.find((h) => h.id === "tallgrass")!;
     expect(h.requirements).toContain("4 × Tall Grass");
     expect(h.areas.length).toBeGreaterThan(1);
+    expect(h.image).toBe(
+      "https://www.serebii.net/pokemonpokopia/habitatdex/1.png",
+    );
   });
   it("keeps food differences for both Frillish and Jellicent forms", () => {
     for (const name of ["Frillish", "Jellicent"]) {

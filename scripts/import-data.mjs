@@ -133,6 +133,7 @@ await pool(raw, async (p, index) => {
     return {
       id: href.split("/").pop().replace(".shtml", ""),
       name,
+      image: null,
       source: origin + href,
       requirements: [],
       areas,
@@ -247,6 +248,9 @@ await pool([...habitatSources], async ([href]) => {
       .filter((_, e) => text($, e) === "Requirements")
       .first();
     const table = heading.nextAll("table").first();
+    const image =
+      $("main img[src*='/pokemonpokopia/habitatdex/']").first().attr("src") ||
+      null;
     const req = [];
     table.find("tr").each((_, row) => {
       const cells = $(row).children("td");
@@ -258,7 +262,10 @@ await pool([...habitatSources], async ([href]) => {
     });
     for (const p of pokemon)
       for (const h of p.habitats)
-        if (h.source === origin + href) h.requirements = req;
+        if (h.source === origin + href) {
+          h.requirements = req;
+          h.image = image ? new URL(image, origin).href : null;
+        }
   } catch {}
 });
 const itemMap = new Map();

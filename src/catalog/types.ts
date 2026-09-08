@@ -2,6 +2,7 @@ export type Dex = "regular" | "event" | "basin";
 export interface Habitat {
   id: string;
   name: string;
+  image: string | null;
   source: string;
   requirements: string[];
   areas: string[];
