@@ -1,0 +1,92 @@
+{
+  "checkedAt": "2026-09-08T06:20:01.570378+00:00",
+  "repository": "QuesoCaliente/pokopiapi",
+  "commit": "893936af1adb51f6d2aab18aa8fa359fc401dd0a",
+  "files": {
+    "pokemon": {
+      "url": "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/src/data/pokemon.json",
+      "sha256": "b7c5429d92a5f391fa4fdc7d868dab0e5f13d25b311ce46f6afbd5de2fe16115",
+      "records": 365,
+      "missingImages": 5,
+      "duplicateSlugs": [],
+      "contentSource": {
+        "not supplied": 308,
+        "event": 7,
+        "expansion-pass": 50
+      },
+      "dataStatus": {
+        "not supplied": 308,
+        "partial": 57
+      },
+      "fieldNames": [
+        "availability",
+        "classification",
+        "climates",
+        "contentSource",
+        "dataStatus",
+        "dex",
+        "event",
+        "forms",
+        "habitats",
+        "height",
+        "idealEnvironment",
+        "imageUrl",
+        "localNumber",
+        "name",
+        "nationalNumber",
+        "nextEvolution",
+        "previousEvolution",
+        "produces",
+        "provenance",
+        "release",
+        "slug",
+        "spawnZones",
+        "specialties",
+        "timeAvailability",
+        "types",
+        "unknownFields",
+        "weight"
+      ]
+    },
+    "items": {
+      "url": "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/src/data/items.json",
+      "sha256": "1d2e62658d0f57bac3701007dfcb01292fc0cc894806ad8149d91a959d52f6b9",
+      "records": 1767,
+      "missingImages": 26,
+      "duplicateSlugs": [],
+      "contentSource": {
+        "not supplied": 1502,
+        "event": 46,
+        "expansion-pass": 219
+      },
+      "dataStatus": {
+        "not supplied": 1502,
+        "partial": 265
+      },
+      "fieldNames": [
+        "availability",
+        "category",
+        "contentSource",
+        "craftingRecipe",
+        "dataStatus",
+        "description",
+        "event",
+        "imageUrl",
+        "locations",
+        "name",
+        "provenance",
+        "recipeLocation",
+        "recipeStatus",
+        "release",
+        "slug",
+        "tag",
+        "unknownFields"
+      ],
+      "withCraftingRecipe": 850
+    }
+  },
+  "liveApiCheck": {
+    "url": "https://pokopiapi.com/api/v1/pokemon/bulbasaur",
+    "result": "Unverified: Python certificate validation failed; curl returned an intermediary Zscaler 403 HTML response. This does not establish an upstream API outage or its CORS behavior."
+  }
+}
