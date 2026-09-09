@@ -9,16 +9,22 @@ import {
   furnishings,
 } from "../src/planner/engine";
 import {
+  addHome,
   combinedSupplies,
   convertSpatialPlan,
+  environmentSupplies,
   explainGroup,
+  homeEnvironment,
+  migrateHousematePlan,
   moveResident,
   recommendHousemates,
+  splitHomeByEnvironment,
   splitResident,
   suggestHomeKit,
   swapHousemates,
   uniqueFoundRoster,
 } from "../src/planner/recommend";
+import { DEFAULT_HOUSEMATE_SETTINGS } from "../src/planner/types";
 import { defaultFilters, filterPokemon } from "../src/dex/search";
 import {
   emptyState,
@@ -26,6 +32,13 @@ import {
   readState,
   writeState,
 } from "../src/persistence/store";
+import {
+  habitatChecklist,
+  houseQuantityList,
+  reconcileHabitatChecklist,
+  reconcileHouseChecklist,
+  toggleRow,
+} from "../src/shopping/checklists";
 const p = (
   id: string,
   environment: string | null = "Bright",
@@ -245,6 +258,49 @@ describe("backup and persistence", () => {
       data,
     );
   });
+  it("accepts tracked material quantities while old backups remain valid", () => {
+    expect(
+      validateBackup({ ...saved(), materialCounts: { plant: 3 } }, catalog)
+        .materialCounts,
+    ).toEqual({ plant: 3 });
+    const { materialCounts: _materialCounts, ...legacy } = saved();
+    expect(validateBackup(legacy, catalog).materialCounts).toBeUndefined();
+  });
+  it("rejects invalid tracked material quantities", () => {
+    expect(() =>
+      validateBackup({ ...saved(), materialCounts: { plant: -1 } }, catalog),
+    ).toThrow();
+    expect(() =>
+      validateBackup({ ...saved(), materialCounts: { unknown: 2 } }, catalog),
+    ).toThrow();
+    expect(() =>
+      validateBackup({ ...saved(), materialCounts: { plant: 1.5 } }, catalog),
+    ).toThrow();
+  });
+  it("round-trips independent shopping checks while accepting old backups", () => {
+    const habitat = {
+      id: "garden",
+      name: "Garden",
+      image: null,
+      source: "https://example.com",
+      requirements: ["3 × Plant", "1 × High-up Location"],
+      areas: [],
+      rarity: "Common",
+      times: [],
+      weather: [],
+    };
+    const list = habitatChecklist("a", habitat, catalog.items);
+    const checked = { ...list, rows: toggleRow(list.rows, list.rows[0].id) };
+    const data = {
+      ...saved(),
+      shoppingChecklists: { habitats: { [checked.id]: checked } },
+    };
+    expect(validateBackup(JSON.parse(JSON.stringify(data)), catalog)).toEqual(
+      data,
+    );
+    expect(reconcileHabitatChecklist(checked, "a", habitat, catalog.items).rows[0].checked).toBe(true);
+    expect(reconcileHabitatChecklist(checked, "a", { ...habitat, requirements: ["4 × Plant"] }, catalog.items).rows[0].checked).toBe(false);
+  });
   it("rejects unsupported versions", () => {
     expect(() =>
       validateBackup({ ...saved(), schemaVersion: 2 }, catalog),
@@ -331,9 +387,9 @@ describe("housemate recommendations", () => {
     ).toBe("shared");
   });
   it("keeps a missing environment unknown instead of calling it a conflict", () => {
-    expect(
-      explainGroup([p("a", "Bright"), p("e", null)]).match,
-    ).toBe("unknown");
+    expect(explainGroup([p("a", "Bright"), p("e", null)]).match).toBe(
+      "unknown",
+    );
   });
   it("keeps a stronger shared-favorite group together before filling spare beds", () => {
     const extra = {
@@ -439,6 +495,20 @@ describe("housemate recommendations", () => {
     const split = splitResident(plan, "home-1", "b", catalog);
     expect(combinedSupplies(split, catalog).furnishings[0].quantity).toBe(2);
   });
+  it("resets a house checklist row when a home's construction changes", () => {
+    const plan = recommendHousemates(input, catalog, now);
+    const checked = reconcileHouseChecklist(undefined, plan, catalog);
+    checked.construction[0].checked = true;
+    const changed = {
+      ...plan,
+      homes: [{ ...plan.homes[0], kitId: "other" }, ...plan.homes.slice(1)],
+    };
+    const otherCatalog = {
+      ...catalog,
+      kits: [...catalog.kits, { ...kit, id: "other", materials: [{ name: "Wood", quantity: 7 }] }],
+    };
+    expect(reconcileHouseChecklist(checked, changed, otherCatalog).construction[0].checked).toBe(false);
+  });
   it("rejects capacity overflow and duplicate residents", () => {
     const plan = recommendHousemates(input, catalog, now);
     expect(() => moveResident(plan, "home-2", "home-1", "c", catalog)).toThrow(
@@ -515,5 +585,161 @@ describe("housemate backup", () => {
     const a = notebook();
     a.housematePlan!.homes = [];
     expect(() => validateBackup(a, catalog)).toThrow();
+  });
+  it("defaults settings and an available-kits filter for a pre-occupancy plan", () => {
+    const legacy = notebook();
+    // Simulate a plan saved before the occupancy settings existed.
+    const { settings: _settings, availableKitIds: _availableKitIds, ...bare } =
+      legacy.housematePlan!;
+    (legacy as { housematePlan: unknown }).housematePlan = {
+      ...bare,
+      version: 1,
+    };
+    const result = validateBackup(legacy, catalog);
+    expect(result.housematePlan!.settings).toEqual(DEFAULT_HOUSEMATE_SETTINGS);
+    expect(result.housematePlan!.availableKitIds).toBeNull();
+    expect(result.housematePlan!.version).toBe(2);
+  });
+});
+describe("occupancy and available kits", () => {
+  const now = () => "2026-09-09T00:00:00.000Z";
+  const big: Kit = { ...kit, id: "big", capacity: 4 };
+  const roomy = { ...catalog, kits: [big] };
+  it("caps generated group size to the requested maximum residents", () => {
+    const plan = recommendHousemates(
+      {
+        roster: ["a", "b"],
+        sourceRoster: ["a", "b"],
+        areaFilter: null,
+      },
+      roomy,
+      now,
+      { settings: { maxResidents: 1, affinityFloor: false } },
+    );
+    expect(plan.homes.map((h) => h.residents)).toEqual([["a"], ["b"]]);
+    expect(plan.settings).toEqual({ maxResidents: 1, affinityFloor: false });
+  });
+  it("does not pad a group with a zero-overlap resident under the affinity floor", () => {
+    const extra = {
+      ...roomy,
+      pokemon: [
+        p("a", "Bright", ["Unique"]),
+        p("b", "Bright", ["Shared"]),
+        p("c", "Bright", ["Shared"]),
+        p("d", "Bright", ["Shared"]),
+      ],
+    };
+    const withFloor = recommendHousemates(
+      { roster: ["a", "b", "c", "d"], sourceRoster: ["a", "b", "c", "d"], areaFilter: null },
+      extra,
+      now,
+      { settings: { maxResidents: 4, affinityFloor: true } },
+    );
+    expect(withFloor.homes.map((h) => h.residents)).toEqual([
+      ["b", "c", "d"],
+      ["a"],
+    ]);
+    const withoutFloor = recommendHousemates(
+      { roster: ["a", "b", "c", "d"], sourceRoster: ["a", "b", "c", "d"], areaFilter: null },
+      extra,
+      now,
+      { settings: { maxResidents: 4, affinityFloor: false } },
+    );
+    expect(withoutFloor.homes.map((h) => h.residents)).toEqual([
+      ["b", "c", "d", "a"],
+    ]);
+  });
+  it("never drops a resident when the affinity floor stops a group early", () => {
+    const extra = {
+      ...roomy,
+      pokemon: [
+        p("a", "Bright", ["X"]),
+        p("b", "Bright", ["Y"]),
+        p("c", "Bright", ["Z"]),
+      ],
+    };
+    const plan = recommendHousemates(
+      { roster: ["a", "b", "c"], sourceRoster: ["a", "b", "c"], areaFilter: null },
+      extra,
+      now,
+      { settings: { maxResidents: 4, affinityFloor: true } },
+    );
+    expect(
+      [
+        ...plan.homes.flatMap((h) => h.residents),
+        ...plan.unresolved.map((r) => r.id),
+      ].sort(),
+    ).toEqual(["a", "b", "c"]);
+    expect(plan.unresolved).toEqual([]);
+  });
+  it("restricts suggestions to the available kits and reports the resulting cap", () => {
+    const small: Kit = { ...kit, id: "small", capacity: 1 };
+    const mixed = { ...roomy, kits: [small, big] };
+    const plan = recommendHousemates(
+      { roster: ["a", "b"], sourceRoster: ["a", "b"], areaFilter: null },
+      mixed,
+      now,
+      { availableKitIds: ["small"] },
+    );
+    expect(plan.homes.map((h) => h.residents)).toEqual([["a"], ["b"]]);
+    expect(plan.homes.every((h) => h.kitId === "small")).toBe(true);
+    expect(plan.availableKitIds).toEqual(["small"]);
+  });
+});
+describe("environment guidance and manual builds", () => {
+  const now = () => "2026-09-09T00:00:00.000Z";
+  const withEnvItems = {
+    ...catalog,
+    items: [
+      ...catalog.items,
+      { id: "desklight", name: "Desk light", categories: [], source: "https://example.com" },
+      { id: "gravestone", name: "Gravestone", categories: [], source: "https://example.com" },
+    ],
+  };
+  it("reports a home's shared environment and lists guidance items separately from construction", () => {
+    const plan = recommendHousemates(
+      { roster: ["a", "b"], sourceRoster: ["a", "b"], areaFilter: null },
+      withEnvItems,
+      now,
+    );
+    expect(homeEnvironment(plan.homes[0], withEnvItems)).toBe("Bright");
+    const supplies = environmentSupplies(plan, withEnvItems);
+    expect(supplies.some((row) => row.name === "Desk light")).toBe(true);
+    const list = houseQuantityList(plan, withEnvItems);
+    expect(list.environment.some((row) => row.label === "Desk light")).toBe(true);
+    expect(list.construction.some((row) => row.label === "Desk light")).toBe(false);
+  });
+  it("does not report a shared environment for a mixed-environment home", () => {
+    const plan = recommendHousemates(
+      { roster: ["a", "c"], sourceRoster: ["a", "c"], areaFilter: null },
+      withEnvItems,
+      now,
+    );
+    const merged = moveResident(plan, plan.homes[1].id, plan.homes[0].id, "c", withEnvItems);
+    expect(homeEnvironment(merged.homes[0], withEnvItems)).toBeNull();
+  });
+  it("splits a mixed-environment home into one home per environment", () => {
+    const plan = recommendHousemates(
+      { roster: ["a", "c"], sourceRoster: ["a", "c"], areaFilter: null },
+      withEnvItems,
+      now,
+    );
+    const merged = moveResident(plan, plan.homes[1].id, plan.homes[0].id, "c", withEnvItems);
+    const split = splitHomeByEnvironment(merged, merged.homes[0].id, withEnvItems);
+    expect(split.homes.map((h) => h.residents).sort()).toEqual([["a"], ["c"]]);
+  });
+  it("adds an empty manual home that is pruned once emptied again", () => {
+    const plan = recommendHousemates(
+      { roster: ["a"], sourceRoster: ["a"], areaFilter: null },
+      catalog,
+      now,
+    );
+    const withEmpty = addHome(plan, "home", catalog);
+    const added = withEmpty.homes.find((h) => !h.residents.length)!;
+    expect(added).toBeTruthy();
+    const filled = moveResident(withEmpty, plan.homes[0].id, added.id, "a", catalog);
+    expect(filled.homes.find((h) => h.id === plan.homes[0].id)).toBeUndefined();
+    const emptiedAgain = moveResident(filled, added.id, "new", "a", catalog);
+    expect(emptiedAgain.homes.some((h) => h.id === added.id)).toBe(false);
   });
 });

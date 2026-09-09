@@ -91,137 +91,82 @@ svg {
 ul {
   padding-left: 22px;
 }
-.sidebar {
-  width: 238px;
-  position: fixed;
-  inset: 0 auto 0 0;
-  background: #f2f3ed;
-  border-right: 1px solid #e3e6dc;
-  padding: 36px 23px;
-  display: flex;
-  flex-direction: column;
+.app {
+  min-height: 100dvh;
+}
+.topbar {
+  position: sticky;
+  top: 0;
   z-index: 20;
+  min-height: 52px;
+  display: flex;
+  align-items: stretch;
+  gap: 18px;
+  padding: env(safe-area-inset-top) 45px 0;
+  background: #fdfcf8;
+  border-bottom: 1px solid #e9ebe3;
 }
 .brand {
   display: flex;
-  gap: 10px;
+  gap: 9px;
   align-items: center;
+  flex-shrink: 0;
   font-family: Georgia, serif;
-  font-size: 29px;
-  line-height: 1.1;
+  font-size: 22px;
+  line-height: 1.05;
+  align-self: center;
 }
 .brand small {
   display: block;
   font:
-    9px "Trebuchet MS",
+    8px "Trebuchet MS",
     sans-serif;
-  letter-spacing: 3.7px;
-  margin-top: 7px;
+  letter-spacing: 2.8px;
+  margin-top: 3px;
 }
 .brand-icon {
-  width: 42px;
-  height: 45px;
+  width: 32px;
+  height: 34px;
   background: #294f3e;
   color: #fbf7e9;
-  border-radius: 13px 13px 13px 3px;
+  border-radius: 10px 10px 10px 3px;
   display: grid;
   place-items: center;
 }
-.sidebar-label {
-  font-size: 9px;
-  letter-spacing: 1.8px;
-  color: #98a08f;
-  margin: 54px 14px 15px;
-}
-.sidebar nav {
-  display: grid;
-  gap: 7px;
-}
-.sidebar nav a {
+.app-nav {
   display: flex;
-  gap: 12px;
+  align-items: stretch;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.app-nav a {
+  display: flex;
+  gap: 8px;
   align-items: center;
-  padding: 13px 14px;
-  border-radius: 8px;
+  padding: 0 12px;
   font-weight: 600;
   font-size: 13px;
   color: #7c8475;
+  white-space: nowrap;
 }
-.sidebar nav a.active {
-  background: #e1e8d9;
+.app-nav a:hover {
   color: #2e583e;
 }
-.sidebar nav a > span {
-  margin-left: auto;
+.app-nav a.active {
+  color: #2e583e;
+  font-weight: 700;
+  box-shadow: inset 0 -2px 0 #527246;
+}
+.app-nav a > .nav-count {
   font-size: 10px;
   background: #d1ddc6;
   padding: 1px 6px;
   border-radius: 4px;
+  color: #355039;
 }
-.sidebar nav a > .nav-new {
-  background: transparent;
-  letter-spacing: 1px;
-  font-size: 8px;
-}
-.sidebar-note {
-  background: #e9edde;
-  border: 1px solid #dce3cd;
-  border-radius: 10px;
-  margin-top: 52px;
-  padding: 18px 15px;
-  position: relative;
-  overflow: hidden;
-}
-.note-flower {
-  position: absolute;
-  right: 8px;
-  top: -9px;
-  font-size: 88px;
-  color: #d3dfbc;
-  line-height: 1;
-}
-.sidebar-note h3 {
-  font-family: Georgia, serif;
-  font-size: 20px;
-  line-height: 1.25;
-  position: relative;
-}
-.sidebar-note p {
-  font-size: 11px;
-  line-height: 1.7;
-  margin-top: 14px;
-}
-.sidebar-note a {
-  border-top: 1px solid #d7dfcb;
-  padding-top: 14px;
-  margin-top: 14px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-}
-.sidebar-bottom {
-  margin-top: auto;
-  padding: 26px 10px 0;
-}
-.sidebar-bottom button {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  font-size: 12px;
-  background: none;
-  border: 0;
-  padding: 0;
-  margin-bottom: 15px;
-}
-.sidebar-bottom small {
-  font-size: 9px;
-  color: #8a9282;
-}
-.sidebar-bottom p {
-  font-size: 9px;
-  color: #969d8d;
-  margin-top: 17px;
+.app-nav a.active > .nav-count {
+  background: #e2e9d9;
 }
 .saved-dot {
   display: inline-block;
@@ -232,38 +177,19 @@ ul {
   vertical-align: middle;
   margin-right: 5px;
 }
-.main-shell {
-  margin-left: 238px;
-}
-.topbar {
-  height: 81px;
-  border-bottom: 1px solid #e9ebe3;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 45px;
-  background: #fdfcf8;
-}
-.breadcrumb {
-  font-size: 11px;
-  color: #9b9e94;
-}
-.breadcrumb span {
-  padding: 0 13px;
-  color: #c2c6ba;
-}
-.breadcrumb strong {
-  font-weight: 500;
-  color: #626e5e;
-}
 .notebook-button {
   border: 0;
   background: transparent;
   display: flex;
   align-items: center;
   gap: 7px;
+  margin-left: auto;
+  flex-shrink: 0;
   font-size: 10px;
   color: #697563;
+}
+.notebook-button:hover {
+  color: #2e583e;
 }
 .avatar {
   display: grid;
@@ -275,7 +201,7 @@ ul {
   height: 30px;
   background: #e7eadc;
   border-radius: 50%;
-  margin-left: 12px;
+  margin-left: 4px;
 }
 main {
   max-width: 1550px;
@@ -533,15 +459,111 @@ select {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 17px;
 }
+.pokemon-card,
+.detail-hero {
+  --type-unknown: #fffefa;
+  --type-normal: #eeece3;
+  --type-fire: #f5e2d3;
+  --type-water: #dfecf2;
+  --type-electric: #f5edca;
+  --type-grass: #e3ecd8;
+  --type-ice: #e0f0ed;
+  --type-fighting: #f0deda;
+  --type-poison: #ece1ef;
+  --type-ground: #ede3d0;
+  --type-flying: #e7e9f3;
+  --type-psychic: #f3dfe9;
+  --type-bug: #e9edcf;
+  --type-rock: #e7e2d5;
+  --type-ghost: #e5e0ef;
+  --type-dragon: #e0e3f1;
+  --type-dark: #e3dfdc;
+  --type-steel: #e1e7e7;
+  --type-fairy: #f4e3ee;
+  --type-surface: var(--type-unknown);
+  background: var(--type-surface);
+  border-color: #c8cec2;
+  color: #263d31;
+}
+.pokemon-card.type-normal,
+.detail-hero.type-normal {
+  --type-surface: var(--type-normal);
+}
+.pokemon-card.type-fire,
+.detail-hero.type-fire {
+  --type-surface: var(--type-fire);
+}
+.pokemon-card.type-water,
+.detail-hero.type-water {
+  --type-surface: var(--type-water);
+}
+.pokemon-card.type-electric,
+.detail-hero.type-electric {
+  --type-surface: var(--type-electric);
+}
+.pokemon-card.type-grass,
+.detail-hero.type-grass {
+  --type-surface: var(--type-grass);
+}
+.pokemon-card.type-ice,
+.detail-hero.type-ice {
+  --type-surface: var(--type-ice);
+}
+.pokemon-card.type-fighting,
+.detail-hero.type-fighting {
+  --type-surface: var(--type-fighting);
+}
+.pokemon-card.type-poison,
+.detail-hero.type-poison {
+  --type-surface: var(--type-poison);
+}
+.pokemon-card.type-ground,
+.detail-hero.type-ground {
+  --type-surface: var(--type-ground);
+}
+.pokemon-card.type-flying,
+.detail-hero.type-flying {
+  --type-surface: var(--type-flying);
+}
+.pokemon-card.type-psychic,
+.detail-hero.type-psychic {
+  --type-surface: var(--type-psychic);
+}
+.pokemon-card.type-bug,
+.detail-hero.type-bug {
+  --type-surface: var(--type-bug);
+}
+.pokemon-card.type-rock,
+.detail-hero.type-rock {
+  --type-surface: var(--type-rock);
+}
+.pokemon-card.type-ghost,
+.detail-hero.type-ghost {
+  --type-surface: var(--type-ghost);
+}
+.pokemon-card.type-dragon,
+.detail-hero.type-dragon {
+  --type-surface: var(--type-dragon);
+}
+.pokemon-card.type-dark,
+.detail-hero.type-dark {
+  --type-surface: var(--type-dark);
+}
+.pokemon-card.type-steel,
+.detail-hero.type-steel {
+  --type-surface: var(--type-steel);
+}
+.pokemon-card.type-fairy,
+.detail-hero.type-fairy {
+  --type-surface: var(--type-fairy);
+}
 .pokemon-card {
-  border: 1px solid #e1e5d9;
-  background: #fffefa;
+  border: 1px solid #c8cec2;
   border-radius: 11px;
   overflow: hidden;
   transition:
     transform 0.18s,
     box-shadow 0.18s;
-  animation: appear 0.35s both;
 }
 .pokemon-card:hover {
   transform: translateY(-3px);
@@ -551,6 +573,13 @@ select {
 .pokemon-card.discovered {
   border-color: #b8cca4;
 }
+.pokemon-card .pokemon-link:focus-visible,
+.pokemon-card .found-button:focus-visible,
+.detail-hero .found-button:focus-visible,
+.detail-hero .term-chip:focus-visible {
+  outline: 2px solid #28533f;
+  outline-offset: 3px;
+}
 .pokemon-link {
   display: block;
   padding: 15px 16px 5px;
@@ -559,12 +588,12 @@ select {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #8e9a83;
+  color: #4f5d50;
   font-size: 10px;
 }
 .card-top svg {
   margin-left: auto;
-  color: #b5beac;
+  color: #4f5d50;
 }
 .card-top small {
   font-size: 8px;
@@ -614,24 +643,20 @@ select {
   width: 92px;
   height: 92px;
   border-radius: 50%;
-  background: #f0f3e9;
+  background: #fffefa;
   top: 17px;
 }
-.pokemon-card.type-fire .art-circle {
-  background: #faf0e4;
-}
-.pokemon-card.type-water .art-circle {
-  background: #eaf1f4;
-}
-.pokemon-card.type-bug .art-circle {
-  background: #eff1df;
+.pokemon-card .portrait-fallback,
+.detail-hero .portrait-fallback {
+  background: #fffefa;
+  color: #4f5d50;
 }
 .pokemon-card h3 {
   font-family: Georgia, serif;
   font-size: 19px;
   font-weight: 500;
   text-align: center;
-  color: #33462e;
+  color: #263d31;
   margin-top: 5px;
 }
 .type-tags {
@@ -648,40 +673,125 @@ select {
   color: #7f8161;
   letter-spacing: 0.3px;
 }
-.type-pill.type-grass {
-  background: #e6efda;
-  color: #778d54;
+.pokemon-card .type-pill,
+.detail-hero .type-pill {
+  background: var(--type-unknown);
+  color: #263d31;
+  border: 1px solid #c8cec2;
 }
-.type-pill.type-poison {
-  background: #ede5ee;
-  color: #9a76a1;
+.pokemon-card .type-pill.type-normal,
+.detail-hero .type-pill.type-normal {
+  background: var(--type-normal);
 }
-.type-pill.type-fire {
-  background: #f6e7d6;
-  color: #b79060;
+.pokemon-card .type-pill.type-fire,
+.detail-hero .type-pill.type-fire {
+  background: var(--type-fire);
 }
-.type-pill.type-water {
-  background: #e3edf2;
-  color: #6e9aad;
+.pokemon-card .type-pill.type-water,
+.detail-hero .type-pill.type-water {
+  background: var(--type-water);
 }
-.type-pill.type-flying {
-  background: #e9eaf2;
-  color: #9096af;
+.pokemon-card .type-pill.type-electric,
+.detail-hero .type-pill.type-electric {
+  background: var(--type-electric);
 }
-.type-pill.type-bug {
-  background: #e9ecd4;
-  color: #8b995b;
+.pokemon-card .type-pill.type-grass,
+.detail-hero .type-pill.type-grass {
+  background: var(--type-grass);
 }
-.type-pill.type-electric {
-  background: #f4edce;
-  color: #a5974d;
+.pokemon-card .type-pill.type-ice,
+.detail-hero .type-pill.type-ice {
+  background: var(--type-ice);
+}
+.pokemon-card .type-pill.type-fighting,
+.detail-hero .type-pill.type-fighting {
+  background: var(--type-fighting);
+}
+.pokemon-card .type-pill.type-poison,
+.detail-hero .type-pill.type-poison {
+  background: var(--type-poison);
+}
+.pokemon-card .type-pill.type-ground,
+.detail-hero .type-pill.type-ground {
+  background: var(--type-ground);
+}
+.pokemon-card .type-pill.type-flying,
+.detail-hero .type-pill.type-flying {
+  background: var(--type-flying);
+}
+.pokemon-card .type-pill.type-psychic,
+.detail-hero .type-pill.type-psychic {
+  background: var(--type-psychic);
+}
+.pokemon-card .type-pill.type-bug,
+.detail-hero .type-pill.type-bug {
+  background: var(--type-bug);
+}
+.pokemon-card .type-pill.type-rock,
+.detail-hero .type-pill.type-rock {
+  background: var(--type-rock);
+}
+.pokemon-card .type-pill.type-ghost,
+.detail-hero .type-pill.type-ghost {
+  background: var(--type-ghost);
+}
+.pokemon-card .type-pill.type-dragon,
+.detail-hero .type-pill.type-dragon {
+  background: var(--type-dragon);
+}
+.pokemon-card .type-pill.type-dark,
+.detail-hero .type-pill.type-dark {
+  background: var(--type-dark);
+}
+.pokemon-card .type-pill.type-steel,
+.detail-hero .type-pill.type-steel {
+  background: var(--type-steel);
+}
+.pokemon-card .type-pill.type-fairy,
+.detail-hero .type-pill.type-fairy {
+  background: var(--type-fairy);
 }
 .specialty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   text-align: center;
   font-size: 9px;
-  color: #9b9f90;
+  color: #4f5d50;
   margin: 11px 0 9px;
-  min-height: 14px;
+  min-height: 28px;
+}
+.specialty-mark {
+  display: inline-flex;
+}
+.specialty-icon,
+.specialty-icon-fallback {
+  display: block;
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.specialty-icon.large,
+.specialty-icon-fallback.large {
+  width: 48px;
+  height: 48px;
+}
+.specialty-icon-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #e4eadb;
+  color: #4f5d50;
+  font-size: 11px;
+  font-weight: 600;
+}
+.term-chip .specialty-icon,
+.term-chip .specialty-icon-fallback {
+  width: 20px;
+  height: 20px;
 }
 .found-button {
   display: flex;
@@ -689,20 +799,21 @@ select {
   align-items: center;
   justify-content: center;
   border: 0;
-  background: #f6f7f0;
-  color: #8c967e;
+  background: #fffefa;
+  color: #4f5d50;
   width: 100%;
   font-size: 10px;
   padding: 11px;
-  border-top: 1px solid #eef0e7;
+  border-top: 1px solid #c8cec2;
 }
 .found-button:hover {
-  background: #e9efdf;
-  color: #557447;
+  background: #fffefa;
+  color: #263d31;
 }
-.found-button.is-found {
-  background: #e9efdf;
-  color: #557447;
+.found-button.is-found,
+.found-button.is-found:hover {
+  background: #28533f;
+  color: #fffefa;
 }
 .filter-panel {
   padding: 20px;
@@ -773,13 +884,17 @@ footer span {
   border-radius: 14px;
   background: #fffef9;
   padding: 26px;
+  padding-bottom: max(26px, env(safe-area-inset-bottom));
   color: #34472f;
   width: 500px;
   max-width: calc(100vw - 28px);
   max-height: 90dvh;
+  overflow: auto;
   position: fixed;
+  z-index: 80;
   margin: auto;
   box-shadow: 0 20px 100px #23302125;
+  -webkit-overflow-scrolling: touch;
 }
 .modal.wide {
   width: 700px;
@@ -833,6 +948,16 @@ footer span {
 .area-options label svg:last-child {
   margin-left: auto;
 }
+.area-name {
+  min-width: 0;
+}
+.area-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
 input[type="checkbox"] {
   accent-color: #5e7d48;
   width: 16px;
@@ -847,24 +972,105 @@ input[type="checkbox"] {
   color: #829070;
 }
 .detail-hero {
+  position: relative;
   margin: 25px 0;
-  background: #eef2e5;
-  border: 1px solid #e3e8d9;
+  border: 1px solid #c8cec2;
   border-radius: 13px;
   padding: 30px 40px;
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 20px 32px;
 }
-.detail-hero > .portrait {
+.detail-hero-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.detail-hero-art {
+  position: static;
+}
+.detail-hero .portrait {
   width: 200px;
   height: 200px;
+  background: #fffefa;
+  border-radius: 50%;
+}
+.detail-hero .found-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  z-index: 1;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 254 250 / 0.35);
+  color: rgb(38 61 49 / 0.72);
+  box-shadow: none;
+}
+.detail-hero .found-button:hover,
+.detail-hero .found-button:focus-visible {
+  background: rgb(255 254 250 / 0.55);
+  color: rgb(38 61 49 / 0.9);
+}
+.detail-hero .found-button.is-found,
+.detail-hero .found-button.is-found:hover {
+  background: rgb(255 254 250 / 0.35);
+  color: rgb(40 83 63 / 0.8);
 }
 .detail-hero .type-tags {
   justify-content: flex-start;
+  margin: 0;
+  gap: 8px;
+}
+.detail-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+.detail-hero-meta > p {
+  margin: 0;
+}
+.detail-hero .type-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 .detail-hero h1 {
   font-size: 48px;
+  color: #263d31;
+}
+.detail-hero .eyebrow {
+  color: #4f5d50;
+}
+.detail-hero p {
+  color: #4f5d50;
+}
+.detail-hero .term-chip {
+  background: #fffefa;
+  color: #263d31;
+  border-color: #c8cec2;
+}
+.detail-hero .term-chip:hover,
+.detail-hero .term-chip:focus-visible {
+  background: #fffefa;
+  border-color: #28533f;
+  color: #263d31;
+}
+.detail-hero .term-chip svg {
+  color: #4f5d50;
 }
 .detail-body {
   background: #fffef9;
@@ -878,6 +1084,9 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
+}
+.preference-grid > .info-box:only-child {
+  grid-column: 1 / -1;
 }
 .info-box {
   display: flex;
@@ -895,6 +1104,242 @@ input[type="checkbox"] {
 .info-box strong {
   font-size: 14px;
   font-weight: 500;
+  min-width: 0;
+}
+.info-box .term-row,
+.info-box strong .term-chip {
+  font-weight: 500;
+}
+.pref-title {
+  border: 0;
+  background: none;
+  padding: 0;
+  width: fit-content;
+  max-width: 100%;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.pref-title:hover,
+.pref-title:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  outline: none;
+}
+.pref-food-heading {
+  margin-top: 22px;
+}
+.term-row,
+.term-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.term-line {
+  font-size: 12px;
+  color: #6c7a5e;
+}
+.term-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border: 1px solid #d7decc;
+  border-radius: 999px;
+  background: #f4f7ee;
+  color: #3f5338;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+.term-chip:hover,
+.term-chip:focus-visible {
+  background: #eaf1df;
+  border-color: #bfd1aa;
+  outline: none;
+}
+.term-chip svg {
+  flex-shrink: 0;
+  color: #7d8c6e;
+}
+.term-chip.quiet {
+  min-height: 36px;
+  min-width: 36px;
+  padding: 6px;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+}
+.habitat-detail h3 .term-chip {
+  font-size: 20px;
+  border-radius: 10px;
+  padding: 6px 12px;
+  white-space: normal;
+}
+.requirement-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 12px 0 16px;
+  list-style: none;
+}
+.requirement-list .term-chip {
+  width: 100%;
+  border-radius: 10px;
+  justify-content: space-between;
+}
+.clickable-box {
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.clickable-box:hover,
+.clickable-box:focus-visible {
+  background: #eef3e6;
+  border-color: #c7d4b4;
+  outline: none;
+}
+.pref-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 2px;
+  row-gap: 8px;
+}
+.pref-example {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 10px 0 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 11px;
+  color: #6d7b60;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.pref-example:hover,
+.pref-example:focus-visible {
+  color: #263d31;
+  outline: none;
+}
+.pref-example::after {
+  content: "";
+  width: 5px;
+  height: 5px;
+  margin-left: 5px;
+  flex-shrink: 0;
+  align-self: center;
+  border-radius: 50%;
+  background: currentColor;
+}
+.pref-example img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.explain-kind {
+  margin: 0 0 10px;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #8a967c;
+}
+.explain-sub {
+  margin: 16px 0 6px;
+  font-size: 13px;
+}
+.explain-obtain {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 13px;
+  color: #44553b;
+  line-height: 1.55;
+}
+.explain-obtain li + li {
+  margin-top: 4px;
+}
+.explain-hero {
+  display: block;
+  width: min(100%, 120px);
+  height: 120px;
+  object-fit: contain;
+  margin: 0 auto 14px;
+  background: #f1f3ea;
+  border-radius: 16px;
+  padding: 10px;
+}
+.explain-items {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 16px 0 8px;
+}
+.explain-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  min-height: 88px;
+  padding: 10px 6px;
+  border: 1px solid #e7eadf;
+  border-radius: 10px;
+  background: #f5f6ef;
+  color: #44553b;
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.3;
+  text-align: center;
+  cursor: pointer;
+}
+.explain-item:hover,
+.explain-item:focus-visible {
+  background: #eaf1df;
+  border-color: #bfd1aa;
+  outline: none;
+}
+.explain-thumb,
+.item-pic-fallback {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+.item-pic-fallback {
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: #e6ecdc;
+  color: #6d7d5c;
+  font-size: 18px;
+}
+.item-pic-fallback.large,
+.explain-hero.item-pic-fallback {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 14px;
+  font-size: 36px;
+}
+.explain-back {
+  margin-top: 12px;
 }
 .notice {
   font-size: 12px;
@@ -921,28 +1366,243 @@ input[type="checkbox"] {
   text-decoration: underline;
   margin-top: 15px;
 }
-.habitat-detail {
-  padding: 22px 0;
+.habitat-card {
+  display: grid;
+  grid-template-columns: minmax(190px, 280px) minmax(0, 1fr);
+  gap: 26px;
+  padding: 24px 0;
   border-bottom: 1px solid #e6eadd;
+}
+.habitat-card:first-child {
+  padding-top: 0;
+}
+.habitat-visual,
+.habitat-content {
+  min-width: 0;
 }
 .habitat-image {
   display: block;
-  width: min(100%, 280px);
-  max-height: 180px;
-  margin: 0 0 14px;
-  border-radius: 12px;
-  object-fit: contain;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 14px;
+  object-fit: cover;
   background: #f1f3ea;
 }
-.habitat-detail:first-child {
-  padding-top: 0;
-}
-.habitat-detail p svg {
-  display: inline;
-}
-.habitat-detail ul {
+.habitat-image-placeholder {
+  display: grid;
+  place-items: center;
+  color: #77856a;
   font-size: 12px;
-  color: #6c7a5e;
+}
+.habitat-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+.habitat-heading h3 {
+  margin: 4px 0 0;
+  font-size: 25px;
+  color: #33462f;
+}
+.rarity-badge {
+  border: 1px solid #c7d7b5;
+  border-radius: 999px;
+  background: #edf5e5;
+  color: #496440;
+  min-height: 32px;
+  padding: 5px 11px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.habitat-requirements {
+  margin-top: 18px;
+}
+.habitat-section-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: #7c8a6e;
+}
+/* Capped tracks, not 1fr: two requirements should not stretch across 1550px. */
+.habitat-requirement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 300px));
+  justify-content: start;
+  gap: 10px;
+}
+.habitat-requirement {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dde5d3;
+  border-radius: 12px;
+  background: #fafcf6;
+}
+.habitat-item-image,
+.habitat-item-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  background: #eef3e5;
+  object-fit: contain;
+}
+.habitat-item-fallback {
+  display: grid;
+  place-items: center;
+  color: #607451;
+  font-weight: 700;
+}
+.habitat-requirement-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.requirement-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #344a30;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.requirement-name:hover,
+.requirement-name:focus-visible,
+.rarity-badge:focus-visible {
+  color: #1f5d3b;
+  outline: 2px solid #8db57a;
+  outline-offset: 2px;
+}
+.material-status {
+  color: #65745b;
+  font-size: 12px;
+}
+.material-status.enough {
+  color: #377044;
+  font-weight: 700;
+}
+.checklist-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+.checklist-heading .habitat-section-label {
+  margin: 0;
+}
+.checklist-heading > span:last-child {
+  color: #65745b;
+  font-size: 12px;
+}
+.checklist-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #52624b;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.checklist-toggle input,
+.checklist-rows input {
+  accent-color: #527246;
+  width: 17px;
+  height: 17px;
+}
+.habitat-facts {
+  display: grid;
+  gap: 11px;
+  margin: 18px 0;
+}
+.habitat-facts > div {
+  display: grid;
+  grid-template-columns: 75px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+.habitat-facts dt {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #6e7f60;
+  font-size: 12px;
+  font-weight: 700;
+}
+.habitat-facts dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  color: #52624b;
+  font-size: 12px;
+}
+.habitat-facts dd button {
+  border: 0;
+  border-bottom: 1px solid #b9c8aa;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.habitat-facts dd button:hover,
+.habitat-facts dd button:focus-visible {
+  color: #1f5d3b;
+  outline: 2px solid #8db57a;
+  outline-offset: 2px;
+}
+.habitat-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.habitat-actions .source-link {
+  margin: 0;
+}
+/* Same attracted-Pokémon chips as habitat detail, nested in the card column. */
+.habitat-card .habitat-pokemon {
+  margin-top: 12px;
+  margin-bottom: 2px;
+  padding-top: 14px;
+  width: 100%;
+}
+.habitat-card .habitat-pokemon-chip.is-current {
+  background: #f2f7ec;
+}
+@media (max-width: 700px) {
+  .habitat-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .habitat-image {
+    max-height: 220px;
+  }
+}
+@media (max-width: 420px) {
+  .habitat-requirement {
+    grid-template-columns: 38px minmax(0, 1fr);
+  }
+  .habitat-item-image,
+  .habitat-item-fallback {
+    width: 38px;
+    height: 38px;
+  }
+  .checklist-toggle {
+    grid-column: 2;
+  }
+  .habitat-facts > div {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
 }
 .button-row {
   display: flex;
@@ -964,10 +1624,6 @@ hr {
   padding: 100px;
   text-align: center;
   color: #6b7d5a;
-}
-.mobile-menu,
-.mobile-close {
-  display: none;
 }
 .planner-illustration {
   background: #eaf0df;
@@ -1378,6 +2034,37 @@ hr {
   font-weight: 500;
   color: #81926d;
 }
+.checklist-rows li {
+  align-items: center;
+  gap: 12px;
+}
+.checklist-rows li.ready span {
+  color: #527246;
+  text-decoration: line-through;
+}
+.checklist-rows label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 9px;
+  color: #44553b;
+}
+.shopping-list-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid #edf0e5;
+}
+.shopping-list-link div {
+  display: grid;
+  gap: 2px;
+}
+.shopping-list-link span {
+  color: #718064;
+  font-size: 11px;
+}
 .home-detail-intro {
   display: flex;
   gap: 10px;
@@ -1451,6 +2138,16 @@ hr {
 .furnishing .source-link {
   margin-top: 6px;
 }
+.resident-environment {
+  display: flex !important;
+  align-items: center;
+}
+.environment-setup {
+  font-size: 12px;
+}
+.environment-items {
+  margin-top: 8px;
+}
 .care-row {
   border-top: 1px solid #e6ecd9;
   margin-top: 15px;
@@ -1465,6 +2162,17 @@ hr {
 }
 .housemate-cards {
   align-items: stretch;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .housemate-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1300px) {
+  .housemate-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .housemate-card {
   border: 1px solid #e4e8db;
@@ -1570,6 +2278,232 @@ hr {
   flex: 1;
   min-width: 140px;
 }
+.planner-layout.collapsed {
+  grid-template-columns: minmax(0, 1fr);
+}
+.planner-setup-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #dfe5d7;
+  border-radius: 11px;
+  background: #fffefa;
+  padding: 14px 18px;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+.planner-setup-summary span {
+  color: #7f8c72;
+}
+.planner-layout.collapsed .planner-setup-summary {
+  grid-column: 1/-1;
+}
+.roster-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 10px;
+}
+.unhoused-filter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  cursor: pointer;
+}
+.roster-env-counts {
+  font-size: 10px;
+}
+.preset-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.preset-options .chip {
+  min-height: 34px;
+  padding: 6px 12px;
+  font-size: 10.5px;
+}
+.home-estimate {
+  font-size: 11px;
+  font-weight: 600;
+  color: #4f7344;
+  margin: 4px 0 0;
+}
+.result-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 4px 0 6px;
+}
+.result-summary-strip > div {
+  border: 1px solid #e4e9dc;
+  background: #fafbf5;
+  border-radius: 8px;
+  padding: 10px 12px;
+  text-align: center;
+}
+.result-summary-strip strong {
+  display: block;
+  font-size: 18px;
+}
+.result-summary-strip span {
+  font-size: 9px;
+  color: #8b9b78;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.card-disclaimer {
+  font-size: 9px;
+  margin-bottom: 14px;
+}
+.home-group {
+  margin-top: 18px;
+}
+.home-group-heading {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #7f8c72;
+  margin-bottom: 8px;
+}
+.card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0;
+}
+.chip.static {
+  min-height: unset;
+  padding: 3px 9px;
+  font-size: 9px;
+  font-weight: 500;
+}
+/* Any item or material name opens the explain popup, wherever it appears. */
+.item-button {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #b3c2a4;
+  text-underline-offset: 3px;
+}
+.item-button:hover,
+.item-button:focus-visible {
+  color: #2f5538;
+  text-decoration-style: solid;
+  text-decoration-color: #557047;
+}
+.material-line {
+  display: block;
+  line-height: 1.7;
+}
+/* Furniture belongs on the card: the modal is the detail, not the first answer. */
+.card-furnishings {
+  margin: 10px 0 12px;
+  border-top: 1px solid #e6ecd9;
+  padding-top: 10px;
+}
+.card-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-bottom: 7px;
+  color: #4f6248;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-align: left;
+}
+.card-section-heading span {
+  border-radius: 999px;
+  background: #eef2e6;
+  color: #5c6b52;
+  padding: 1px 7px;
+  font-size: 9px;
+}
+.card-section-heading:not(:disabled):hover {
+  color: #2f5538;
+}
+.card-furnishing-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+.card-furnishing-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 3px 8px;
+}
+.card-furnishing-list strong {
+  display: inline;
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.card-furnishing-list small {
+  color: #8a9678;
+  font-size: 10px;
+}
+.env-bright {
+  --env-surface: #f5edca;
+  --env-border: #d8c877;
+}
+.env-dark {
+  --env-surface: #e3dfdc;
+  --env-border: #b6ada6;
+}
+.env-warm {
+  --env-surface: #f5e2d3;
+  --env-border: #dcb28f;
+}
+.env-cool {
+  --env-surface: #e0f0ed;
+  --env-border: #9fcac1;
+}
+.env-humid {
+  --env-surface: #dfecf2;
+  --env-border: #9bc0d0;
+}
+.env-dry {
+  --env-surface: #ede3d0;
+  --env-border: #cbb587;
+}
+.home-list-icon.env-bright,
+.home-list-icon.env-dark,
+.home-list-icon.env-warm,
+.home-list-icon.env-cool,
+.home-list-icon.env-humid,
+.home-list-icon.env-dry {
+  background: var(--env-surface);
+  color: #4f5d50;
+}
+.home-list-icon.env-unknown {
+  background: #eef2e6;
+  color: #7f8c72;
+}
+.housemate-card.env-bright,
+.housemate-card.env-dark,
+.housemate-card.env-warm,
+.housemate-card.env-cool,
+.housemate-card.env-humid,
+.housemate-card.env-dry {
+  border-color: var(--env-border);
+}
 @keyframes appear {
   from {
     opacity: 0;
@@ -1593,21 +2527,12 @@ hr {
   }
 }
 @media (max-width: 1150px) {
-  .sidebar {
-    width: 205px;
-    padding: 30px 15px;
-  }
-  .main-shell {
-    margin-left: 205px;
-  }
   main {
     padding: 28px 28px 0;
   }
   .topbar {
-    padding: 0 28px;
-  }
-  .pokemon-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    padding-left: 28px;
+    padding-right: 28px;
   }
   h1 {
     font-size: 39px;
@@ -1632,30 +2557,17 @@ hr {
   }
 }
 @media (max-width: 850px) {
-  .sidebar {
-    width: 175px;
-    padding: 27px 12px;
-  }
   .brand {
-    font-size: 23px;
+    font-size: 19px;
   }
   .brand small {
-    font-size: 8px;
-    letter-spacing: 2.5px;
+    font-size: 7px;
+    letter-spacing: 2.2px;
   }
-  .sidebar nav a {
-    padding: 12px 9px;
-    font-size: 11px;
-    gap: 8px;
-  }
-  .sidebar-note {
-    padding: 14px 10px;
-  }
-  .sidebar-note a {
-    font-size: 8px;
-  }
-  .main-shell {
-    margin-left: 175px;
+  .app-nav a {
+    padding: 0 9px;
+    font-size: 12px;
+    gap: 6px;
   }
   main {
     padding: 24px 22px 0;
@@ -1686,6 +2598,7 @@ hr {
     font-size: 10px;
   }
   .pokemon-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
   .pokemon-link {
@@ -1736,47 +2649,32 @@ hr {
   }
 }
 @media (max-width: 600px) {
-  .sidebar {
-    visibility: hidden;
-    transform: translateX(-100%);
-    width: 250px;
-    transition: transform 0.2s;
-    box-shadow: 10px 0 50px #23302120;
-  }
-  .sidebar.open {
-    visibility: visible;
-    transform: translateX(0);
-  }
-  .mobile-close {
-    display: grid;
-    position: absolute;
-    top: 24px;
-    right: 10px;
-  }
-  .mobile-menu {
-    display: grid;
-  }
-  .main-shell {
-    margin-left: 0;
-  }
   .topbar {
-    height: 64px;
-    padding: 0 16px;
+    min-height: 48px;
+    padding-left: 16px;
+    padding-right: 16px;
     gap: 8px;
   }
-  .breadcrumb {
-    font-size: 10px;
-    margin-right: auto;
+  .brand-copy {
+    display: none;
+  }
+  .app-nav a {
+    padding: 0 8px;
+    font-size: 12px;
+    gap: 0;
+  }
+  .app-nav a svg,
+  .app-nav a > .nav-count {
+    display: none;
   }
   .notebook-button > span:not(.avatar) {
     display: none;
   }
+  .notebook-button .saved-dot {
+    display: none;
+  }
   .avatar {
     margin: 0;
-  }
-  .mobile-menu {
-    width: 25px;
-    margin-right: 5px;
   }
   main {
     padding: 23px 18px 0;
@@ -1899,6 +2797,12 @@ hr {
   }
   .specialty {
     font-size: 9px;
+    min-height: 26px;
+  }
+  .specialty-icon,
+  .specialty-icon-fallback {
+    width: 24px;
+    height: 24px;
   }
   .found-button {
     font-size: 10px;
@@ -1926,17 +2830,24 @@ hr {
   }
   .detail-hero {
     padding: 22px 18px;
-    gap: 8px;
+    gap: 12px 8px;
   }
   .detail-hero h1 {
     font-size: 33px;
   }
-  .detail-hero > .portrait {
+  .detail-hero .portrait {
     width: 118px;
     height: 140px;
   }
   .detail-hero .eyebrow {
     font-size: 7px;
+  }
+  .detail-hero .found-button {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    right: 8px;
+    bottom: 8px;
   }
   .detail-body {
     padding: 18px;
@@ -1958,11 +2869,41 @@ hr {
     padding: 20px;
     max-height: 92dvh;
   }
+  .modal.sheet {
+    width: 100%;
+    max-width: 100vw;
+    margin: auto 0 0;
+    border-radius: 18px 18px 0 0;
+    max-height: min(88dvh, 100dvh - 24px);
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+  }
   .modal h2 {
     font-size: 23px;
   }
   .modal .tabs {
     gap: 18px;
+  }
+  .term-chip {
+    min-height: 40px;
+    padding: 8px 12px;
+    font-size: 14px;
+  }
+  .explain-items {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .explain-item {
+    min-height: 96px;
+  }
+  .explain-thumb {
+    width: 64px;
+    height: 64px;
+  }
+  .pref-example img {
+    width: 36px;
+    height: 36px;
+  }
+  .requirement-list .term-chip {
+    min-height: 44px;
   }
   .area-options label {
     padding: 13px 10px;
@@ -2051,6 +2992,18 @@ hr {
   .loading {
     padding: 100px 20px;
   }
+  .result-summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .planner-setup-summary {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  .canvas-heading {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -2066,10 +3019,586 @@ hr {
   pointer-events: none;
   user-select: none;
 }
+.habitats-section .region-chips,
+.shopping-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0;
+  align-items: center;
+}
+.shopping-reset-all {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.chip {
+  border: 1px solid #d5dcc9;
+  background: #f7faf2;
+  color: #4f6248;
+  border-radius: 999px;
+  min-height: 44px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.chip.active {
+  background: #e1ead6;
+  border-color: #b8caa8;
+  color: #2f5538;
+}
+.habitat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.habitat-catalog-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #dde5d3;
+  border-radius: 14px;
+  background: #fcfdf9;
+  overflow: hidden;
+}
+.habitat-card-actions {
+  margin-top: auto;
+}
+.habitat-card-link {
+  display: block;
+}
+.habitat-card-visual img,
+.habitat-card-visual .habitat-image-placeholder {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+}
+.habitat-card-body {
+  padding: 14px;
+  position: relative;
+}
+.status-badge {
+  display: inline-block;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.status-none {
+  background: #eceee8;
+  color: #70786c;
+}
+.status-planned {
+  background: #f7efd3;
+  color: #8a6d1d;
+}
+.status-built {
+  background: #e3f0df;
+  color: #356842;
+}
+.status-mixed {
+  background: linear-gradient(90deg, #e3f0df 0 50%, #f7efd3 50% 100%);
+  color: #45633a;
+}
+.habitat-card-actions {
+  display: flex;
+  gap: 10px;
+  padding: 0 14px 14px;
+  flex-wrap: wrap;
+}
+.habitat-card-actions .button {
+  flex: 1;
+  min-height: 44px;
+  padding-inline: 10px;
+  white-space: nowrap;
+}
+/* The detail page had no section rhythm, so the build bar butted against the
+   last supply row and read as another one. */
+.habitat-detail-page > section {
+  margin-top: 34px;
+}
+.habitat-detail-page > section > h2 {
+  margin-bottom: 14px;
+}
+.habitat-detail-hero {
+  display: grid;
+  grid-template-columns: minmax(180px, 320px) minmax(0, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.habitat-build-actions {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  width: fit-content;
+  max-width: 100%;
+  padding: 14px 18px;
+  border: 1px solid #dde5d3;
+  border-radius: 12px;
+  background: #fafcf6;
+}
+/* Found reads as collected, the rest stay recognisable but washed out so the
+   remaining hunt is obvious at a glance. Shared by the detail hero (with names)
+   and the catalog card (icon-only). */
+.habitat-pokemon {
+  width: 100%;
+}
+.habitat-detail-hero .habitat-pokemon {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8d9;
+}
+.habitat-pokemon-label {
+  margin: 0 0 10px;
+  font-size: 12px;
+  color: #6d7c62;
+}
+.habitat-pokemon-label strong {
+  color: #33462f;
+}
+.habitat-pokemon-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.habitat-pokemon-chip {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 72px;
+  max-width: 104px;
+  padding: 8px 6px 7px;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  color: #33462f;
+  text-decoration: none;
+}
+.habitat-pokemon-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #fffefa;
+}
+/* Sprite files carry their own transparent padding, so fill the circle. */
+.habitat-pokemon-art .portrait.small {
+  width: 54px;
+  height: 54px;
+}
+/* Names break on word boundaries only, then clamp: forms like "Tatsugiri
+   Stretchy Form" stay readable instead of splitting mid-word. */
+.habitat-pokemon-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 10.5px;
+  line-height: 1.3;
+  text-align: center;
+}
+.habitat-pokemon-mark {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #fafcf6;
+  border-radius: 50%;
+}
+.habitat-pokemon-chip.is-found .habitat-pokemon-art {
+  box-shadow: 0 0 0 2px #8db57a;
+}
+.habitat-pokemon-chip.is-found .habitat-pokemon-mark {
+  background: #4d7a41;
+  color: #fffefa;
+}
+.habitat-pokemon-chip.is-missing .habitat-pokemon-art {
+  background: #f4f6ef;
+  box-shadow: 0 0 0 2px #dbe2d2;
+}
+/* Desaturated, not silhouetted: the species still has to be identifiable. */
+.habitat-pokemon-chip.is-missing .portrait img {
+  filter: grayscale(1) opacity(0.55);
+}
+.habitat-pokemon-chip.is-missing .habitat-pokemon-name {
+  color: #7c8a6e;
+}
+.habitat-pokemon-chip:hover,
+.habitat-pokemon-chip:focus-visible {
+  border-color: #c7d7b5;
+  background: #f2f7ec;
+  outline: none;
+}
+/* Hovering a missing one previews it in full colour. */
+.habitat-pokemon-chip.is-missing:hover .portrait img,
+.habitat-pokemon-chip.is-missing:focus-visible .portrait img {
+  filter: none;
+}
+.habitat-pokemon-chip:focus-visible {
+  outline: 2px solid #8db57a;
+  outline-offset: 2px;
+}
+/* Sized so a habitat's largest roster (six) still fits one row in the narrowest
+   grid column. */
+.habitat-pokemon.is-compact .habitat-pokemon-list {
+  gap: 5px;
+}
+.habitat-pokemon.is-compact .habitat-pokemon-chip {
+  min-width: 0;
+  max-width: none;
+  padding: 2px;
+}
+.habitat-pokemon.is-compact .habitat-pokemon-art {
+  width: 40px;
+  height: 40px;
+}
+.habitat-pokemon.is-compact .habitat-pokemon-art .portrait.small {
+  width: 38px;
+  height: 38px;
+}
+.habitat-pokemon.is-compact .habitat-pokemon-mark {
+  width: 15px;
+  height: 15px;
+}
+.habitat-card-pokemon {
+  padding: 0 14px 12px;
+}
+.habitat-card-pokemon .habitat-pokemon-label {
+  margin-bottom: 8px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .habitat-pokemon-chip,
+  .habitat-pokemon-chip .portrait img {
+    transition:
+      filter 140ms ease,
+      background-color 140ms ease;
+  }
+}
+.build-record-card {
+  border: 1px solid #dde5d3;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  background: #fafcf6;
+}
+.build-record-head {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.quantity-row {
+  display: grid;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e7ecdf;
+}
+.quantity-copy span {
+  display: block;
+  color: #65745b;
+  font-size: 12px;
+}
+.quantity-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.qty-btn {
+  min-width: 44px;
+  min-height: 44px;
+}
+.qty-input {
+  width: 72px;
+  min-height: 44px;
+  text-align: center;
+  border: 1px solid #d5dcc9;
+  border-radius: 8px;
+  font-size: 16px;
+}
+.qty-action {
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+}
+.checklist-fab {
+  position: fixed;
+  right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom));
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #294f3e;
+  box-shadow: none;
+}
+.checklist-fab:hover,
+.checklist-fab:focus-visible {
+  background: rgba(41, 79, 62, 0.08);
+}
+body:has(dialog[open]) .checklist-fab {
+  visibility: hidden;
+  pointer-events: none;
+}
+.fab-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  background: #e7ac4b;
+  color: #2b3d28;
+  border-radius: 999px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.shopping-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  border: 0;
+  background: rgba(38, 61, 49, 0.28);
+}
+.shopping-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  width: min(420px, 100vw);
+  padding: 20px;
+  overflow: auto;
+  background: #fafcf6;
+  border-left: 1px solid #dde5d3;
+  box-shadow: -8px 0 30px rgba(38, 61, 49, 0.12);
+}
+.shopping-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 12px;
+}
+.combined-row,
+.contribution-block {
+  border: 1px solid #e3ead8;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+.toggle-label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 600px) {
+  .shopping-panel {
+    top: auto;
+    left: 0;
+    width: 100%;
+    max-height: 85vh;
+    border-left: 0;
+    border-top: 1px solid #dde5d3;
+    border-radius: 16px 16px 0 0;
+  }
+  .habitat-detail-hero {
+    grid-template-columns: 1fr;
+  }
+  .habitat-pokemon-list {
+    gap: 6px;
+  }
+  .habitat-pokemon-chip {
+    min-width: 64px;
+    max-width: 92px;
+  }
+}
 @media (max-width: 600px) {
   input,
   select,
   .field select {
     font-size: 16px;
+  }
+}
+
+/* Build and gathering controls share readable, touch-sized rows. */
+.supply-icon {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: #eef2e5;
+  color: #596c46;
+  overflow: hidden;
+}
+.supply-icon img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+.supply-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.supply-label strong {
+  display: block;
+}
+.quantity-copy > span {
+  margin: 0;
+}
+.copy-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.build-region-field {
+  border: 0;
+  margin: 16px 0;
+  padding: 0;
+  min-width: 0;
+}
+.build-region-field legend {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 9px;
+  padding: 0;
+}
+.build-region-chips {
+  margin: 0;
+}
+.build-mini-record {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #dde5d3;
+}
+.build-mini-record span {
+  display: block;
+  font-size: 13px;
+  margin-top: 5px;
+}
+.build-mini-record .button {
+  flex: 0 0 auto;
+  min-height: 44px;
+}
+.build-modal-records {
+  margin: 20px 0;
+}
+.build-modal-form .button.full {
+  margin-top: 8px;
+}
+.build-contributions summary {
+  padding: 12px 0;
+  cursor: pointer;
+  color: #49653d;
+}
+.gathering-hint {
+  margin: 0 0 4px;
+}
+.build-filter-chips {
+  margin: 0 0 12px;
+}
+.shopping-panel {
+  width: min(480px, 100vw);
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+}
+.shopping-panel .text-button,
+.build-record-card .text-button,
+.build-mini-record .text-button {
+  min-height: 44px;
+}
+.modal .field input,
+.modal .field select,
+.modal .qty-input {
+  min-height: 48px;
+}
+.build-record-card .button.secondary {
+  margin-top: 10px;
+  min-height: 44px;
+}
+@media (max-width: 600px) {
+  .shopping-panel {
+    width: 100%;
+    max-height: 90dvh;
+  }
+  .habitat-build-actions {
+    align-items: stretch;
+    flex-direction: column;
+    width: auto;
+  }
+  .habitat-requirement-grid {
+    grid-template-columns: 1fr;
+  }
+  .habitat-build-actions .button-row {
+    flex-wrap: wrap;
+  }
+  .habitat-build-actions .button {
+    flex: 1;
+    min-height: 44px;
+  }
+  .modal {
+    max-height: 90dvh;
+  }
+}
+
+/* Navigation stays immediate; only the arriving content changes opacity. */
+.tab-content {
+  animation: tab-reveal 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes tab-reveal {
+  from {
+    opacity: 0.65;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.tabs button {
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out;
+}
+.app-nav a {
+  transition:
+    color 140ms ease-out,
+    box-shadow 140ms ease-out;
+}
+:where(a, button, input, select):focus-visible {
+  outline: 2px solid #476b3b;
+  outline-offset: 3px;
+}
+::selection {
+  background: #dbe8c7;
+  color: #25351e;
+}
+input {
+  caret-color: #476b3b;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab-content {
+    animation: none;
   }
 }

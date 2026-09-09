@@ -27,7 +27,7 @@ export interface Plan extends PlannerInput {
   createdAt: string;
 }
 
-export const HOUSEMATE_PLAN_VERSION = 1 as const;
+export const HOUSEMATE_PLAN_VERSION = 2 as const;
 export type PreferenceMatch = "shared" | "different" | "unknown";
 export interface RecommendedHome {
   id: string;
@@ -38,11 +38,21 @@ export interface UnresolvedResident {
   id: string;
   reason: string;
 }
+export interface HousematePlanSettings {
+  maxResidents: number;
+  affinityFloor: boolean;
+}
+export const DEFAULT_HOUSEMATE_SETTINGS: HousematePlanSettings = {
+  maxResidents: 4,
+  affinityFloor: false,
+};
 export interface HousematePlan {
   version: typeof HOUSEMATE_PLAN_VERSION;
   roster: string[];
   sourceRoster: string[];
   areaFilter: string | null;
+  settings: HousematePlanSettings;
+  availableKitIds: string[] | null;
   homes: RecommendedHome[];
   unresolved: UnresolvedResident[];
   catalogVersion: string;

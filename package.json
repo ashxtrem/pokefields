@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "tsc -b && vite build && node scripts/build-offline.mjs",
+    "dev": "node scripts/bake-images.mjs && vite --host 0.0.0.0",
+    "images:bake": "node scripts/bake-images.mjs",
+    "build": "tsc -b && node scripts/bake-images.mjs && vite build && node scripts/build-offline.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "data:import": "node scripts/import-data.mjs",

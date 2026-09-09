@@ -1,40 +1,86 @@
+import { useViewState } from "../ui/navigation";
 import { HomeDetail } from "./HomeDetail";
-import { useMemo, useState } from "react";
-import { House, Users, Search } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { House, Users, Search, Pencil, Plus } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { useProgress } from "../progress/context";
+import type { TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
 import {
+  addHome,
   changeHomeKit,
   combinedSupplies,
   convertSpatialPlan,
+  effectiveMaxResidents,
   eligibleKits,
+  environmentSupplies,
+  estimateHomeCount,
   explainGroup,
+  homeEnvironment,
   moveResident,
   planIsStale,
   preferenceLabel,
   recommendHousemates,
   uniqueFoundRoster,
 } from "./recommend";
-import type { HousematePlan, RecommendedHome } from "./types";
-import { Empty, Modal, Portrait, SourceLink } from "../ui/components";
+import type { HousematePlan, HousematePlanSettings, RecommendedHome } from "./types";
+import { ExplainDialog, Empty, ItemButton, Modal, Portrait, SourceLink, TermChip } from "../ui/components";
+import { reconcileHouseQuantityList } from "../shopping/checklists";
+
+const PRESETS: { id: string; label: string; settings: HousematePlanSettings }[] = [
+  { id: "1", label: "Own space (1)", settings: { maxResidents: 1, affinityFloor: false } },
+  { id: "2", label: "Pairs (2)", settings: { maxResidents: 2, affinityFloor: false } },
+  { id: "balanced", label: "Balanced (auto)", settings: { maxResidents: 4, affinityFloor: true } },
+  { id: "4", label: "Full houses (4)", settings: { maxResidents: 4, affinityFloor: false } },
+];
+const DEFAULT_PRESET_ID = "4";
+
+function environmentGroupKey(home: RecommendedHome, catalog: ReturnType<typeof useCatalog>) {
+  return homeEnvironment(home, catalog);
+}
 
 export function PlannerPage() {
   const catalog = useCatalog();
   const { state, update, ready } = useProgress();
-  const [area, setArea] = useState("");
-  const [search, setSearch] = useState("");
-  const [excluded, setExcluded] = useState<string[]>([]);
+  const [area, setArea] = useViewState("planner.area", "");
+  const [search, setSearch] = useViewState("planner.search", "");
+  const [excluded, setExcluded] = useViewState<string[]>(
+    "planner.excluded",
+    [],
+  );
+  const [unhousedOnly, setUnhousedOnly] = useViewState(
+    "planner.unhousedOnly",
+    false,
+  );
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState("");
-  const [detailTab, setDetailTab] = useState("Residents");
-  const [draft, setDraft] = useState<HousematePlan | null>(null);
-  const [convertArea, setConvertArea] = useState("");
+  const [selected, setSelected] = useViewState("planner.selected", "");
+  const [detailTab, setDetailTab] = useViewState(
+    "planner.detailTab",
+    "Residents",
+  );
+  const [draft, setDraft] = useViewState<HousematePlan | null>(
+    "planner.draft",
+    null,
+  );
+  const [convertArea, setConvertArea] = useViewState("planner.convertArea", "");
   const [changeHomeId, setChangeHomeId] = useState("");
+  const [presetId, setPresetId] = useViewState("planner.preset", DEFAULT_PRESET_ID);
+  const [editingKits, setEditingKits] = useState(false);
+  const [addingHome, setAddingHome] = useState(false);
+  const [term, setTerm] = useState<TermRef | null>(null);
+  const workspaceRef = useRef<HTMLDivElement>(null);
+
   const foundIds = uniqueFoundRoster(state.found, area || null);
   const saved = state.housematePlan || null;
+  const [editingSetup, setEditingSetup] = useViewState(
+    "planner.editingSetup",
+    () => !saved,
+  );
   const view = draft || saved;
   const active = view?.homes.find((h) => h.id === selected);
+  const availableKitIds = state.availableKitIds ?? null;
+  const preset = PRESETS.find((p) => p.id === presetId) || PRESETS[PRESETS.length - 1];
+
   const available = useMemo(() => {
     const q = search.trim().toLowerCase();
     return foundIds
@@ -48,11 +94,32 @@ export function PlannerPage() {
             p.number.toLowerCase().includes(q)),
       );
   }, [foundIds, catalog, search]);
+  const housedIds = useMemo(
+    () => new Set(saved?.homes.flatMap((h) => h.residents) ?? []),
+    [saved],
+  );
+  const visibleRoster = unhousedOnly
+    ? available.filter((p) => !housedIds.has(p.id))
+    : available;
+  const environmentCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const p of available) {
+      const key = p.environment || "Unknown";
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [available]);
   const roster = foundIds.filter((id) => !excluded.includes(id));
   const stale = saved ? planIsStale(saved, state.found, catalog) : false;
   const legacyAreas = Object.keys(state.plans).sort();
+  const estimate = estimateHomeCount(roster, catalog, preset.settings, availableKitIds);
+  const effectiveCap = effectiveMaxResidents(preset.settings, catalog, availableKitIds);
   const save = (next: HousematePlan) =>
-    update((s) => ({ ...s, housematePlan: next }));
+    update((s) => ({
+      ...s,
+      housematePlan: next,
+      houseShopping: reconcileHouseQuantityList(s.houseShopping, next, catalog),
+    }));
   const persistView = (next: HousematePlan) => {
     if (draft) setDraft(next);
     else save(next);
@@ -70,17 +137,42 @@ export function PlannerPage() {
         areaFilter: area || null,
       },
       catalog,
+      undefined,
+      { settings: preset.settings, availableKitIds },
     );
     if (saved) {
       setDraft(next);
       setSelected("");
-      return;
+    } else {
+      save(next);
+      setSelected("");
     }
-    save(next);
-    setSelected("");
+    setEditingSetup(false);
+    requestAnimationFrame(() =>
+      workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+    );
   };
   const supplies = view ? combinedSupplies(view, catalog) : null;
+  const environmentGuidanceRows = view ? environmentSupplies(view, catalog) : [];
+  const houseShopping =
+    saved && !draft
+      ? reconcileHouseQuantityList(state.houseShopping, saved, catalog)
+      : null;
   const changing = view?.homes.find((h) => h.id === changeHomeId);
+  const housedCount = view ? view.homes.reduce((s, h) => s + h.residents.length, 0) : 0;
+  const groupedHomes = useMemo(() => {
+    if (!view) return [];
+    const groups = new Map<string, RecommendedHome[]>();
+    for (const home of view.homes) {
+      const key = environmentGroupKey(home, catalog) || (home.residents.length ? "Mixed or unrecorded" : "Empty");
+      const list = groups.get(key) || [];
+      list.push(home);
+      groups.set(key, list);
+    }
+    return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [view, catalog]);
+  const showSetup = !view || editingSetup;
+
   return (
     <>
       <div className="planner-title">
@@ -108,129 +200,238 @@ export function PlannerPage() {
           housemates. <a href="#/dex">Open Pokédex →</a>
         </Empty>
       ) : (
-        <div className="planner-layout">
-          <aside className="planner-setup">
-            <div className="setup-heading">
-              <Users size={19} />
-              <h2>Select Pokémon</h2>
-            </div>
-            <label className="field">
-              <span>Area filter</span>
-              <select
-                aria-label="Area filter"
-                value={area}
-                onChange={(e) => {
-                  setArea(e.target.value);
-                  setExcluded([]);
-                  setError("");
-                }}
-              >
-                <option value="">All areas with found Pokémon</option>
-                {catalog.areas.map((a) => (
-                  <option key={a}>{a}</option>
-                ))}
-              </select>
-              <small>
-                Filters discovery records. It does not assert where a Pokémon
-                can live.
-              </small>
-            </label>
-            <label className="field">
-              <span>Search</span>
-              <span className="search-box roster-search">
-                <Search size={16} />
-                <input
-                  aria-label="Search found Pokémon"
-                  placeholder="Name or number"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-              </span>
-            </label>
-            <div className="field">
-              <span>
-                Selected <small>{roster.length}</small>
-              </span>
-              {available.length ? (
-                <div className="roster-options">
-                  {available.map((p) => (
-                    <label
-                      key={p.id}
-                      className={excluded.includes(p.id) ? "excluded" : ""}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!excluded.includes(p.id)}
-                        onChange={() =>
-                          setExcluded((x) =>
-                            x.includes(p.id)
-                              ? x.filter((i) => i !== p.id)
-                              : [...x, p.id],
-                          )
-                        }
-                      />
-                      <Portrait pokemon={p} small />
-                      <span>{p.name}</span>
-                    </label>
-                  ))}
-                </div>
-              ) : (
-                <p className="muted">
-                  {area
-                    ? "No found Pokémon match this area filter."
-                    : "No found Pokémon match this search."}{" "}
-                  <a href="#/dex">Open Pokédex →</a>
-                </p>
-              )}
-            </div>
-            {!!legacyAreas.length && (
-              <div className="field">
-                <span>Existing layout</span>
-                <small>
-                  Saved map layouts are kept. Convert residents and home choices
-                  once; the original stays.
-                </small>
+        <div className={`planner-layout ${showSetup ? "" : "collapsed"}`}>
+          {showSetup ? (
+            <aside className="planner-setup">
+              <div className="setup-heading">
+                <Users size={19} />
+                <h2>Select Pokémon</h2>
+              </div>
+              <label className="field">
+                <span>Area filter</span>
                 <select
-                  aria-label="Convert existing plan"
-                  value={convertArea}
-                  onChange={(e) => setConvertArea(e.target.value)}
+                  aria-label="Area filter"
+                  value={area}
+                  onChange={(e) => {
+                    setArea(e.target.value);
+                    setExcluded([]);
+                    setError("");
+                  }}
                 >
-                  <option value="">Choose an area layout</option>
-                  {legacyAreas.map((a) => (
+                  <option value="">All areas with found Pokémon</option>
+                  {catalog.areas.map((a) => (
                     <option key={a}>{a}</option>
                   ))}
                 </select>
+                <small>
+                  Filters discovery records. It does not assert where a Pokémon
+                  can live.
+                </small>
+              </label>
+              <label className="field">
+                <span>Search</span>
+                <span className="search-box roster-search">
+                  <Search size={16} />
+                  <input
+                    aria-label="Search found Pokémon"
+                    placeholder="Name or number"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                </span>
+              </label>
+              <div className="field">
+                <span>
+                  Selected <small>{roster.length}</small>
+                </span>
+                <div className="roster-toolbar">
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      setExcluded((x) =>
+                        x.filter((id) => !visibleRoster.some((p) => p.id === id)),
+                      )
+                    }
+                  >
+                    Select all
+                  </button>
+                  <button
+                    type="button"
+                    className="text-button"
+                    onClick={() =>
+                      setExcluded((x) => [
+                        ...new Set([...x, ...visibleRoster.map((p) => p.id)]),
+                      ])
+                    }
+                  >
+                    Select none
+                  </button>
+                  <label className="unhoused-filter">
+                    <input
+                      type="checkbox"
+                      checked={unhousedOnly}
+                      onChange={(e) => setUnhousedOnly(e.target.checked)}
+                    />
+                    Not yet housed
+                  </label>
+                </div>
+                {!!environmentCounts.length && (
+                  <p className="muted roster-env-counts">
+                    {environmentCounts
+                      .map(([env, count]) => `${env} ${count}`)
+                      .join(" · ")}
+                  </p>
+                )}
+                {visibleRoster.length ? (
+                  <div className="roster-options">
+                    {visibleRoster.map((p) => (
+                      <label
+                        key={p.id}
+                        className={excluded.includes(p.id) ? "excluded" : ""}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!excluded.includes(p.id)}
+                          onChange={() =>
+                            setExcluded((x) =>
+                              x.includes(p.id)
+                                ? x.filter((i) => i !== p.id)
+                                : [...x, p.id],
+                            )
+                          }
+                        />
+                        <Portrait pokemon={p} small />
+                        <span>{p.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="muted">
+                    {unhousedOnly
+                      ? "Every found Pokémon matching this filter already has a home."
+                      : area
+                        ? "No found Pokémon match this area filter."
+                        : "No found Pokémon match this search."}{" "}
+                    <a href="#/dex">Open Pokédex →</a>
+                  </p>
+                )}
+              </div>
+              <div className="field">
+                <span>Household size</span>
+                <div className="preset-options">
+                  {PRESETS.map((p) => (
+                    <button
+                      type="button"
+                      key={p.id}
+                      className={presetId === p.id ? "chip active" : "chip"}
+                      onClick={() => setPresetId(p.id)}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <small>
+                  {preset.settings.affinityFloor
+                    ? "Balanced stops a group early rather than filling a bed with a resident sharing no favorite category."
+                    : "The cap is an upper bound; a smaller group stays smaller."}{" "}
+                  {effectiveCap < preset.settings.maxResidents
+                    ? `Effective cap is ${effectiveCap}: your available kits don't support ${preset.settings.maxResidents}.`
+                    : ""}
+                </small>
+                <p className="home-estimate">
+                  → about {estimate} {estimate === 1 ? "home" : "homes"}
+                </p>
+              </div>
+              <div className="field">
+                <span>Available kits</span>
+                <small>
+                  Limit suggestions to kits you have actually unlocked.
+                  Defaults to every kit in the catalog.
+                </small>
                 <button
+                  type="button"
                   className="button secondary"
-                  disabled={!convertArea || !ready}
-                  onClick={() => {
-                    const spatial = state.plans[convertArea];
-                    if (!spatial) return;
-                    const next = convertSpatialPlan(spatial, catalog);
-                    if (saved) setDraft(next);
-                    else save(next);
-                    setConvertArea("");
-                  }}
+                  onClick={() => setEditingKits(true)}
                 >
-                  Convert residents
+                  {availableKitIds
+                    ? `${availableKitIds.length} of ${catalog.kits.length} kits selected`
+                    : `All ${catalog.kits.length} kits available`}
                 </button>
               </div>
-            )}
-            <button
-              className="button full"
-              disabled={!ready || !roster.length}
-              onClick={generate}
-            >
-              Suggest housemates
-            </button>
-            {saved && (
-              <small className="muted">
-                Generating again keeps this plan until you apply the new
-                suggestions.
-              </small>
-            )}
-          </aside>
-          <section className="planner-workspace">
+              {!!legacyAreas.length && (
+                <div className="field">
+                  <span>Existing layout</span>
+                  <small>
+                    Saved map layouts are kept. Convert residents and home choices
+                    once; the original stays.
+                  </small>
+                  <select
+                    aria-label="Convert existing plan"
+                    value={convertArea}
+                    onChange={(e) => setConvertArea(e.target.value)}
+                  >
+                    <option value="">Choose an area layout</option>
+                    {legacyAreas.map((a) => (
+                      <option key={a}>{a}</option>
+                    ))}
+                  </select>
+                  <button
+                    className="button secondary"
+                    disabled={!convertArea || !ready}
+                    onClick={() => {
+                      const spatial = state.plans[convertArea];
+                      if (!spatial) return;
+                      const next = convertSpatialPlan(spatial, catalog);
+                      if (saved) setDraft(next);
+                      else save(next);
+                      setConvertArea("");
+                    }}
+                  >
+                    Convert residents
+                  </button>
+                </div>
+              )}
+              <button
+                className="button full"
+                disabled={!ready || !roster.length}
+                onClick={generate}
+              >
+                Suggest housemates
+              </button>
+              {saved && (
+                <small className="muted">
+                  Generating again keeps this plan until you apply the new
+                  suggestions.
+                </small>
+              )}
+              {view && (
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => setEditingSetup(false)}
+                >
+                  Hide setup
+                </button>
+              )}
+            </aside>
+          ) : (
+            <div className="planner-setup-summary">
+              <div>
+                <strong>{view!.roster.length} selected</strong>
+                <span> · {view!.areaFilter || "All found Pokémon"}</span>
+                <span> · {preset.label}</span>
+              </div>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => setEditingSetup(true)}
+              >
+                <Pencil size={14} /> Edit selection
+              </button>
+            </div>
+          )}
+          <section className="planner-workspace" ref={workspaceRef}>
             {error && (
               <div className="notice error" role="alert">
                 {error}
@@ -282,31 +483,59 @@ export function PlannerPage() {
                       {view.homes.length}{" "}
                       {view.homes.length === 1 ? "home" : "homes"}
                     </h2>
-                    <p>
-                      {view.roster.length} selected ·{" "}
-                      {view.homes.reduce((s, h) => s + h.residents.length, 0)}{" "}
-                      housed
-                      {view.unresolved.length
-                        ? ` · ${view.unresolved.length} need review`
-                        : ""}
-                    </p>
+                  </div>
+                  {!draft && (
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => setAddingHome(true)}
+                    >
+                      <Plus size={15} /> Add a home
+                    </button>
+                  )}
+                </div>
+                <div className="result-summary-strip">
+                  <div>
+                    <strong>{view.homes.length}</strong>
+                    <span>{view.homes.length === 1 ? "home" : "homes"}</span>
+                  </div>
+                  <div>
+                    <strong>{housedCount}</strong>
+                    <span>housed</span>
+                  </div>
+                  <div>
+                    <strong>{view.unresolved.length}</strong>
+                    <span>needs review</span>
+                  </div>
+                  <div>
+                    <strong>{supplies ? supplies.construction.length : 0}</strong>
+                    <span>material types</span>
                   </div>
                 </div>
-                <div className="home-list housemate-cards">
-                  {view.homes.map((home, i) => (
-                    <HomeCard
-                      key={home.id}
-                      home={home}
-                      index={i}
-                      preview={!!draft}
-                      onOpen={(tab) => {
-                        setDetailTab(tab);
-                        setSelected(home.id);
-                      }}
-                      onChangeHome={() => setChangeHomeId(home.id)}
-                    />
-                  ))}
-                </div>
+                <p className="muted card-disclaimer">
+                  Suggested for capacity, not confirmed affordability or unlock
+                  availability.
+                </p>
+                {groupedHomes.map(([groupKey, homes]) => (
+                  <section className="home-group" key={groupKey}>
+                    <h3 className="home-group-heading">{groupKey}</h3>
+                    <div className="home-list housemate-cards">
+                      {homes.map((home) => (
+                        <HomeCard
+                          key={home.id}
+                          home={home}
+                          preview={!!draft}
+                          onOpen={(tab) => {
+                            setDetailTab(tab);
+                            setSelected(home.id);
+                          }}
+                          onChangeHome={() => setChangeHomeId(home.id)}
+                          onExplain={setTerm}
+                        />
+                      ))}
+                    </div>
+                  </section>
+                ))}
                 {!!view.unresolved.length && (
                   <div className="notice">
                     <strong>Needs review</strong>
@@ -368,29 +597,26 @@ export function PlannerPage() {
                 {supplies && (
                   <details className="supplies">
                     <summary>
-                      Combined supplies{" "}
+                      House shopping checklist{" "}
                       <span>
                         {supplies.construction.length +
-                          supplies.furnishings.length}{" "}
+                          supplies.furnishings.length +
+                          environmentGuidanceRows.length}{" "}
                         listed
                       </span>
                     </summary>
                     <p className="muted">
-                      Required materials are construction totals. Suggested
-                      furnishings are listed separately and counted once per
-                      home. Food is ongoing care on each home, not a material
-                      total. Quantities are not an inventory check.
+                      Use the House list button to track gathered quantities.
+                      Construction totals, furnishing suggestions and
+                      environment guidance remain separate. Food and care are
+                      not shopping progress.
                     </p>
                     <h3>Required materials</h3>
                     {supplies.construction.length ? (
-                      <ul className="supply-list">
-                        {supplies.construction.map((m) => (
-                          <li key={m.name}>
-                            <span>{m.name}</span>
-                            <strong>× {m.quantity}</strong>
-                          </li>
-                        ))}
-                      </ul>
+                      <HouseQuantityPreview
+                        rows={houseShopping?.construction || []}
+                        onExplain={setTerm}
+                      />
                     ) : (
                       <p className="notice">
                         Construction quantities are not recorded for the
@@ -399,17 +625,28 @@ export function PlannerPage() {
                     )}
                     <h3>Suggested furnishings</h3>
                     {supplies.furnishings.length ? (
-                      <ul className="supply-list">
-                        {supplies.furnishings.map((m) => (
-                          <li key={m.name}>
-                            <span>{m.name}</span>
-                            <strong>× {m.quantity}</strong>
-                          </li>
-                        ))}
-                      </ul>
+                      <HouseQuantityPreview
+                        rows={houseShopping?.furnishings || []}
+                        onExplain={setTerm}
+                      />
                     ) : (
                       <p className="notice">
                         No furnishing suggestions for the current groups.
+                      </p>
+                    )}
+                    <h3>Environment guidance</h3>
+                    <p className="muted">
+                      App guidance for producing each home's recorded ideal
+                      environment, not a recorded requirement.
+                    </p>
+                    {environmentGuidanceRows.length ? (
+                      <HouseQuantityPreview
+                        rows={houseShopping?.environment || []}
+                        onExplain={setTerm}
+                      />
+                    ) : (
+                      <p className="notice">
+                        No home currently has one shared recorded environment.
                       </p>
                     )}
                   </details>
@@ -438,10 +675,11 @@ export function PlannerPage() {
       )}
       {active && view && (
         <HomeDetail
-          key={`${active.id}-${detailTab}`}
+          key={active.id}
           home={active}
           plan={view}
           tab={detailTab}
+          onTabChange={setDetailTab}
           onClose={() => setSelected("")}
           onSave={persistView}
         />
@@ -450,6 +688,7 @@ export function PlannerPage() {
         <ChangeHomeModal
           home={changing}
           plan={view}
+          availableKitIds={availableKitIds}
           onClose={() => setChangeHomeId("")}
           onSave={(next) => {
             persistView(next);
@@ -457,22 +696,77 @@ export function PlannerPage() {
           }}
         />
       )}
+      {editingKits && (
+        <AvailableKitsModal
+          selected={availableKitIds}
+          onClose={() => setEditingKits(false)}
+          onSave={(next) => {
+            update((s) => ({ ...s, availableKitIds: next }));
+            setEditingKits(false);
+          }}
+        />
+      )}
+      {addingHome && view && (
+        <AddHomeModal
+          availableKitIds={availableKitIds}
+          onClose={() => setAddingHome(false)}
+          onSave={(next) => {
+            persistView(next);
+            setAddingHome(false);
+          }}
+          plan={view}
+        />
+      )}
+      {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
     </>
   );
 }
 
+function HouseQuantityPreview({
+  rows,
+  onExplain,
+}: {
+  rows: { label: string; quantity: number; gathered: number }[];
+  onExplain: (term: TermRef) => void;
+}) {
+  return (
+    <ul className="supply-list checklist-rows">
+      {rows.map((row) => (
+        <li
+          key={row.label + row.quantity}
+          className={row.gathered >= row.quantity ? "ready" : ""}
+        >
+          <ItemButton name={row.label} onOpen={onExplain} />
+          <strong>
+            {row.gathered} / {row.quantity}
+          </strong>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const ENVIRONMENT_CLASS: Record<string, string> = {
+  Bright: "env-bright",
+  Dark: "env-dark",
+  Warm: "env-warm",
+  Cool: "env-cool",
+  Humid: "env-humid",
+  Dry: "env-dry",
+};
+
 function HomeCard({
   home,
-  index,
   preview,
   onOpen,
   onChangeHome,
+  onExplain,
 }: {
   home: RecommendedHome;
-  index: number;
   preview: boolean;
   onOpen: (tab: string) => void;
   onChangeHome: () => void;
+  onExplain: (term: TermRef) => void;
 }) {
   const catalog = useCatalog();
   const kit = catalog.kits.find((k) => k.id === home.kitId);
@@ -481,9 +775,11 @@ function HomeCard({
     .filter(Boolean);
   const explanation = explainGroup(residents);
   const setup = furnishings(residents, catalog.items);
+  const env = homeEnvironment(home, catalog);
+  const envClass = env ? ENVIRONMENT_CLASS[env] || "" : "";
   return (
-    <article className="housemate-card">
-      <span className={`home-list-icon home-color-${index % 4}`}>
+    <article className={`housemate-card ${envClass}`}>
+      <span className={`home-list-icon ${envClass || "env-unknown"}`}>
         <House size={22} />
       </span>
       <div className="housemate-card-body">
@@ -495,22 +791,60 @@ function HomeCard({
         <strong>
           {residents.map((p) => p.name).join(", ") || "No residents"}
         </strong>
+        <div className="card-badges">
+          {env && (
+            <TermChip
+              term={{ kind: "environment", value: env }}
+              onOpen={onExplain}
+            >
+              {env}
+            </TermChip>
+          )}
+          {kit && (
+            <span className="chip static">
+              {kit.name} · {residents.length}/{kit.capacity}
+            </span>
+          )}
+        </div>
         <p className={`match-label match-${explanation.match}`}>
           {preferenceLabel(explanation.match)}
         </p>
-        <p>{explanation.lines[0]}</p>
-        {explanation.lines.slice(1).map((line) => (
-          <small key={line}>{line}</small>
-        ))}
-        <p>
-          {kit
-            ? `${kit.name} · ${residents.length}/${kit.capacity} residents · ${kit.width} × ${kit.depth} blocks`
-            : "Suggested home is no longer in the catalog"}
-        </p>
-        <p className="muted">
-          Suggested for capacity, not confirmed affordability or unlock
-          availability.
-        </p>
+        <div className="card-furnishings">
+          <button
+            type="button"
+            className="card-section-heading"
+            disabled={preview}
+            onClick={() => onOpen("Furnishings")}
+          >
+            Furnishings to place <span>{setup.selected.length}</span>
+          </button>
+          {setup.selected.length ? (
+            <ul className="card-furnishing-list">
+              {setup.selected.map(({ item, categories }) => (
+                <li key={item.id}>
+                  <strong>
+                    1 ×{" "}
+                    <ItemButton
+                      name={item.name}
+                      id={item.id}
+                      onOpen={onExplain}
+                    />
+                  </strong>
+                  <small>{categories.join(" · ")}</small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <small className="muted">
+              No furnishing item is recorded for this group's favorites.
+            </small>
+          )}
+          {!!setup.uncovered.length && (
+            <small className="muted">
+              Still needs an item reference: {setup.uncovered.join(", ")}.
+            </small>
+          )}
+        </div>
         <div className="button-row">
           <button
             className="button secondary"
@@ -527,64 +861,6 @@ function HomeCard({
             Change home
           </button>
         </div>
-        <details className="what-you-need">
-          <summary>What you need</summary>
-          <h3>Home construction</h3>
-          {kit ? (
-            <>
-              <p>
-                {kit.name}: {kit.width} × {kit.depth} × {kit.height} blocks ·{" "}
-                {kit.helpers || "helpers not recorded"} helpers
-                {kit.specialties.length
-                  ? ` (${kit.specialties.join(", ")})`
-                  : ""}{" "}
-                · {kit.buildTime || "build time not recorded"}
-              </p>
-              {kit.materials.length ? (
-                <ul className="supply-list">
-                  {kit.materials.map((m) => (
-                    <li key={m.name}>
-                      <span>{m.name}</span>
-                      <strong>× {m.quantity}</strong>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="notice">Materials are not recorded.</p>
-              )}
-              <SourceLink url={kit.source} />
-            </>
-          ) : (
-            <p className="notice">Construction details are unavailable.</p>
-          )}
-          <h3>Furnishing suggestions</h3>
-          {setup.selected.length ? (
-            setup.selected.map(({ item, benefits, categories }) => (
-              <p key={item.id}>
-                1 × {item.name} — {categories.join(", ")} for{" "}
-                {benefits
-                  .map((id) => catalog.pokemon.find((p) => p.id === id)!.name)
-                  .join(", ")}
-              </p>
-            ))
-          ) : (
-            <p className="notice">
-              No furnishing item is recorded for this group's favorites.
-            </p>
-          )}
-          {!!setup.uncovered.length && (
-            <p className="notice">
-              Still needs an item reference: {setup.uncovered.join(", ")}.
-            </p>
-          )}
-          <h3>Individual care</h3>
-          {residents.map((p) => (
-            <p key={p.id}>
-              {p.name}: environment {p.environment || "unknown"}; food{" "}
-              {p.food || "unknown"}
-            </p>
-          ))}
-        </details>
       </div>
     </article>
   );
@@ -593,18 +869,21 @@ function HomeCard({
 function ChangeHomeModal({
   home,
   plan,
+  availableKitIds,
   onClose,
   onSave,
 }: {
   home: RecommendedHome;
   plan: HousematePlan;
+  availableKitIds: string[] | null;
   onClose: () => void;
   onSave: (p: HousematePlan) => void;
 }) {
   const catalog = useCatalog();
   const [error, setError] = useState("");
+  const [term, setTerm] = useState<TermRef | null>(null);
   const kit = catalog.kits.find((k) => k.id === home.kitId);
-  const options = eligibleKits(home.residents.length, catalog);
+  const options = eligibleKits(home.residents.length, catalog, availableKitIds);
   return (
     <Modal title="Change home" onClose={onClose} wide>
       <p className="muted">
@@ -639,16 +918,19 @@ function ChangeHomeModal({
                 residents · {option.buildTime || "build time not recorded"} ·{" "}
                 {option.helpers || "helpers not recorded"} helpers
               </small>
-              {option.materials.length ? (
-                <small>
-                  {option.materials
-                    .map((m) => `${m.quantity} × ${m.name}`)
-                    .join(", ")}
-                </small>
-              ) : (
-                <small>Materials not recorded</small>
-              )}
             </button>
+            {option.materials.length ? (
+              <small className="material-line">
+                {option.materials.map((m, i) => (
+                  <span key={m.name}>
+                    {i ? ", " : ""}
+                    {m.quantity} × <ItemButton name={m.name} onOpen={setTerm} />
+                  </span>
+                ))}
+              </small>
+            ) : (
+              <small>Materials not recorded</small>
+            )}
             {option.source && <SourceLink url={option.source} />}
           </div>
         ))}
@@ -657,6 +939,125 @@ function ChangeHomeModal({
         <p className="notice">
           No supported home has enough capacity for this group.
         </p>
+      )}
+      {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
+    </Modal>
+  );
+}
+
+function AvailableKitsModal({
+  selected,
+  onClose,
+  onSave,
+}: {
+  selected: string[] | null;
+  onClose: () => void;
+  onSave: (next: string[] | null) => void;
+}) {
+  const catalog = useCatalog();
+  const [draft, setDraft] = useState<string[]>(
+    selected ?? catalog.kits.map((k) => k.id),
+  );
+  const allSelected = draft.length === catalog.kits.length;
+  return (
+    <Modal title="Available kits" onClose={onClose} wide>
+      <p className="muted">
+        Limit housemate suggestions to kits you have actually unlocked. This
+        does not affect the Change home options on an existing group.
+      </p>
+      <div className="button-row">
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => setDraft(catalog.kits.map((k) => k.id))}
+        >
+          Select all
+        </button>
+        <button type="button" className="text-button" onClick={() => setDraft([])}>
+          Select none
+        </button>
+      </div>
+      <div className="kit-options">
+        {catalog.kits.map((kit) => (
+          <label className="kit-option" key={kit.id}>
+            <input
+              type="checkbox"
+              checked={draft.includes(kit.id)}
+              onChange={() =>
+                setDraft((d) =>
+                  d.includes(kit.id)
+                    ? d.filter((id) => id !== kit.id)
+                    : [...d, kit.id],
+                )
+              }
+            />
+            <strong>{kit.name}</strong>
+            <small>{kit.capacity} residents</small>
+          </label>
+        ))}
+      </div>
+      <div className="button-row">
+        <button
+          className="button"
+          onClick={() => onSave(allSelected ? null : draft)}
+        >
+          Save
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+function AddHomeModal({
+  plan,
+  availableKitIds,
+  onClose,
+  onSave,
+}: {
+  plan: HousematePlan;
+  availableKitIds: string[] | null;
+  onClose: () => void;
+  onSave: (p: HousematePlan) => void;
+}) {
+  const catalog = useCatalog();
+  const [error, setError] = useState("");
+  const options = eligibleKits(1, catalog, availableKitIds);
+  return (
+    <Modal title="Add a home" onClose={onClose} wide>
+      <p className="muted">
+        Creates an empty group you can fill by hand from the resident lists.
+        It is dropped automatically if it ends up empty again.
+      </p>
+      {error && (
+        <p className="notice error" role="alert">
+          {error}
+        </p>
+      )}
+      <div className="kit-options">
+        {options.map((option) => (
+          <div className="kit-option" key={option.id}>
+            <button
+              type="button"
+              className="kit-choose"
+              onClick={() => {
+                try {
+                  onSave(addHome(plan, option.id, catalog));
+                } catch (e) {
+                  setError((e as Error).message);
+                }
+              }}
+            >
+              <strong>{option.name}</strong>
+              <small>
+                {option.width} × {option.depth} blocks · {option.capacity}{" "}
+                residents
+              </small>
+            </button>
+          </div>
+        ))}
+      </div>
+      {!options.length && (
+        <p className="notice">No supported home is currently available.</p>
       )}
     </Modal>
   );

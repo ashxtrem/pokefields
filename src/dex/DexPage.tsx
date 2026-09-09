@@ -1,4 +1,8 @@
-import { useMemo, useState } from "react";
+import { useViewState } from "../ui/navigation";
+import { SupplyIcon } from "../shopping/SupplyIcon";
+import { BuildModal } from "../habitats/BuildModal";
+import { HabitatPokemonChips } from "../habitats/HabitatPokemon";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -9,21 +13,50 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useCatalog } from "../catalog/context";
-import { DEX_NAMES, type Dex, type Pokemon } from "../catalog/types";
+import {
+  DEX_NAMES,
+  type Catalog,
+  type Habitat,
+  type Pokemon,
+} from "../catalog/types";
+import { getCanonicalHabitat } from "../habitats/catalog";
 import { useProgress } from "../progress/context";
 import {
   AreaMarks,
   Empty,
+  ExplainDialog,
   Modal,
   Portrait,
   SourceLink,
+  SpecialtyIcon,
+  TermChip,
 } from "../ui/components";
 import { defaultFilters, filterPokemon, type Filters } from "./search";
+import {
+  explainTerm,
+  foodEntries,
+  habitatImageUrl,
+  itemImageUrl,
+  parseRequirement,
+  pokemonArtUrl,
+  type TermRef,
+} from "./glossary";
+import { habitatDetailHref } from "../habitats/search";
+import { recordsForHabitat, buildBadges } from "../habitats/builds";
+
+function typeClass(type?: string) {
+  const slug = type?.trim().toLowerCase();
+  return slug ? `type-${slug}` : "";
+}
+
 export function DexPage() {
   const catalog = useCatalog();
   const { state } = useProgress();
-  const [filters, setFilters] = useState<Filters>(defaultFilters);
-  const [expanded, setExpanded] = useState(false);
+  const [filters, setFilters] = useViewState<Filters>(
+    "dex.filters",
+    defaultFilters,
+  );
+  const [expanded, setExpanded] = useViewState("dex.expanded", false);
   const [mark, setMark] = useState<Pokemon | null>(null);
   const update = (key: keyof Filters, value: string) =>
     setFilters((f) => ({ ...f, [key]: value }));
@@ -72,10 +105,7 @@ export function DexPage() {
         <div className="hero-garden" aria-hidden="true">
           <div className="garden-orbit" />
           <span className="garden-spark">✧</span>
-          <img
-            src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/1.png"
-            alt=""
-          />
+          <img src={pokemonArtUrl(1)} alt="" decoding="async" />
           <span className="garden-note">Room to grow 🌱</span>
         </div>
       </div>
@@ -196,11 +226,10 @@ export function DexPage() {
           </Empty>
         ) : (
           <div className="pokemon-grid">
-            {results.map((p, i) => (
+            {results.map((p) => (
               <article
-                className={`pokemon-card type-${p.types[0]?.toLowerCase()} ${state.found[p.id]?.length ? "discovered" : ""}`}
+                className={`pokemon-card ${typeClass(p.types[0])} ${state.found[p.id]?.length ? "discovered" : ""}`}
                 key={p.id}
-                style={{ animationDelay: `${Math.min(i, 12) * 20}ms` }}
               >
                 <a className="pokemon-link" href={`#/pokemon/${p.id}`}>
                   <div className="card-top">
@@ -223,17 +252,25 @@ export function DexPage() {
                   <h3>{p.name}</h3>
                   <div className="type-tags">
                     {p.types.map((t) => (
-                      <span
-                        key={t}
-                        className={`type-pill type-${t.toLowerCase()}`}
-                      >
+                      <span key={t} className={`type-pill ${typeClass(t)}`}>
                         {t}
                       </span>
                     ))}
                   </div>
-                  <p className="specialty">
+                  <p
+                    className="specialty"
+                    aria-label={
+                      p.specialties.length
+                        ? `Specialties: ${p.specialties.join(", ")}`
+                        : "Specialty not recorded"
+                    }
+                  >
                     {p.specialties.length
-                      ? p.specialties.join(" · ")
+                      ? p.specialties.map((s) => (
+                          <span key={s} className="specialty-mark" title={s}>
+                            <SpecialtyIcon name={s} />
+                          </span>
+                        ))
                       : "Specialty not recorded"}
                   </p>
                 </a>
@@ -271,126 +308,147 @@ export function DexPage() {
     </>
   );
 }
+const DETAIL_TABS = ["Habitats & Spawns", "Preferences"] as const;
+
+function PrefExamples({
+  items,
+  onOpen,
+}: {
+  items: { id: string; name: string }[];
+  onOpen: (term: TermRef) => void;
+}) {
+  if (!items.length) return <span>Example items not recorded</span>;
+  return (
+    <span className="pref-examples">
+      {items.map((item) => (
+        <button
+          type="button"
+          className="pref-example"
+          key={item.id}
+          onClick={() =>
+            onOpen({ kind: "item", value: item.name, id: item.id })
+          }
+          aria-haspopup="dialog"
+          aria-label={item.name}
+        >
+          <img
+            src={itemImageUrl(item.id)}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+          {item.name}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 export function PokemonDetail({ id }: { id: string }) {
   const catalog = useCatalog();
+  const { state, ready } = useProgress();
   const p = catalog.pokemon.find((p) => p.id === id);
-  const [tab, setTab] = useState("Overview");
+  const [tab, setTab] = useViewState<string>(
+    `pokemon.${id}.tab`,
+    "Habitats & Spawns",
+  );
+  const [planHabitat, setPlanHabitat] = useState<Habitat | null>(null);
+  const [term, setTerm] = useState<TermRef | null>(null);
+  const [marking, setMarking] = useState(false);
   if (!p)
     return (
       <Empty title="That entry isn’t in this notebook">
         <a href="#/dex">Return to the Pokédex</a>
       </Empty>
     );
+  const open = (next: TermRef) => setTerm(next);
+  const foods = foodEntries(p.food);
+  const shownTab = DETAIL_TABS.includes(tab as (typeof DETAIL_TABS)[number])
+    ? tab
+    : "Habitats & Spawns";
+  const foundAreas = state.found[p.id] || [];
   return (
     <div className="detail-page">
       <a className="back-link" href="#/dex">
         ← Back to Pokédex
       </a>
-      <div className={`detail-hero type-${p.types[0]?.toLowerCase()}`}>
-        <div>
+      <div className={`detail-hero ${typeClass(p.types[0])}`}>
+        <div className="detail-hero-copy">
           <div className="eyebrow">
             {DEX_NAMES[p.dex]} · #{p.number}
           </div>
           <h1>{p.name}</h1>
-          <div className="type-tags">
-            {p.types.map((t) => (
-              <span className={`type-pill type-${t.toLowerCase()}`} key={t}>
-                {t}
-              </span>
-            ))}
-          </div>
-          <p>{p.specialties.join(" · ") || "Specialties not recorded"}</p>
-        </div>
-        <Portrait pokemon={p} />
-      </div>
-      <div className="tabs detail-tabs">
-        {["Overview", "Habitats & Spawns", "Preferences", "My Progress"].map(
-          (t) => (
-            <button
-              key={t}
-              className={tab === t ? "active" : ""}
-              onClick={() => setTab(t)}
-            >
-              {t}
-            </button>
-          ),
-        )}
-      </div>
-      <section className="detail-body">
-        {tab === "Overview" && (
-          <>
-            <div className="info-grid">
-              {[
-                ["Content", p.event || p.contentSource || "Base game"],
-                ["Ideal environment", p.environment],
-                ["Specialties", p.specialties.join(", ")],
-                ["Height", p.height ? `${p.height} m` : null],
-                ["Weight", p.weight ? `${p.weight} kg` : null],
-                ["National number", p.nationalNumber],
-                ["Forms", p.forms.join(", ") || "No additional forms recorded"],
-              ].map(([k, v]) => (
-                <div className="info-box" key={k}>
-                  <span>{k}</span>
-                  <strong>{v || "Not recorded"}</strong>
-                </div>
+          <div className="detail-hero-meta">
+            <div className="type-tags">
+              {p.types.map((t) => (
+                <span className={`type-pill ${typeClass(t)}`} key={t}>
+                  {t}
+                </span>
               ))}
             </div>
-            {p.partial && (
-              <p className="notice">
-                This entry has incomplete reference data. Unknown details stay
-                unfilled.
-              </p>
+            {p.specialties.length ? (
+              <div className="term-row">
+                {p.specialties.map((s) => (
+                  <TermChip
+                    key={s}
+                    term={{ kind: "specialty", value: s }}
+                    onOpen={open}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p>Specialties not recorded</p>
             )}
-            <SourceLink url={p.source} />
-            {p.additionalSources?.map((url) => (
-              <SourceLink key={url} url={url} label="Female form reference" />
-            ))}
-          </>
-        )}
-        {tab === "Habitats & Spawns" && (
+          </div>
+        </div>
+        <div className="detail-hero-art">
+          <Portrait pokemon={p} />
+          <button
+            className={`found-button ${foundAreas.length ? "is-found" : ""}`}
+            onClick={() => setMarking(true)}
+            aria-label={
+              foundAreas.length
+                ? `${p.name} found in ${foundAreas.length} ${foundAreas.length === 1 ? "area" : "areas"}. Edit found areas`
+                : `Mark ${p.name} as found`
+            }
+          >
+            {foundAreas.length ? (
+              <Check size={22} strokeWidth={2} />
+            ) : (
+              <Plus size={22} strokeWidth={2} />
+            )}
+          </button>
+        </div>
+      </div>
+      <div className="tabs detail-tabs">
+        {DETAIL_TABS.map((t) => (
+          <button
+            key={t}
+            className={shownTab === t ? "active" : ""}
+            onClick={() => setTab(t)}
+          >
+            {t}
+          </button>
+        ))}
+      </div>
+      <section key={shownTab} className="detail-body tab-content">
+        {shownTab === "Habitats & Spawns" && (
           <>
             {p.habitats.length ? (
               p.habitats.map((h) => (
-                <div className="habitat-detail" key={h.id}>
-                  {h.image && (
-                    <img
-                      className="habitat-image"
-                      src={h.image}
-                      alt={`${h.name} habitat`}
-                      loading="lazy"
-                    />
-                  )}
-                  <div>
-                    <span className="eyebrow">ATTRACTING HABITAT</span>
-                    <h3>{h.name}</h3>
-                  </div>
-                  {h.requirements.length ? (
-                    <ul>
-                      {h.requirements.map((r) => (
-                        <li key={r}>{r}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="notice">
-                      Build requirements are not yet recorded. Check the
-                      reference before building.
-                    </p>
-                  )}
-                  <p>
-                    <MapPin size={14} />{" "}
-                    {h.areas.join(" · ") || "Areas not recorded"}
-                  </p>
-                  <p>
-                    Time:{" "}
-                    {(h.times.length ? h.times : p.times).join(", ") ||
-                      "Not recorded"}{" "}
-                    · Weather:{" "}
-                    {(h.weather.length ? h.weather : p.weather).join(", ") ||
-                      "Not recorded"}
-                  </p>
-                  <p>Rarity: {h.rarity}</p>
-                  <SourceLink url={h.source} />
-                </div>
+                <HabitatCard
+                  key={h.id}
+                  habitat={h}
+                  pokemon={p}
+                  onOpen={open}
+                  builds={state.habitatBuilds || {}}
+                  found={state.found}
+                  canEdit={ready}
+                  onPlan={() => setPlanHabitat(h)}
+                />
               ))
             ) : (
               <Empty title="Habitat details still growing">
@@ -399,35 +457,79 @@ export function PokemonDetail({ id }: { id: string }) {
             )}
           </>
         )}
-        {tab === "Preferences" && (
+        {shownTab === "Preferences" && (
           <>
             <h3>A place {p.name} will like</h3>
-            <p className="muted">
+            <p className="muted term-line">
               Ideal environment:{" "}
-              <strong>{p.environment || "Not recorded"}</strong>
+              {p.environment ? (
+                <TermChip
+                  term={{ kind: "environment", value: p.environment }}
+                  onOpen={open}
+                />
+              ) : (
+                <strong>Not recorded</strong>
+              )}
             </p>
             <div className="preference-grid">
-              {p.favorites.map((f) => (
-                <div className="info-box" key={f}>
-                  <strong>{f}</strong>
-                  <span>
-                    {catalog.items
-                      .filter((i) => i.categories.includes(f))
-                      .slice(0, 3)
-                      .map((i) => i.name)
-                      .join(" · ") || "Example items not recorded"}
-                  </span>
-                </div>
-              ))}
+              {p.favorites.map((f) => {
+                const examples = catalog.items
+                  .filter((i) => i.categories.includes(f))
+                  .slice(0, 10);
+                return (
+                  <div className="info-box" key={f}>
+                    <button
+                      type="button"
+                      className="pref-title"
+                      onClick={() => open({ kind: "favorite", value: f })}
+                    >
+                      {f}
+                    </button>
+                    <PrefExamples items={examples} onOpen={open} />
+                  </div>
+                );
+              })}
             </div>
             {!p.favorites.length && (
               <p className="notice">
                 Favorite categories have not been verified for this Pokémon.
               </p>
             )}
-            <p>
-              Favorite food: <strong>{p.food || "Not recorded"}</strong>
-            </p>
+            <h3 className="pref-food-heading">Favorite food</h3>
+            {foods.length ? (
+              <div className="preference-grid">
+                {foods.map((entry) => {
+                  const examples = explainTerm(
+                    {
+                      kind: "food",
+                      value: entry.flavor,
+                      label: entry.label,
+                    },
+                    catalog.items,
+                  ).items;
+                  return (
+                    <div className="info-box" key={entry.label}>
+                      <button
+                        type="button"
+                        className="pref-title"
+                        onClick={() =>
+                          open({
+                            kind: "food",
+                            value: entry.flavor,
+                            label: entry.label,
+                          })
+                        }
+                      >
+                        {entry.label}
+                      </button>
+                      <PrefExamples items={examples} onOpen={open} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="notice">Favorite food has not been recorded.</p>
+            )}
             <p className="muted">
               Shared preferences help with furnishing. They are not a friendship
               rating or a guarantee of maximum comfort.
@@ -438,8 +540,218 @@ export function PokemonDetail({ id }: { id: string }) {
             ))}
           </>
         )}
-        {tab === "My Progress" && <AreaMarks pokemon={p} />}
       </section>
+      {marking && (
+        <Modal title={`Found ${p.name}?`} onClose={() => setMarking(false)}>
+          <AreaMarks pokemon={p} onExplain={open} />
+          <button className="button full" onClick={() => setMarking(false)}>
+            Done
+          </button>
+        </Modal>
+      )}
+      {planHabitat && (
+        <BuildModal
+          habitatId={planHabitat.id}
+          habitatName={planHabitat.name}
+          mode="planned"
+          originPokemonId={p.id}
+          onClose={() => setPlanHabitat(null)}
+        />
+      )}
+      {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
     </div>
+  );
+}
+
+function HabitatCard({
+  habitat,
+  pokemon,
+  onOpen,
+  builds,
+  found,
+  canEdit,
+  onPlan,
+}: {
+  habitat: Habitat;
+  pokemon: Pokemon;
+  onOpen: (term: TermRef) => void;
+  builds: Record<string, import("../habitats/types").HabitatBuildRecord>;
+  found: Record<string, string[]>;
+  canEdit: boolean;
+  onPlan: () => void;
+}) {
+  const catalog = useCatalog();
+  const times = habitat.times.length ? habitat.times : pokemon.times;
+  const weather = habitat.weather.length ? habitat.weather : pokemon.weather;
+  const records = recordsForHabitat(builds, habitat.id);
+  const badge = buildBadges(records);
+  const canonical = getCanonicalHabitat(catalog, habitat.id);
+  return (
+    <article className="habitat-card">
+      <div className="habitat-visual">
+        <a href={habitatDetailHref(habitat.id)}>
+          <HabitatImage habitat={habitat} />
+        </a>
+      </div>
+      <div className="habitat-content">
+        <div className="habitat-heading">
+          <div>
+            <span className="eyebrow">ATTRACTING HABITAT</span>
+            <h3>
+              <a href={habitatDetailHref(habitat.id)}>{habitat.name}</a>
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="rarity-badge"
+            onClick={() => onOpen({ kind: "rarity", value: habitat.rarity })}
+          >
+            {habitat.rarity === "CommonCommon" ? "Common" : habitat.rarity}
+          </button>
+        </div>
+        <p className="muted">
+          {badge.built ? `${badge.built} built` : ""}
+          {badge.built && badge.planned ? " · " : ""}
+          {badge.planned ? `${badge.planned} planned` : ""}
+          {!badge.built && !badge.planned ? "Not started" : ""}
+        </p>
+        {canonical && (
+          <HabitatPokemonChips
+            habitat={canonical}
+            currentPokemonId={pokemon.id}
+            showNames
+          />
+        )}
+        {habitat.requirements.length ? (
+          <section
+            className="habitat-requirements"
+            aria-label={`${habitat.name} requirements`}
+          >
+            <span className="habitat-section-label">REQUIREMENTS</span>
+            {habitat.requirements.map((raw) => {
+              const requirement = parseRequirement(raw);
+              return (
+                <div className="habitat-requirement" key={raw}>
+                  <SupplyIcon label={requirement.name} />
+                  <button
+                    type="button"
+                    className="requirement-name"
+                    onClick={() =>
+                      onOpen({
+                        kind: requirement.kind,
+                        value: requirement.name,
+                        quantity: requirement.quantity,
+                        label: raw,
+                      })
+                    }
+                  >
+                    {raw.replace(/\s+/g, " ").trim()}
+                  </button>
+                </div>
+              );
+            })}
+          </section>
+        ) : (
+          <p className="notice">
+            Build requirements are not yet recorded. Check the reference before
+            building.
+          </p>
+        )}
+        <dl className="habitat-facts">
+          <div>
+            <dt>
+              <MapPin size={15} /> Locations
+            </dt>
+            <dd>
+              {habitat.areas.length
+                ? habitat.areas.map((area) => (
+                    <button
+                      type="button"
+                      key={area}
+                      onClick={() => onOpen({ kind: "area", value: area })}
+                    >
+                      {area}
+                    </button>
+                  ))
+                : "Not recorded"}
+            </dd>
+          </div>
+          <div>
+            <dt>Time</dt>
+            <dd>
+              {times.length
+                ? times.map((time) => (
+                    <button
+                      type="button"
+                      key={time}
+                      onClick={() => onOpen({ kind: "time", value: time })}
+                    >
+                      {time}
+                    </button>
+                  ))
+                : "Not recorded"}
+            </dd>
+          </div>
+          <div>
+            <dt>Weather</dt>
+            <dd>
+              {weather.length
+                ? weather.map((condition) => (
+                    <button
+                      type="button"
+                      key={condition}
+                      onClick={() =>
+                        onOpen({ kind: "weather", value: condition })
+                      }
+                    >
+                      {condition}
+                    </button>
+                  ))
+                : "Not recorded"}
+            </dd>
+          </div>
+        </dl>
+        <div className="habitat-actions">
+          <button
+            type="button"
+            className="button secondary"
+            disabled={!canEdit}
+            onClick={onPlan}
+          >
+            Plan build
+          </button>
+          <a className="text-button" href={habitatDetailHref(habitat.id)}>
+            Open habitat page
+          </a>
+          <SourceLink url={habitat.source} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function HabitatImage({ habitat }: { habitat: Habitat }) {
+  const src = habitatImageUrl(habitat.image);
+  const [failed, setFailed] = useState(!src);
+  useEffect(() => setFailed(!src), [src]);
+  if (failed)
+    return (
+      <div
+        className="habitat-image habitat-image-placeholder"
+        role="img"
+        aria-label={`${habitat.name} habitat image unavailable`}
+      >
+        Habitat image unavailable
+      </div>
+    );
+  return (
+    <img
+      className="habitat-image"
+      src={src!}
+      alt={`${habitat.name} habitat`}
+      loading="lazy"
+      decoding="async"
+      onError={() => setFailed(true)}
+    />
   );
 }

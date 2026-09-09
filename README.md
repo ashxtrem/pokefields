@@ -14,6 +14,8 @@ npm run build
 npm run preview
 ```
 
+`npm run dev` and `npm run build` both bake species/habitat/item images into `public/images/` first (existing files are skipped). The first run downloads about 90 MB; later starts reuse that folder. Vite serves those same `/images/…` paths locally and in production.
+
 `dist/` is the deployable site. No server, API key, database service or paid backend is required. Progress lives in IndexedDB in the current browser. Export/import JSON backups through **My notebook** to transfer devices. Clearing browser data removes local saves.
 
 ## Features
@@ -25,7 +27,7 @@ npm run preview
 - Deterministic groups based on matching environments and shared favorite categories. These are furnishing recommendations, not a friendship simulation or proof of an optimal layout.
 - Homes respect footprint, capacity and kit limits. Drag to move, edit coordinates, move/swap residents, inspect construction/comfort requirements and see unplaced Pokémon.
 - One saved layout per area; discovery/catalog changes flag the old plan without overwriting edits.
-- Production app shell and catalog work offline after a successful first visit. External species artwork needs a network connection or the browser's image cache; unavailable images have a text fallback.
+- Production app shell, catalog and baked species/habitat/item artwork work offline after a successful first visit. Unavailable images have a text fallback.
 
 ## Modules
 
@@ -44,11 +46,11 @@ npm run preview
 
 ## Reference data
 
-`public/data/catalog.json` is a versioned build-time snapshot, not a live API dependency. `npm run data:import` refreshes the normalized snapshot from pinned PokopiaAPI records and Serebii factual tables. HTML requests are limited to three at a time and cached under `.cache/sources`; remove that cache explicitly to refresh the same URLs. Review changes and bump the catalog version before shipping a new data snapshot.
+`public/data/catalog.json` is a versioned build-time snapshot, not a live API dependency. `npm run data:import` refreshes the normalized snapshot from pinned PokopiaAPI records and Serebii factual tables. `npm run images:bake` (also part of `npm run build`) downloads species artwork, habitat photos and item icons into `public/images/` so the app serves them from this origin. That folder is gitignored; bake on each machine or CI job. HTML requests are limited to three at a time and cached under `.cache/sources`; remove that cache explicitly to refresh the same URLs. Review changes and bump the catalog version before shipping a new data snapshot.
 
 - [PokopiaAPI](https://github.com/QuesoCaliente/pokopiapi), pinned at `893936af1adb51f6d2aab18aa8fa359fc401dd0a`: stable IDs, dex membership and base metadata. BSD-3-Clause notice is in `public/data/POKOPIAPI-LICENSE.txt`.
-- [Serebii Pokopia](https://www.serebii.net/pokemonpokopia/): independently extracted factual preference categories, item associations, spawn conditions, habitat requirements and building dimensions/capacities/materials. Individual source links are retained in the catalog and UI. No guide prose or site artwork is bundled.
-- [PokeAPI sprites](https://github.com/PokeAPI/sprites): externally served reference species artwork. Form-specific in-game appearances may differ; the portrait tooltip says this. The source API's image CDN was blocked in this environment, so it is not the main portrait provider.
+- [Serebii Pokopia](https://www.serebii.net/pokemonpokopia/): independently extracted factual preference categories, item associations, spawn conditions, habitat requirements and building dimensions/capacities/materials. Individual source links are retained in the catalog and UI. Habitat and item pictures used in the app are fetched at bake/build time from the same public item/habitat image URLs.
+- [PokeAPI sprites](https://github.com/PokeAPI/sprites): reference species artwork, baked into `public/images/pokemon/` at build time. Form-specific in-game appearances may differ; the portrait tooltip says this.
 
 Pokémon names and artwork remain the property of their respective owners. This is an unofficial fan project, unaffiliated with Nintendo, Game Freak, Creatures or The Pokémon Company. The API code license does not grant ownership of Pokémon artwork.
 

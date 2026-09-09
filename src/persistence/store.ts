@@ -1,19 +1,42 @@
 import Dexie, { type Table } from "dexie";
 import type { Catalog } from "../catalog/types";
+import type { HabitatBuildRecord } from "../habitats/types";
 import type { HousematePlan, Plan } from "../planner/types";
-import { HOUSEMATE_PLAN_VERSION } from "../planner/types";
+import { DEFAULT_HOUSEMATE_SETTINGS, HOUSEMATE_PLAN_VERSION } from "../planner/types";
+import { migrateHousematePlan } from "../planner/recommend";
 import { canPlace, validPlot } from "../planner/engine";
+import type {
+  HouseQuantityList,
+  QuantityRow,
+  ShoppingChecklists,
+  ShoppingRow,
+} from "../shopping/checklists";
 export interface SaveState {
   schemaVersion: 1;
   found: Record<string, string[]>;
+  /** A missing key means the player has not tracked this item yet. */
+  materialCounts?: Record<string, number>;
+  /** Legacy checkbox shopping lists — preserved in migration snapshot. */
+  shoppingChecklists?: ShoppingChecklists;
+  /** Canonical habitat build records with quantity allocations. */
+  habitatBuilds?: Record<string, HabitatBuildRecord>;
+  /** Quantity-based house shopping list for the accepted plan. */
+  houseShopping?: HouseQuantityList;
+  /** Original checkbox data kept until export verifies migration. */
+  shoppingLegacySnapshot?: ShoppingChecklists;
   plans: Record<string, Plan>;
   housematePlan?: HousematePlan | null;
+  /** Kits the player has actually unlocked; null/absent means all kits. */
+  availableKitIds?: string[] | null;
 }
 export const emptyState = (): SaveState => ({
   schemaVersion: 1,
   found: {},
+  materialCounts: {},
+  habitatBuilds: {},
   plans: {},
   housematePlan: null,
+  availableKitIds: null,
 });
 class Database extends Dexie {
   state!: Table<{ id: string; value: SaveState }>;
@@ -50,6 +73,26 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
     )
       throw Error("Backup has unrecognized Pokémon or areas.");
   }
+  if (
+    data.materialCounts !== undefined &&
+    (!data.materialCounts ||
+      Array.isArray(data.materialCounts) ||
+      Object.entries(data.materialCounts).some(
+        ([id, quantity]) =>
+          !catalog.items.some((item) => item.id === id) ||
+          !Number.isSafeInteger(quantity) ||
+          quantity < 0,
+      ))
+  )
+    throw Error("Backup has invalid material quantities.");
+  if (data.shoppingChecklists !== undefined)
+    validateShoppingChecklists(data.shoppingChecklists);
+  if (data.habitatBuilds !== undefined)
+    validateHabitatBuilds(data.habitatBuilds);
+  if (data.houseShopping !== undefined) validateHouseShopping(data.houseShopping);
+  const migratedHouseShopping = migrateHouseShopping(data.houseShopping);
+  if (data.shoppingLegacySnapshot !== undefined)
+    validateShoppingChecklists(data.shoppingLegacySnapshot);
   for (const [area, p] of Object.entries(data.plans)) {
     if (
       !catalog.areas.includes(area) ||
@@ -118,9 +161,143 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
     )
       throw Error("Plan does not account for its roster.");
   }
-  if (data.housematePlan != null)
-    validateHousematePlan(data.housematePlan, catalog, ids);
-  return JSON.parse(JSON.stringify(data)) as SaveState;
+  if (data.availableKitIds !== undefined) validateAvailableKitIds(data.availableKitIds, catalog);
+  const migratedPlan =
+    data.housematePlan != null ? migrateHousematePlan(data.housematePlan) : data.housematePlan;
+  if (migratedPlan != null) validateHousematePlan(migratedPlan, catalog, ids);
+  return JSON.parse(
+    JSON.stringify({
+      ...data,
+      housematePlan: migratedPlan,
+      houseShopping: migratedHouseShopping,
+    }),
+  ) as SaveState;
+}
+
+function validateAvailableKitIds(
+  value: string[] | null,
+  catalog: Catalog,
+) {
+  if (
+    value !== null &&
+    (!Array.isArray(value) ||
+      value.some((id) => !catalog.kits.some((k) => k.id === id)) ||
+      new Set(value).size !== value.length)
+  )
+    throw Error("Backup has an invalid available-kits filter.");
+}
+
+function validQuantityRows(rows: unknown): rows is QuantityRow[] {
+  return (
+    Array.isArray(rows) &&
+    rows.every(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        typeof (row as QuantityRow).id === "string" &&
+        typeof (row as QuantityRow).label === "string" &&
+        typeof (row as QuantityRow).signature === "string" &&
+        Number.isSafeInteger((row as QuantityRow).quantity) &&
+        (row as QuantityRow).quantity >= 0 &&
+        Number.isSafeInteger((row as QuantityRow).gathered) &&
+        (row as QuantityRow).gathered >= 0 &&
+        (row as QuantityRow).gathered <= (row as QuantityRow).quantity,
+    )
+  );
+}
+
+function validateHouseShopping(value: HouseQuantityList) {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    typeof value.planId !== "string" ||
+    !validQuantityRows(value.construction) ||
+    !validQuantityRows(value.furnishings) ||
+    (value.environment !== undefined && !validQuantityRows(value.environment))
+  )
+    throw Error("Backup has invalid house shopping list.");
+}
+
+function migrateHouseShopping(
+  value: HouseQuantityList | undefined,
+): HouseQuantityList | undefined {
+  if (!value) return value;
+  return { ...value, environment: value.environment ?? [] };
+}
+
+function validateHabitatBuilds(builds: Record<string, HabitatBuildRecord>) {
+  if (!builds || typeof builds !== "object" || Array.isArray(builds))
+    throw Error("Backup has invalid habitat build records.");
+  const ids = new Set<string>();
+  for (const [id, record] of Object.entries(builds)) {
+    if (
+      !record ||
+      record.id !== id ||
+      typeof record.habitatId !== "string" ||
+      (record.status !== "planned" && record.status !== "built") ||
+      (record.region !== null && typeof record.region !== "string") ||
+      !Number.isSafeInteger(record.copies) ||
+      record.copies < 1 ||
+      typeof record.locationNote !== "string" ||
+      typeof record.createdAt !== "string" ||
+      typeof record.updatedAt !== "string" ||
+      !record.snapshot ||
+      typeof record.snapshot.habitatName !== "string" ||
+      !Array.isArray(record.snapshot.requirements) ||
+      !Array.isArray(record.allocations)
+    )
+      throw Error("Backup has invalid habitat build records.");
+    if (ids.has(id)) throw Error("Backup has duplicate habitat build IDs.");
+    ids.add(id);
+    for (const row of record.allocations) {
+      if (
+        !Number.isSafeInteger(row.required) ||
+        row.required < 0 ||
+        !Number.isSafeInteger(row.gathered) ||
+        row.gathered < 0 ||
+        row.gathered > row.required
+      )
+        throw Error("Backup has invalid habitat allocations.");
+    }
+  }
+}
+
+function validShoppingRows(rows: unknown): rows is ShoppingRow[] {
+  return (
+    Array.isArray(rows) &&
+    rows.every(
+      (row) =>
+        row &&
+        typeof row === "object" &&
+        typeof (row as ShoppingRow).id === "string" &&
+        typeof (row as ShoppingRow).label === "string" &&
+        (Number.isSafeInteger((row as ShoppingRow).quantity) ||
+          (row as ShoppingRow).quantity === null) &&
+        typeof (row as ShoppingRow).checked === "boolean",
+    )
+  );
+}
+
+function validateShoppingChecklists(value: ShoppingChecklists) {
+  if (!value || typeof value !== "object" || !value.habitats || Array.isArray(value.habitats))
+    throw Error("Backup has invalid shopping checklists.");
+  for (const [id, list] of Object.entries(value.habitats))
+    if (
+      !list ||
+      list.id !== id ||
+      typeof list.pokemonId !== "string" ||
+      typeof list.habitatId !== "string" ||
+      typeof list.habitatName !== "string" ||
+      !validShoppingRows(list.rows)
+    )
+      throw Error("Backup has invalid shopping checklists.");
+  if (
+    value.house &&
+    (typeof value.house.planId !== "string" ||
+      !validShoppingRows(value.house.construction) ||
+      !validShoppingRows(value.house.furnishings))
+  )
+    throw Error("Backup has invalid shopping checklists.");
 }
 
 function validateHousematePlan(
@@ -141,6 +318,16 @@ function validateHousematePlan(
   )
     throw Error("Invalid housemate plan.");
   if (
+    !plan.settings ||
+    typeof plan.settings !== "object" ||
+    !Number.isInteger(plan.settings.maxResidents) ||
+    plan.settings.maxResidents < 1 ||
+    plan.settings.maxResidents > 4 ||
+    typeof plan.settings.affinityFloor !== "boolean"
+  )
+    throw Error("Invalid housemate plan settings.");
+  validateAvailableKitIds(plan.availableKitIds, catalog);
+  if (
     plan.roster.some((id) => !ids.has(id)) ||
     new Set(plan.roster).size !== plan.roster.length ||
     plan.sourceRoster.some((id) => !ids.has(id)) ||
@@ -155,13 +342,8 @@ function validateHousematePlan(
     throw Error("Duplicated or unknown housemate.");
   for (const h of plan.homes) {
     const k = catalog.kits.find((k) => k.id === h.kitId);
-    if (
-      !k ||
-      !Array.isArray(h.residents) ||
-      !h.residents.length ||
-      h.residents.length > k.capacity
-    )
-      throw Error("A suggested home is missing, empty or over capacity.");
+    if (!k || !Array.isArray(h.residents) || h.residents.length > k.capacity)
+      throw Error("A suggested home is missing or over capacity.");
   }
   const unresolved = plan.unresolved.map((r) => r.id);
   if (

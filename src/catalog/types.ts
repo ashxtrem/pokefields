@@ -46,6 +46,10 @@ export interface Item {
   name: string;
   categories: string[];
   source: string;
+  locations?: string[];
+  recipe?: { name: string; quantity: number }[];
+  recipeLocation?: string | null;
+  event?: string | null;
 }
 export interface Material {
   name: string;

@@ -28,15 +28,41 @@ self.addEventListener('install',event=>event.waitUntil((async()=>{
  }));
  await self.skipWaiting();
 })()));
-self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fieldnotes-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
+const IMAGES='fieldnotes-images';
+self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('fieldnotes-')&&k!==CACHE&&k!==IMAGES).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
  const request=event.request;
- if(request.method!=='GET'||new URL(request.url).origin!==self.location.origin)return;
+ if(request.method!=='GET')return;
+ const url=new URL(request.url);
+ if(url.origin===self.location.origin){
+  if(url.pathname.startsWith('/images/')){
+   event.respondWith((async()=>{
+    const cache=await caches.open(IMAGES);
+    const cached=await cache.match(request);
+    if(cached) return cached;
+    const response=await fetch(request);
+    if(response.ok) cache.put(request,response.clone());
+    return response;
+   })());
+   return;
+  }
+  event.respondWith((async()=>{
+   const cache=await caches.open(CACHE);
+   const cached=await cache.match(request.mode==='navigate'?'/':request);
+   if(cached) return cached.redirected?copy(cached):cached;
+   return fetch(request);
+  })());
+  return;
+ }
+ if(request.destination!=='image')return;
+ if(!/(^|\\.)(pokopiapi\\.com|serebii\\.net|githubusercontent\\.com|jsdelivr\\.net)$/.test(url.hostname))return;
  event.respondWith((async()=>{
-  const cache=await caches.open(CACHE);
-  const cached=await cache.match(request.mode==='navigate'?'/':request);
-  if(cached) return cached.redirected?copy(cached):cached;
-  return fetch(request);
+  const cache=await caches.open(IMAGES);
+  const cached=await cache.match(request);
+  if(cached) return cached;
+  const response=await fetch(request);
+  if(response.ok||response.type==='opaque') cache.put(request,response.clone());
+  return response;
  })());
 });
 `,

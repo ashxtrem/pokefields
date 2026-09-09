@@ -1,13 +1,15 @@
 import type { Catalog, Kit, Pokemon } from "../catalog/types";
+import { environmentExampleIds } from "../dex/glossary";
 import { furnishings } from "./engine";
 import type {
   HousematePlan,
+  HousematePlanSettings,
   Plan,
   PreferenceMatch,
   RecommendedHome,
   UnresolvedResident,
 } from "./types";
-import { HOUSEMATE_PLAN_VERSION } from "./types";
+import { DEFAULT_HOUSEMATE_SETTINGS, HOUSEMATE_PLAN_VERSION } from "./types";
 
 const NO_HOME =
   "No supported home in the catalog has enough capacity for this Pokémon.";
@@ -119,10 +121,49 @@ export function suggestHomeKit(
   )[0];
 }
 
-export function eligibleKits(occupants: number, catalog: Catalog) {
+export function eligibleKits(
+  occupants: number,
+  catalog: Catalog,
+  availableKitIds: string[] | null = null,
+) {
   return catalog.kits
     .filter((k) => k.capacity >= occupants)
+    .filter((k) => !availableKitIds || availableKitIds.includes(k.id))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+}
+
+export function effectiveMaxResidents(
+  settings: HousematePlanSettings,
+  catalog: Catalog,
+  availableKitIds: string[] | null = null,
+) {
+  const kits = availableKitIds
+    ? catalog.kits.filter((k) => availableKitIds.includes(k.id))
+    : catalog.kits;
+  const maxCapacity = Math.max(0, ...kits.map((k) => k.capacity));
+  return Math.max(0, Math.min(settings.maxResidents, maxCapacity));
+}
+
+export function estimateHomeCount(
+  roster: string[],
+  catalog: Catalog,
+  settings: HousematePlanSettings,
+  availableKitIds: string[] | null = null,
+) {
+  if (!roster.length) return 0;
+  const cap = effectiveMaxResidents(settings, catalog, availableKitIds);
+  if (cap < 1) return roster.length;
+  const pmap = pokemonMap(catalog);
+  const byEnv = new Map<string, number>();
+  let unknown = 0;
+  for (const id of roster) {
+    const env = pmap.get(id)?.environment;
+    if (!env) unknown += 1;
+    else byEnv.set(env, (byEnv.get(env) || 0) + 1);
+  }
+  let homes = unknown;
+  for (const count of byEnv.values()) homes += Math.ceil(count / cap);
+  return homes;
 }
 
 function pokemonMap(catalog: Catalog) {
@@ -144,7 +185,11 @@ function favoriteOverlap(group: Pokemon[], candidate: Pokemon) {
   );
 }
 
-function packEnvironment(members: Pokemon[], capacity: number) {
+function packEnvironment(
+  members: Pokemon[],
+  capacity: number,
+  affinityFloor: boolean,
+) {
   const remaining = [...members];
   const groups: Pokemon[][] = [];
   while (remaining.length) {
@@ -171,6 +216,12 @@ function packEnvironment(members: Pokemon[], capacity: number) {
           favoriteOverlap(group, b) - favoriteOverlap(group, a) ||
           a.id.localeCompare(b.id),
       );
+      if (
+        affinityFloor &&
+        group.length >= 2 &&
+        favoriteOverlap(group, remaining[0]) === 0
+      )
+        break;
       group.push(remaining.shift()!);
     }
     groups.push(group);
@@ -219,16 +270,28 @@ export function recommendHousemates(
   },
   catalog: Catalog,
   now = () => new Date().toISOString(),
+  options?: {
+    settings?: HousematePlanSettings;
+    availableKitIds?: string[] | null;
+  },
 ): HousematePlan {
   const roster = normalizeRoster(input.roster, catalog);
   const sourceRoster = [...new Set(input.sourceRoster)].sort();
   const stamp = now();
+  const settings = options?.settings ?? DEFAULT_HOUSEMATE_SETTINGS;
+  const availableKitIds = options?.availableKitIds ?? null;
+  const usableKits = availableKitIds
+    ? catalog.kits.filter((k) => availableKitIds.includes(k.id))
+    : catalog.kits;
+  const usableCatalog: Catalog = { ...catalog, kits: usableKits };
   if (!roster.length)
     return {
       version: HOUSEMATE_PLAN_VERSION,
       roster,
       sourceRoster,
       areaFilter: input.areaFilter,
+      settings,
+      availableKitIds,
       homes: [],
       unresolved: [],
       catalogVersion: catalog.version,
@@ -236,13 +299,16 @@ export function recommendHousemates(
       updatedAt: stamp,
     };
   const pmap = pokemonMap(catalog);
-  const maxCapacity = Math.max(0, ...catalog.kits.map((k) => k.capacity));
-  if (maxCapacity < 1) {
+  const maxCapacity = Math.max(0, ...usableKits.map((k) => k.capacity));
+  const effectiveCap = Math.max(0, Math.min(settings.maxResidents, maxCapacity));
+  if (effectiveCap < 1) {
     return {
       version: HOUSEMATE_PLAN_VERSION,
       roster,
       sourceRoster,
       areaFilter: input.areaFilter,
+      settings,
+      availableKitIds,
       homes: [],
       unresolved: roster.map((id) => ({ id, reason: NO_HOME })),
       catalogVersion: catalog.version,
@@ -263,19 +329,35 @@ export function recommendHousemates(
   }
   const groups: Pokemon[][] = [];
   for (const env of [...byEnv.keys()].sort())
-    groups.push(...packEnvironment(byEnv.get(env)!, maxCapacity));
+    groups.push(
+      ...packEnvironment(byEnv.get(env)!, effectiveCap, settings.affinityFloor),
+    );
   for (const p of unknown) groups.push([p]);
-  const { homes, unresolved } = assignHomes(groups, catalog);
+  const { homes, unresolved } = assignHomes(groups, usableCatalog);
   return {
     version: HOUSEMATE_PLAN_VERSION,
     roster,
     sourceRoster,
     areaFilter: input.areaFilter,
+    settings,
+    availableKitIds,
     homes,
     unresolved,
     catalogVersion: catalog.version,
     createdAt: stamp,
     updatedAt: stamp,
+  };
+}
+
+export function migrateHousematePlan(plan: HousematePlan): HousematePlan {
+  if (plan.settings && plan.availableKitIds !== undefined && plan.version === HOUSEMATE_PLAN_VERSION)
+    return plan;
+  return {
+    ...plan,
+    version: HOUSEMATE_PLAN_VERSION,
+    settings: plan.settings ?? DEFAULT_HOUSEMATE_SETTINGS,
+    availableKitIds:
+      plan.availableKitIds === undefined ? null : plan.availableKitIds,
   };
 }
 
@@ -316,6 +398,8 @@ export function convertSpatialPlan(
     roster: [...plan.roster].sort(),
     sourceRoster: [...(plan.sourceRoster || plan.roster)].sort(),
     areaFilter: plan.area,
+    settings: DEFAULT_HOUSEMATE_SETTINGS,
+    availableKitIds: null,
     homes,
     unresolved,
     catalogVersion: catalog.version,
@@ -489,4 +573,90 @@ export function combinedSupplies(plan: HousematePlan, catalog: Catalog) {
       a.name.localeCompare(b.name),
     ),
   };
+}
+
+/** The single environment every resident of this home shares, or null if mixed/unrecorded. */
+export function homeEnvironment(
+  home: RecommendedHome,
+  catalog: Catalog,
+): string | null {
+  const residents = home.residents
+    .map((id) => catalog.pokemon.find((p) => p.id === id))
+    .filter((p): p is Pokemon => !!p);
+  const match = environmentMatch(residents);
+  if (match !== "shared") return null;
+  return residents.find((p) => p.environment)?.environment || null;
+}
+
+export function environmentSupplies(plan: HousematePlan, catalog: Catalog) {
+  const counts = new Map<
+    string,
+    { name: string; quantity: number; homeIds: string[] }
+  >();
+  for (const home of plan.homes) {
+    const env = homeEnvironment(home, catalog);
+    if (!env) continue;
+    for (const itemId of environmentExampleIds(env)) {
+      const item = catalog.items.find((i) => i.id === itemId);
+      if (!item) continue;
+      const current = counts.get(item.id) || {
+        name: item.name,
+        quantity: 0,
+        homeIds: [],
+      };
+      current.quantity += 1;
+      current.homeIds.push(home.id);
+      counts.set(item.id, current);
+    }
+  }
+  return [...counts.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function splitHomeByEnvironment(
+  plan: HousematePlan,
+  homeId: string,
+  catalog: Catalog,
+): HousematePlan {
+  const home = plan.homes.find((h) => h.id === homeId);
+  if (!home) throw Error("Choose a valid home.");
+  const residents = home.residents
+    .map((id) => catalog.pokemon.find((p) => p.id === id))
+    .filter((p): p is Pokemon => !!p);
+  const groups = new Map<string, Pokemon[]>();
+  for (const p of residents) {
+    const key = p.environment || "";
+    const list = groups.get(key) || [];
+    list.push(p);
+    groups.set(key, list);
+  }
+  if (groups.size < 2)
+    throw Error("This home already has one recorded environment.");
+  const homes = plan.homes.filter((h) => h.id !== homeId);
+  const unresolved = [...plan.unresolved];
+  for (const group of groups.values()) {
+    const kit = suggestHomeKit(group.length, catalog);
+    if (!kit) {
+      group.forEach((p) => unresolved.push({ id: p.id, reason: NO_HOME }));
+      continue;
+    }
+    homes.push({
+      id: nextHomeId(homes),
+      kitId: kit.id,
+      residents: group.map((p) => p.id),
+    });
+  }
+  return touch({ ...plan, homes, unresolved });
+}
+
+export function addHome(
+  plan: HousematePlan,
+  kitId: string,
+  catalog: Catalog,
+): HousematePlan {
+  const kit = catalog.kits.find((k) => k.id === kitId);
+  if (!kit) throw Error("Choose a supported home.");
+  return touch({
+    ...plan,
+    homes: [...plan.homes, { id: nextHomeId(plan.homes), kitId, residents: [] }],
+  });
 }

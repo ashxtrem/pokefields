@@ -1,6 +1,13 @@
 node_modules/
 dist/
 .cache/
+public/images/pokemon/
+public/images/habitats/
+public/images/items/
+public/images/specialties/
+public/images/manifest.json
 .wrangler/
+.env
+.env.local
 graphify-out/
 *.tsbuildinfo

@@ -1,40 +1,151 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   BookOpen,
   House,
   Leaf,
   Download,
   Upload,
-  HardDrive,
-  ArrowUpRight,
-  Menu,
-  X,
+  TreePine,
 } from "lucide-react";
 import { useCatalog } from "./catalog/context";
 import { useProgress } from "./progress/context";
 import { DexPage, PokemonDetail } from "./dex/DexPage";
+import { HabitatDetail } from "./habitats/HabitatDetail";
+import { HabitatsPage } from "./habitats/HabitatsPage";
+import { getCanonicalHabitat, listCanonicalHabitats } from "./habitats/catalog";
 import { PlannerPage } from "./planner/PlannerPage";
+import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
 import { Modal } from "./ui/components";
 import { validateBackup, type SaveState } from "./persistence/store";
+
+import {
+  isRememberedRouteAvailable,
+  isUnmodifiedLeftClick,
+  parseRoute,
+  rememberSectionRoute,
+  routeKey,
+  sectionHref,
+} from "./ui/navigation";
+
 export default function App() {
   const [route, setRoute] = useState(location.hash || "#/dex");
-  const [menu, setMenu] = useState(false);
   const [backup, setBackup] = useState(false);
   const [pending, setPending] = useState<SaveState | null>(null);
   const [error, setError] = useState("");
   const catalog = useCatalog();
   const { state, update, status, error: saveError, ready } = useProgress();
   const file = useRef<HTMLInputElement>(null);
+  const parsed = parseRoute(route);
+  const habitatCount = listCanonicalHabitats(catalog).length;
+
+  const scrollPositions = useRef(new Map<string, number>());
+  const activeRoute = useRef(routeKey(route));
+  const navigating = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const availableRoute = (candidate: string) =>
+    isRememberedRouteAvailable(candidate, {
+      hasPokemon: (id) => catalog.pokemon.some((p) => p.id === id),
+      hasHabitat: (id) => Boolean(getCanonicalHabitat(catalog, id)),
+    });
+  const [resumeHrefs, setResumeHrefs] = useState(() => ({
+    dex: sectionHref("dex"),
+    habitats: sectionHref("habitats"),
+    planner: sectionHref("planner"),
+  }));
+
+  useLayoutEffect(() => {
+    rememberSectionRoute(route);
+    setResumeHrefs({
+      dex: sectionHref("dex", availableRoute),
+      habitats: sectionHref("habitats", availableRoute),
+      planner: sectionHref("planner", availableRoute),
+    });
+  }, [route, catalog]);
+
+  useLayoutEffect(() => {
+    if (!ready) return;
+    const key = routeKey(route);
+    activeRoute.current = key;
+    navigating.current = true;
+    window.scrollTo({
+      top: scrollPositions.current.get(key) ?? 0,
+      behavior: "instant",
+    });
+    const frame = requestAnimationFrame(() => {
+      navigating.current = false;
+    });
+    const animation = window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches
+      ? undefined
+      : contentRef.current?.animate([{ opacity: 0.65 }, { opacity: 1 }], {
+          duration: 160,
+          easing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        });
+    return () => {
+      cancelAnimationFrame(frame);
+      animation?.cancel();
+    };
+  }, [routeKey(route), ready]);
+
   useEffect(() => {
+    const previousRestoration = history.scrollRestoration;
+    history.scrollRestoration = "manual";
+    const rememberScroll = () => {
+      // Ignore native hash scrolling before React has committed the new page.
+      if (
+        !navigating.current &&
+        routeKey(location.hash) === activeRoute.current
+      )
+        scrollPositions.current.set(activeRoute.current, window.scrollY);
+    };
+    const captureNavigation = (event: MouseEvent) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      )
+        return;
+      const link = (event.target as Element).closest<HTMLAnchorElement>(
+        'a[href^="#/"]',
+      );
+      if (!link || routeKey(link.hash) === activeRoute.current) return;
+      scrollPositions.current.set(activeRoute.current, window.scrollY);
+      navigating.current = true;
+    };
     const fn = () => {
       setRoute(location.hash || "#/dex");
-      setMenu(false);
-      window.scrollTo(0, 0);
     };
     window.addEventListener("hashchange", fn);
-    return () => window.removeEventListener("hashchange", fn);
+    window.addEventListener("scroll", rememberScroll, { passive: true });
+    document.addEventListener("click", captureNavigation, true);
+    return () => {
+      window.removeEventListener("hashchange", fn);
+      window.removeEventListener("scroll", rememberScroll);
+      document.removeEventListener("click", captureNavigation, true);
+      history.scrollRestoration = previousRestoration;
+    };
   }, []);
-  const planner = route.startsWith("#/planner");
+
+  const dexActive = parsed.page === "dex" || parsed.page === "pokemon";
+  const habitatsActive =
+    parsed.page === "habitats" || parsed.page === "habitat-detail";
+  const plannerActive = parsed.page === "planner";
+  const resumeSection = (
+    event: {
+      button: number;
+      metaKey: boolean;
+      ctrlKey: boolean;
+      shiftKey: boolean;
+      altKey: boolean;
+      preventDefault: () => void;
+    },
+    sectionActive: boolean,
+  ) => {
+    if (sectionActive && isUnmodifiedLeftClick(event)) event.preventDefault();
+  };
+
   const exportFile = () => {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }),
@@ -45,109 +156,93 @@ export default function App() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
+
   return (
     <div className="app">
-      <aside className={`sidebar ${menu ? "open" : ""}`}>
+      <header className="topbar">
         <a className="brand" href="#/dex">
           <span className="brand-icon">
-            <Leaf size={23} />
+            <Leaf size={20} />
           </span>
-          <span>
+          <span className="brand-copy">
             pokopia<small>FIELDNOTES</small>
           </span>
         </a>
-        <button
-          className="mobile-close icon-button"
-          aria-label="Close navigation"
-          onClick={() => setMenu(false)}
-        >
-          <X />
-        </button>
-        <div className="sidebar-label">YOUR COMPANION</div>
-        <nav>
-          <a href="#/dex" className={!planner ? "active" : ""}>
-            <BookOpen size={19} />
-            Pokédex<span>{catalog.pokemon.length}</span>
+        <nav className="app-nav" aria-label="Primary">
+          <a
+            href={resumeHrefs.dex}
+            className={dexActive ? "active" : ""}
+            aria-current={dexActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, dexActive)}
+          >
+            <BookOpen size={16} />
+            <span className="nav-label">Pokédex</span>
+            <span className="nav-count">{catalog.pokemon.length}</span>
           </a>
-          <a href="#/planner" className={planner ? "active" : ""}>
-            <House size={19} />
-            Housemates<span className="nav-new">NEW</span>
+          <a
+            href={resumeHrefs.habitats}
+            className={habitatsActive ? "active" : ""}
+            aria-current={habitatsActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, habitatsActive)}
+          >
+            <TreePine size={16} />
+            <span className="nav-label">Habitats</span>
+            <span className="nav-count">{habitatCount}</span>
+          </a>
+          <a
+            href={resumeHrefs.planner}
+            className={plannerActive ? "active" : ""}
+            aria-current={plannerActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, plannerActive)}
+          >
+            <House size={16} />
+            <span className="nav-label">Housemates</span>
           </a>
         </nav>
-        <div className="sidebar-note">
-          <span className="note-flower">✳</span>
-          <h3>
-            A world worth
-            <br />
-            growing together.
-          </h3>
-          <p>
-            A few new friends.
-            <br />A little more room to grow.
-          </p>
-          <a href="#/planner">
-            Plan homes for your Pokémon <ArrowUpRight size={15} />
-          </a>
-        </div>
-        <div className="sidebar-bottom">
-          <button onClick={() => setBackup(true)}>
-            <HardDrive size={17} />
-            Your notebook
-          </button>
-          <span className="saved-dot" /> <small>{status}</small>
-          <p>
-            An unofficial fan companion.
-            <br />
-            Made for little discoveries.
-          </p>
-        </div>
-      </aside>
-      <div className="main-shell">
-        <header className="topbar">
-          <button
-            className="mobile-menu icon-button"
-            aria-label="Open navigation"
-            onClick={() => setMenu(true)}
-          >
-            <Menu />
-          </button>
-          <div className="breadcrumb">
-            Your fieldnotes <span>/</span>{" "}
-            <strong>{planner ? "Housemates" : "Pokédex"}</strong>
+        <button
+          className="notebook-button"
+          onClick={() => setBackup(true)}
+          title={`My notebook · ${status}`}
+          aria-label={`My notebook · ${status}`}
+        >
+          <span className="saved-dot" />
+          <span>My notebook</span>
+          <span className="avatar">YOU</span>
+        </button>
+      </header>
+      <main>
+        {saveError && (
+          <div className="notice error" role="alert">
+            {saveError}
           </div>
-          <button className="notebook-button" onClick={() => setBackup(true)}>
-            <span className="saved-dot" />
-            <span>My notebook</span>
-            <span className="avatar">YOU</span>
-          </button>
-        </header>
-        <main>
-          {saveError && (
-            <div className="notice error" role="alert">
-              {saveError}
-            </div>
-          )}
+        )}
+        <div ref={contentRef} className="route-content">
           {!ready ? (
             <div className="loading">Opening your notebook…</div>
-          ) : planner ? (
+          ) : parsed.page === "planner" ? (
             <PlannerPage />
-          ) : route.startsWith("#/pokemon/") ? (
-            <PokemonDetail
-              key={route}
-              id={decodeURIComponent(route.slice(10))}
+          ) : parsed.page === "habitats" ? (
+            <HabitatsPage />
+          ) : parsed.page === "habitat-detail" ? (
+            <HabitatDetail
+              key={parsed.habitatId}
+              habitatId={parsed.habitatId}
             />
+          ) : parsed.page === "pokemon" ? (
+            <PokemonDetail key={route} id={parsed.id} />
           ) : (
             <DexPage />
           )}
-          <footer>
-            <span>
-              <Leaf size={13} /> Every discovery makes this place a little more
-              yours.
-            </span>
-            <span>Pokopia Fieldnotes · {catalog.version}</span>
-          </footer>
-        </main>
-      </div>
+        </div>
+        <footer>
+          <span>
+            <Leaf size={13} /> Every discovery makes this place a little more
+            yours.
+          </span>
+          <span>Pokopia Fieldnotes · {catalog.version}</span>
+        </footer>
+      </main>
+      <ChecklistFab scope={checklistScope(route)} />
       {backup && (
         <Modal
           title="Your notebook"
@@ -158,13 +253,17 @@ export default function App() {
           }}
         >
           <p>
-            Your discoveries, housemate plan and any saved area layouts are
-            stored in this browser. Export a backup to move them or keep a copy.
+            Your discoveries, habitat builds, housemate plan and any saved area
+            layouts are stored in this browser. Export a backup to move them or
+            keep a copy.
           </p>
           <div className="backup-stats">
             <strong>
               {Object.values(state.found).filter((a) => a.length).length}{" "}
               friends found
+            </strong>
+            <strong>
+              {Object.keys(state.habitatBuilds || {}).length} habitat builds
             </strong>
             <strong>{state.housematePlan ? 1 : 0} housemate plan</strong>
             <strong>{Object.keys(state.plans).length} area layouts</strong>
@@ -214,7 +313,8 @@ export default function App() {
               <p>
                 This backup contains{" "}
                 {Object.values(pending.found).filter((a) => a.length).length}{" "}
-                found Pokémon, {pending.housematePlan ? 1 : 0} housemate plan
+                found Pokémon, {Object.keys(pending.habitatBuilds || {}).length}{" "}
+                habitat builds, {pending.housematePlan ? 1 : 0} housemate plan
                 and {Object.keys(pending.plans).length} area layouts. It will
                 replace your current discoveries and plans.
               </p>

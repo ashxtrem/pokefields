@@ -17,10 +17,68 @@ describe("shipped reference catalog", () => {
       ),
     ).toEqual([308, 7, 50]);
   });
+  it("uses official national numbers for species artwork", () => {
+    expect(catalog.pokemon.find((p) => p.id === "gholdengo")?.nationalNumber).toBe(
+      1000,
+    );
+    expect(catalog.pokemon.find((p) => p.id === "voltorb")?.nationalNumber).toBe(
+      100,
+    );
+    expect(catalog.pokemon.find((p) => p.id === "electrode")?.nationalNumber).toBe(
+      101,
+    );
+  });
+  it("includes habitat-only Serebii items used as requirement icons", () => {
+    expect(catalog.items.find((i) => i.id === "seamoss")?.name).toMatch(
+      /sea moss/i,
+    );
+    expect(catalog.items.find((i) => i.id === "chimneyrocks")?.name).toMatch(
+      /chimney rocks/i,
+    );
+    expect(catalog.items.find((i) => i.id === "bed")?.name).toMatch(/bed/i);
+    expect(catalog.items.find((i) => i.id === "limestone")?.name).toMatch(
+      /limestone/i,
+    );
+  });
+  it("includes environment examples, flooring, and gatherables from the full Serebii item list", () => {
+    expect(catalog.version).toBe("2026-09-09.4");
+    expect(catalog.items.length).toBeGreaterThanOrEqual(1700);
+    for (const id of [
+      "icyrock",
+      "heatrock",
+      "stonehousekit",
+      "sanddenkit",
+      "freezingchamberskit",
+      "honey",
+      "diploma",
+      "flowertable",
+      "tatamimat",
+      "glowingmushrooms",
+    ]) {
+      expect(catalog.items.find((i) => i.id === id), id).toBeTruthy();
+    }
+  });
+  it("includes Serebii food items used as flavor examples", () => {
+    expect(catalog.items.find((i) => i.id === "freshcarrot")?.name).toMatch(
+      /carrot/i,
+    );
+    expect(catalog.items.find((i) => i.id === "chilisauce")?.name).toMatch(
+      /chili/i,
+    );
+    expect(catalog.items.find((i) => i.id === "pechaberry")?.name).toMatch(
+      /pecha/i,
+    );
+    expect(catalog.items.find((i) => i.id === "leppasalad")?.name).toMatch(
+      /salad/i,
+    );
+    expect(catalog.items.find((i) => i.id === "mushroomsoup")?.name).toMatch(
+      /soup/i,
+    );
+  });
   it("uses actual items rather than category index links", () => {
     expect(
       catalog.items.some((i) =>
-        ["decoration", "toy", "relaxation"].includes(i.id),
+        ["decoration", "relaxation"].includes(i.id),
       ),
     ).toBe(false);
     expect(

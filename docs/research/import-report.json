@@ -1,8 +1,6 @@
 {
   "pokemon": 365,
-  "preferences": 365,
-  "habitats": 252,
-  "items": 715,
+  "items": 1755,
   "kits": 26,
-  "failures": []
+  "mode": "items-only"
 }

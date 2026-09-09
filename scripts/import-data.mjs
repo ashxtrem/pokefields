@@ -47,34 +47,71 @@ const names = ($, selector) => [
 const categoryName = (s) =>
   s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-const src =
-  "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/";
-const raw = JSON.parse(await get(src + "src/data/pokemon.json"));
-await writeFile(
-  "public/data/POKOPIAPI-LICENSE.txt",
-  await get(src + "LICENSE"),
-);
-const catalogs = ["availablepokemon", "eventpokedex", "basinpokedex"];
-const links = new Map();
-for (const page of catalogs) {
-  const $ = load(await get(`${origin}/pokemonpokopia/${page}.shtml`));
-  $('main a[href*="/pokedex/"]').each((_, e) => {
-    const href = $(e).attr("href");
-    if (
-      href?.endsWith(".shtml") &&
-      !href.includes("/specialty/") &&
-      !href.includes("/idealhabitat/")
-    ) {
-      const n = text($, e) || $(e).find("img").attr("alt");
-      if (n) links.set(slug(n), origin + href);
-    }
+const itemsOnly = process.argv.includes("--items-only");
+const itemMap = new Map();
+function itemIdFromSrc(srcAttr) {
+  if (!srcAttr) return null;
+  try {
+    const file = new URL(srcAttr, origin).pathname.split("/").pop() || "";
+    const id = file.replace(/\.png$/i, "");
+    return id || null;
+  } catch {
+    return null;
+  }
+}
+function ensureItem(id, name) {
+  const trimmed = (name || "").replace(/\s+/g, " ").trim();
+  if (!id || !trimmed || trimmed === "Name") return;
+  if (itemMap.has(id)) return;
+  itemMap.set(id, {
+    id,
+    name: trimmed,
+    categories: [],
+    source: `${origin}/pokemonpokopia/items/${id}.shtml`,
   });
 }
-const pokemon = [];
+const src =
+  "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/";
+let pokemon = [];
 const habitatSources = new Map();
 const favoriteSources = new Map();
 const failures = [];
-await pool(raw, async (p, index) => {
+// PokopiaAPI stores Gholdengo as 100 (Voltorb). Official national number is 1000.
+const nationalNumberFixes = { gholdengo: 1000 };
+let catalogSnapshot = null;
+if (itemsOnly) {
+  catalogSnapshot = JSON.parse(
+    await readFile("public/data/catalog.json", "utf8"),
+  );
+  pokemon = catalogSnapshot.pokemon;
+  for (const item of catalogSnapshot.items) itemMap.set(item.id, item);
+  for (const p of pokemon)
+    for (const h of p.habitats)
+      habitatSources.set(new URL(h.source).pathname, h.name);
+  console.log("Items-only: scanning", habitatSources.size, "habitats");
+} else {
+  const raw = JSON.parse(await get(src + "src/data/pokemon.json"));
+  await writeFile(
+    "public/data/POKOPIAPI-LICENSE.txt",
+    await get(src + "LICENSE"),
+  );
+  const catalogs = ["availablepokemon", "eventpokedex", "basinpokedex"];
+  const links = new Map();
+  for (const page of catalogs) {
+    const $ = load(await get(`${origin}/pokemonpokopia/${page}.shtml`));
+    $('main a[href*="/pokedex/"]').each((_, e) => {
+      const href = $(e).attr("href");
+      if (
+        href?.endsWith(".shtml") &&
+        !href.includes("/specialty/") &&
+        !href.includes("/idealhabitat/")
+      ) {
+        const n = text($, e) || $(e).find("img").attr("alt");
+        if (n) links.set(slug(n), origin + href);
+      }
+    });
+  }
+  await pool(raw, async (p, index) => {
   const corrected = {
     Bellosom: "Bellossom",
     "Profesor Tangrowth": "Professor Tangrowth",
@@ -208,7 +245,7 @@ await pool(raw, async (p, index) => {
     id: p.slug,
     name,
     number: String(p.localNumber),
-    nationalNumber: p.nationalNumber,
+    nationalNumber: nationalNumberFixes[p.slug] ?? p.nationalNumber,
     dex: typeof p.dex === "string" ? p.dex : p.dex?.kind || "regular",
     image: p.imageUrl,
     types: types.length
@@ -241,6 +278,7 @@ await pool(raw, async (p, index) => {
   });
   if (index % 30 === 0) console.log(`Pokémon ${index + 1}/${raw.length}`);
 });
+}
 await pool([...habitatSources], async ([href]) => {
   try {
     const $ = load(await get(origin + href));
@@ -257,18 +295,21 @@ await pool([...habitatSources], async ([href]) => {
       if (cells.length >= 3) {
         const name = text($, cells.eq(1)),
           quantity = text($, cells.eq(2));
+        ensureItem(itemIdFromSrc(cells.eq(0).find("img").attr("src")), name);
         if (name !== "Name" && name) req.push(`${quantity} × ${name}`);
       }
     });
-    for (const p of pokemon)
-      for (const h of p.habitats)
-        if (h.source === origin + href) {
-          h.requirements = req;
-          h.image = image ? new URL(image, origin).href : null;
-        }
+    if (!itemsOnly) {
+      for (const p of pokemon)
+        for (const h of p.habitats)
+          if (h.source === origin + href) {
+            h.requirements = req;
+            h.image = image ? new URL(image, origin).href : null;
+          }
+    }
   } catch {}
 });
-const itemMap = new Map();
+if (!itemsOnly)
 await pool([...favoriteSources], async ([category, url]) => {
   try {
     const $ = load(await get(url));
@@ -340,12 +381,18 @@ await pool(kitLinks, async (href) => {
       ) {
         const name = text($, cells.eq(1)),
           quantity = Number(text($, cells.eq(2)));
+        ensureItem(
+          itemIdFromSrc(cells.eq(0).find("img").attr("src")),
+          name,
+        );
         if (name && quantity && !materials.some((m) => m.name === name))
           materials.push({ name, quantity });
       }
     });
     main.find('a[href*="/items/"]').each((_, e) => {
       const name = text($, e);
+      const href = $(e).attr("href") || "";
+      ensureItem(href.split("/").pop()?.replace(".shtml", ""), name);
       const parent = $(e).parent();
       const t = text($, parent);
       const q = t.match(
@@ -353,6 +400,9 @@ await pool(kitLinks, async (href) => {
       );
       if (name && q && !materials.some((m) => m.name === name))
         materials.push({ name, quantity: Number(q[1]) });
+    });
+    main.find('img[src*="/items/"]').each((_, e) => {
+      ensureItem(itemIdFromSrc($(e).attr("src")), $(e).attr("alt"));
     });
     // Material labels on these pages are often unlinked text beside an icon.
     if (!materials.length) {
@@ -382,13 +432,93 @@ await pool(kitLinks, async (href) => {
     });
   } catch {}
 });
+const indexSkip = new Set([
+  "decoration",
+  "food",
+  "relaxation",
+  "road",
+  "toy",
+]);
+const $index = load(await get(origin + "/pokemonpokopia/items.shtml"));
+const itemsByName = new Map();
+$index('a[href*="items/"]').each((_, e) => {
+  const name = text($index, e);
+  const href = $index(e).attr("href") || "";
+  if (!name || $index(e).find("img").length) return;
+  const id = href.split("/").pop()?.replace(".shtml", "");
+  if (!id || indexSkip.has(id) || href.includes("itemdex")) return;
+  itemsByName.set(slug(name), { id, name });
+  ensureItem(id, name);
+});
+function ingestNamed(name) {
+  const stripped = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
+  const hit = itemsByName.get(slug(name)) || itemsByName.get(slug(stripped));
+  if (hit) ensureItem(hit.id, hit.name);
+}
+for (const p of pokemon)
+  for (const h of p.habitats)
+    for (const raw of h.requirements) {
+      const name = raw.replace(/^(?:\d+\s*)?×\s*/, "").trim();
+      ingestNamed(name);
+    }
+for (const kit of itemsOnly ? catalogSnapshot.kits : kits)
+  for (const m of kit.materials) ingestNamed(m.name);
+for (const page of [...indexSkip]) {
+  const $page = load(await get(`${origin}/pokemonpokopia/items/${page}.shtml`));
+  $page("table.dextable img[src$='.png']").each((_, e) => {
+    const id = itemIdFromSrc($page(e).attr("src"));
+    const name = $page(e).attr("alt") || $page(e).parent().text();
+    ensureItem(id, name);
+  });
+}
+const apiItems = JSON.parse(await get(src + "src/data/items.json"));
+const apiSlug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const apiById = new Map(
+  apiItems.map((i) => [apiSlug(i.slug || i.name), i]),
+);
+const apiByName = new Map(apiItems.map((i) => [apiSlug(i.name), i]));
+for (const item of itemMap.values()) {
+  const hit =
+    apiById.get(item.id) ||
+    apiByName.get(apiSlug(item.name)) ||
+    apiById.get(apiSlug(item.name));
+  if (!hit) continue;
+  if (hit.locations?.length) item.locations = hit.locations;
+  if (hit.craftingRecipe?.length)
+    item.recipe = hit.craftingRecipe.map((r) => ({
+      name: r.name,
+      quantity: r.quantity,
+    }));
+  if (hit.recipeLocation) item.recipeLocation = hit.recipeLocation;
+  if (hit.event?.name) item.event = hit.event.name;
+}
+if (itemsOnly) {
+  catalogSnapshot.items = [...itemMap.values()];
+  catalogSnapshot.version = "2026-09-09.4";
+  await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot));
+  await writeFile(
+    "docs/research/import-report.json",
+    JSON.stringify(
+      {
+        pokemon: catalogSnapshot.pokemon.length,
+        items: catalogSnapshot.items.length,
+        kits: catalogSnapshot.kits.length,
+        mode: "items-only",
+      },
+      null,
+      2,
+    ),
+  );
+  console.log("Done items-only", catalogSnapshot.items.length, "items");
+  process.exit(0);
+}
 const areas = [...new Set(pokemon.flatMap((p) => p.areas))].sort();
 pokemon.sort((a, b) =>
   a.number.localeCompare(b.number, undefined, { numeric: true }),
 );
 kits.sort((a, b) => a.name.localeCompare(b.name));
 const out = {
-  version: "2026-09-08.1",
+  version: "2026-09-09.4",
   pokemon,
   kits,
   items: [...itemMap.values()],
