@@ -24,7 +24,15 @@ import {
   uniqueFoundRoster,
 } from "./recommend";
 import type { HousematePlan, HousematePlanSettings, RecommendedHome } from "./types";
-import { ExplainDialog, Empty, ItemButton, Modal, Portrait, SourceLink, TermChip } from "../ui/components";
+import {
+  ExplainDialog,
+  Empty,
+  ItemButton,
+  ItemThumb,
+  Modal,
+  Portrait,
+  TermChip,
+} from "../ui/components";
 import { reconcileHouseQuantityList } from "../shopping/checklists";
 
 const PRESETS: { id: string; label: string; settings: HousematePlanSettings }[] = [
@@ -786,10 +794,15 @@ function HomeCard({
   const setup = furnishings(residents, catalog.items);
   const env = homeEnvironment(home, catalog);
   const envClass = env ? ENVIRONMENT_CLASS[env] || "" : "";
+  const spare = kit ? kit.capacity - residents.length : 0;
   return (
     <article className={`housemate-card ${envClass}`}>
       <span className={`home-list-icon ${envClass || "env-unknown"}`}>
-        <House size={22} />
+        {kit ? (
+          <ItemThumb id={kit.id} name={kit.name} />
+        ) : (
+          <House size={22} />
+        )}
       </span>
       <div className="housemate-card-body">
         <div className="housemate-portraits">
@@ -811,7 +824,10 @@ function HomeCard({
           )}
           {kit && (
             <span className="chip static">
-              {kit.name} · {residents.length}/{kit.capacity}
+              {kit.name}
+              {spare > 0
+                ? ` · room for ${spare} more`
+                : ""}
             </span>
           )}
         </div>
@@ -831,15 +847,18 @@ function HomeCard({
             <ul className="card-furnishing-list">
               {setup.selected.map(({ item, categories }) => (
                 <li key={item.id}>
-                  <strong>
-                    1 ×{" "}
-                    <ItemButton
-                      name={item.name}
-                      id={item.id}
-                      onOpen={onExplain}
-                    />
-                  </strong>
-                  <small>{categories.join(" · ")}</small>
+                  <ItemThumb id={item.id} name={item.name} />
+                  <div>
+                    <strong>
+                      1 ×{" "}
+                      <ItemButton
+                        name={item.name}
+                        id={item.id}
+                        onOpen={onExplain}
+                      />
+                    </strong>
+                    <small>{categories.join(" · ")}</small>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -921,6 +940,7 @@ function ChangeHomeModal({
                 }
               }}
             >
+              <ItemThumb id={option.id} name={option.name} large />
               <strong>{option.name}</strong>
               <small>
                 {option.width} × {option.depth} blocks · {option.capacity}{" "}
@@ -946,7 +966,6 @@ function ChangeHomeModal({
             ) : (
               <small>Materials not recorded</small>
             )}
-            {option.source && <SourceLink url={option.source} />}
           </div>
         ))}
       </div>
@@ -1062,6 +1081,7 @@ function AddHomeModal({
                 }
               }}
             >
+              <ItemThumb id={option.id} name={option.name} large />
               <strong>{option.name}</strong>
               <small>
                 {option.width} × {option.depth} blocks · {option.capacity}{" "}

@@ -48,6 +48,8 @@ const categoryName = (s) =>
   s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const itemsOnly = process.argv.includes("--items-only");
+const cookingOnly = process.argv.includes("--cooking-only");
+const catalogVersion = "2026-09-09.5";
 const itemMap = new Map();
 function itemIdFromSrc(srcAttr) {
   if (!srcAttr) return null;
@@ -70,6 +72,62 @@ function ensureItem(id, name) {
     source: `${origin}/pokemonpokopia/items/${id}.shtml`,
   });
 }
+function cookingCellItem($, cell) {
+  const a = $(cell).find("a[href*='items/']").first();
+  if (!a.length) return null;
+  const href = a.attr("href") || "";
+  const id = (href.split("/").pop() || "").replace(/\.shtml.*/i, "");
+  const name = (a.find("img").attr("alt") || a.text() || "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!id || !name) return null;
+  return { id, name };
+}
+function resolveMappedItem(id, name) {
+  const named = slug(name);
+  return (
+    itemMap.get(id) ||
+    itemMap.get(named) ||
+    [...itemMap.values()].find((item) => slug(item.name) === named) ||
+    [...itemMap.values()].find(
+      (item) =>
+        named.length > 3 &&
+        (slug(item.name).startsWith(named) || named.startsWith(slug(item.name))),
+    )
+  );
+}
+async function applyCookingRecipes() {
+  const $cook = load(await get(`${origin}/pokemonpokopia/cooking.shtml`));
+  $cook("table.dextable tr").each((_, tr) => {
+    const cells = $cook(tr).children("td");
+    if (cells.length < 7) return;
+    if ($cook(cells.eq(0)).find("h3").length) return;
+    const dish =
+      cookingCellItem($cook, cells.eq(0)) ||
+      cookingCellItem($cook, cells.eq(1));
+    if (!dish) return;
+    const item = resolveMappedItem(dish.id, dish.name);
+    if (!item) return;
+    const parts = [4, 5, 6]
+      .map((i) => cookingCellItem($cook, cells.eq(i)))
+      .filter(Boolean)
+      .map((part) => {
+        const hit = resolveMappedItem(part.id, part.name);
+        return { name: hit?.name || part.name, quantity: 1 };
+      });
+    if (!parts.length) return;
+    item.recipe = parts;
+    const specImg = $cook(cells.eq(7)).find("img[alt]").attr("alt");
+    const spec = (specImg || $cook(cells.eq(7)).text() || "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (spec) item.recipeSpecialty = spec;
+    else delete item.recipeSpecialty;
+    if (!item.locations?.some((line) => /cook with ingredients/i.test(line))) {
+      item.locations = [...(item.locations || []), "Cook with ingredients"];
+    }
+  });
+}
 const src =
   "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/";
 let pokemon = [];
@@ -79,6 +137,18 @@ const failures = [];
 // PokopiaAPI stores Gholdengo as 100 (Voltorb). Official national number is 1000.
 const nationalNumberFixes = { gholdengo: 1000 };
 let catalogSnapshot = null;
+if (cookingOnly) {
+  catalogSnapshot = JSON.parse(
+    await readFile("public/data/catalog.json", "utf8"),
+  );
+  for (const item of catalogSnapshot.items) itemMap.set(item.id, item);
+  await applyCookingRecipes();
+  catalogSnapshot.items = [...itemMap.values()];
+  catalogSnapshot.version = catalogVersion;
+  await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot));
+  console.log("Done cooking recipes", catalogSnapshot.items.length, "items");
+  process.exit(0);
+}
 if (itemsOnly) {
   catalogSnapshot = JSON.parse(
     await readFile("public/data/catalog.json", "utf8"),
@@ -492,9 +562,10 @@ for (const item of itemMap.values()) {
   if (hit.recipeLocation) item.recipeLocation = hit.recipeLocation;
   if (hit.event?.name) item.event = hit.event.name;
 }
+await applyCookingRecipes();
 if (itemsOnly) {
   catalogSnapshot.items = [...itemMap.values()];
-  catalogSnapshot.version = "2026-09-09.4";
+  catalogSnapshot.version = catalogVersion;
   await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot));
   await writeFile(
     "docs/research/import-report.json",
@@ -518,7 +589,7 @@ pokemon.sort((a, b) =>
 );
 kits.sort((a, b) => a.name.localeCompare(b.name));
 const out = {
-  version: "2026-09-09.4",
+  version: catalogVersion,
   pokemon,
   kits,
   items: [...itemMap.values()],

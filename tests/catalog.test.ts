@@ -41,7 +41,7 @@ describe("shipped reference catalog", () => {
     );
   });
   it("includes environment examples, flooring, and gatherables from the full Serebii item list", () => {
-    expect(catalog.version).toBe("2026-09-09.4");
+    expect(catalog.version).toBe("2026-09-09.5");
     expect(catalog.items.length).toBeGreaterThanOrEqual(1700);
     for (const id of [
       "icyrock",
@@ -74,6 +74,15 @@ describe("shipped reference catalog", () => {
     expect(catalog.items.find((i) => i.id === "mushroomsoup")?.name).toMatch(
       /soup/i,
     );
+  });
+  it("stores Serebii cooking recipes on cooked dishes", () => {
+    expect(catalog.items.find((i) => i.id === "seaweedsalad")?.recipe).toEqual([
+      { name: "Leaf", quantity: 1 },
+      { name: "Seaweed", quantity: 1 },
+    ]);
+    expect(
+      catalog.items.find((i) => i.id === "shreddedsalad")?.recipeSpecialty,
+    ).toBe("Chop");
   });
   it("uses actual items rather than category index links", () => {
     expect(

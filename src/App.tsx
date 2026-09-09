@@ -341,16 +341,18 @@ export default function App() {
           <hr />
           <h3>About the reference data</h3>
           <p className="muted">
-            Sources are linked on entries. Unknown details remain unfilled; game
-            updates can change availability and requirements.
+            Unknown details remain unfilled; game updates can change
+            availability and requirements.
           </p>
-          {catalog.sources.map((s) => (
-            <p key={s.url}>
-              <a href={s.url} target="_blank" rel="noreferrer">
-                {s.name} ↗
-              </a>
-            </p>
-          ))}
+          {catalog.sources
+            .filter((s) => !/serebii\.net/i.test(s.url))
+            .map((s) => (
+              <p key={s.url}>
+                <a href={s.url} target="_blank" rel="noreferrer">
+                  {s.name} ↗
+                </a>
+              </p>
+            ))}
           <small className="muted">
             Pokémon and game artwork belong to their respective owners. This fan
             project is not affiliated with Nintendo or The Pokémon Company.

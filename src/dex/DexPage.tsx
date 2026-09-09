@@ -27,7 +27,6 @@ import {
   ExplainDialog,
   Modal,
   Portrait,
-  SourceLink,
   SpecialtyIcon,
   TermChip,
 } from "../ui/components";
@@ -370,11 +369,46 @@ export function PokemonDetail({ id }: { id: string }) {
     ? tab
     : "Habitats & Spawns";
   const foundAreas = state.found[p.id] || [];
+  const pokemonIndex = catalog.pokemon.findIndex((x) => x.id === p.id);
+  const prevPokemon =
+    pokemonIndex > 0 ? catalog.pokemon[pokemonIndex - 1] : null;
+  const nextPokemon =
+    pokemonIndex >= 0 && pokemonIndex < catalog.pokemon.length - 1
+      ? catalog.pokemon[pokemonIndex + 1]
+      : null;
   return (
     <div className="detail-page">
-      <a className="back-link" href="#/dex">
-        ← Back to Pokédex
-      </a>
+      <div className="detail-page-header">
+        <a className="back-link" href="#/dex">
+          ← Back to Pokédex
+        </a>
+        <div className="detail-pager">
+          {prevPokemon ? (
+            <a
+              className="button secondary detail-pager-link"
+              href={`#/pokemon/${prevPokemon.id}`}
+            >
+              ← {prevPokemon.name}
+            </a>
+          ) : (
+            <button className="button secondary" disabled>
+              ← Previous
+            </button>
+          )}
+          {nextPokemon ? (
+            <a
+              className="button secondary detail-pager-link"
+              href={`#/pokemon/${nextPokemon.id}`}
+            >
+              {nextPokemon.name} →
+            </a>
+          ) : (
+            <button className="button secondary" disabled>
+              Next →
+            </button>
+          )}
+        </div>
+      </div>
       <div className={`detail-hero ${typeClass(p.types[0])}`}>
         <div className="detail-hero-copy">
           <div className="eyebrow">
@@ -534,10 +568,6 @@ export function PokemonDetail({ id }: { id: string }) {
               Shared preferences help with furnishing. They are not a friendship
               rating or a guarantee of maximum comfort.
             </p>
-            <SourceLink url={p.source} />
-            {p.additionalSources?.map((url) => (
-              <SourceLink key={url} url={url} label="Female form reference" />
-            ))}
           </>
         )}
       </section>
@@ -723,7 +753,6 @@ function HabitatCard({
           <a className="text-button" href={habitatDetailHref(habitat.id)}>
             Open habitat page
           </a>
-          <SourceLink url={habitat.source} />
         </div>
       </div>
     </article>

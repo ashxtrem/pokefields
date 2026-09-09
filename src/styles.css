@@ -971,6 +971,24 @@ input[type="checkbox"] {
   font-size: 12px;
   color: #829070;
 }
+.detail-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+.detail-pager {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.detail-pager .button {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+}
 .detail-hero {
   position: relative;
   margin: 25px 0;
@@ -1359,13 +1377,6 @@ input[type="checkbox"] {
   background: #faf0e8;
   border-color: #eacebf;
 }
-.source-link {
-  display: block;
-  color: #7c8b6d;
-  font-size: 11px;
-  text-decoration: underline;
-  margin-top: 15px;
-}
 .habitat-card {
   display: grid;
   grid-template-columns: minmax(190px, 280px) minmax(0, 1fr);
@@ -1564,9 +1575,6 @@ input[type="checkbox"] {
   align-items: center;
   gap: 14px;
   flex-wrap: wrap;
-}
-.habitat-actions .source-link {
-  margin: 0;
 }
 /* Same attracted-Pokémon chips as habitat detail, nested in the card column. */
 .habitat-card .habitat-pokemon {
@@ -2135,9 +2143,6 @@ hr {
 .furnishing small {
   color: #8da177;
 }
-.furnishing .source-link {
-  margin-top: 6px;
-}
 .resident-environment {
   display: flex !important;
   align-items: center;
@@ -2155,6 +2160,10 @@ hr {
   font-size: 12px;
 }
 .care-row p {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
 }
 .roster-search {
@@ -2427,13 +2436,50 @@ hr {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 .card-furnishing-list li {
   display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 3px 8px;
+  align-items: center;
+  gap: 9px;
+}
+.card-furnishing-list li > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+/* Item and kit artwork, so the player recognises it in game storage. */
+.item-thumb {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #eef2e5;
+  color: #596c46;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+}
+.item-thumb img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.item-thumb.large {
+  width: 44px;
+  height: 44px;
+  flex-basis: 44px;
+}
+.item-thumb.large img {
+  width: 38px;
+  height: 38px;
+}
+.home-list-icon .item-thumb {
+  background: none;
 }
 .card-furnishing-list strong {
   display: inline;

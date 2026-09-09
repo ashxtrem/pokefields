@@ -82,6 +82,23 @@ describe("detail term explanations", () => {
     ).toBe("/images/habitats/1.png");
   });
 
+  it("shows cooking ingredients instead of a generic cook line", () => {
+    const salad = explainTerm(
+      { kind: "item", value: "Seaweed salad" },
+      catalog.items,
+    );
+    expect(salad.obtain).toEqual(["Cook with: 1 × Leaf, 1 × Seaweed"]);
+    expect(salad.items.map((item) => item.name)).toEqual(["Leaf", "Seaweed"]);
+    const shredded = explainTerm(
+      { kind: "item", value: "Shredded salad" },
+      catalog.items,
+    );
+    expect(shredded.obtain).toEqual([
+      "Cook with: 1 × Leaf",
+      "Needs a Pokémon with the Chop specialty",
+    ]);
+  });
+
   it("lists where to find an item instead of how to use it", () => {
     const flower = explainTerm(
       { kind: "item", value: "Flower cushion" },

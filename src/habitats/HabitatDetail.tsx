@@ -21,9 +21,13 @@ import {
   updateBuildCopies,
   updateBuildLocation,
 } from "../habitats/builds";
-import { getCanonicalHabitat } from "../habitats/catalog";
-import { filtersFromQuery, habitatCatalogHref } from "../habitats/search";
-import { Empty, ExplainDialog, Modal, SourceLink } from "../ui/components";
+import { getCanonicalHabitat, listCanonicalHabitats } from "../habitats/catalog";
+import {
+  filtersFromQuery,
+  habitatCatalogHref,
+  habitatDetailHref,
+} from "../habitats/search";
+import { Empty, ExplainDialog, Modal } from "../ui/components";
 import { QuantityControls } from "../shopping/QuantityControls";
 import type { HabitatBuildRecord } from "../habitats/types";
 
@@ -55,11 +59,47 @@ export function HabitatDetail({ habitatId }: { habitatId: string }) {
   const src = habitatImageUrl(habitat.image);
   const region = records.find((r) => r.region)?.region || filters.region || "";
   const planned = records.filter((r) => r.status === "planned");
+  const orderedHabitats = listCanonicalHabitats(catalog);
+  const habitatIndex = orderedHabitats.findIndex((h) => h.id === habitat.id);
+  const prevHabitat =
+    habitatIndex > 0 ? orderedHabitats[habitatIndex - 1] : null;
+  const nextHabitat =
+    habitatIndex >= 0 && habitatIndex < orderedHabitats.length - 1
+      ? orderedHabitats[habitatIndex + 1]
+      : null;
   return (
     <div className="detail-page habitat-detail-page">
-      <a className="back-link" href={habitatCatalogHref(filters)}>
-        ← Back to Habitats
-      </a>
+      <div className="detail-page-header">
+        <a className="back-link" href={habitatCatalogHref(filters)}>
+          ← Back to Habitats
+        </a>
+        <div className="detail-pager">
+          {prevHabitat ? (
+            <a
+              className="button secondary detail-pager-link"
+              href={habitatDetailHref(prevHabitat.id, filters)}
+            >
+              ← {prevHabitat.name}
+            </a>
+          ) : (
+            <button className="button secondary" disabled>
+              ← Previous
+            </button>
+          )}
+          {nextHabitat ? (
+            <a
+              className="button secondary detail-pager-link"
+              href={habitatDetailHref(nextHabitat.id, filters)}
+            >
+              {nextHabitat.name} →
+            </a>
+          ) : (
+            <button className="button secondary" disabled>
+              Next →
+            </button>
+          )}
+        </div>
+      </div>
       <div className="habitat-detail-hero">
         {src ? (
           <img className="habitat-image" src={src} alt={habitat.name} />
@@ -80,7 +120,6 @@ export function HabitatDetail({ habitatId }: { habitatId: string }) {
           {!!habitat.conflicts.length && (
             <p className="notice">{habitat.conflicts.join(" · ")}</p>
           )}
-          <SourceLink url={habitat.source} />
           <HabitatPokemonChips habitat={habitat} region={region} showNames />
         </div>
       </div>

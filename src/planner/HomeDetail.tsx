@@ -2,7 +2,7 @@ import { useState } from "react";
 import { House, Check } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { useViewState } from "../ui/navigation";
-import { explainTerm, type TermRef } from "../dex/glossary";
+import { explainTerm, foodEntries, type TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
 import {
   changeHomeKit,
@@ -16,7 +16,14 @@ import {
   swapHousemates,
 } from "./recommend";
 import type { HousematePlan, RecommendedHome } from "./types";
-import { ExplainDialog, ItemButton, Modal, Portrait, SourceLink, TermChip } from "../ui/components";
+import {
+  ExplainDialog,
+  ItemButton,
+  ItemThumb,
+  Modal,
+  Portrait,
+  TermChip,
+} from "../ui/components";
 
 export function HomeDetail({
   home,
@@ -269,7 +276,6 @@ export function HomeDetail({
               access, unlocks and helper availability still need an in-game
               check.
             </p>
-            <SourceLink url={kit.source} />
             <details className="edit-home">
               <summary>Change home</summary>
               <p className="muted">
@@ -298,6 +304,7 @@ export function HomeDetail({
                           }
                         }}
                       />
+                      <ItemThumb id={option.id} name={option.name} large />
                       <div>
                         <strong>{option.name}</strong>
                         <small>
@@ -365,7 +372,6 @@ export function HomeDetail({
                       .join(", ")}
                     : {categories.join(", ")}
                   </small>
-                  <SourceLink url={item.source} />
                 </div>
               </div>
             ))}
@@ -385,25 +391,45 @@ export function HomeDetail({
         )}
         {tab === "Care" && (
           <>
-            {residents.map((p) => (
-              <div className="care-row" key={p.id}>
-                <strong>{p.name}</strong>
-                <p>
-                  Environment:{" "}
-                  {p.environment ? (
-                    <TermChip
-                      term={{ kind: "environment", value: p.environment }}
-                      onOpen={setTerm}
-                    >
-                      {p.environment}
-                    </TermChip>
-                  ) : (
-                    "Unknown"
-                  )}{" "}
-                  · Food: {p.food || "Unknown"}
-                </p>
-              </div>
-            ))}
+            {residents.map((p) => {
+              const foods = foodEntries(p.food);
+              return (
+                <div className="care-row" key={p.id}>
+                  <strong>{p.name}</strong>
+                  <p>
+                    Environment:{" "}
+                    {p.environment ? (
+                      <TermChip
+                        term={{ kind: "environment", value: p.environment }}
+                        onOpen={setTerm}
+                      >
+                        {p.environment}
+                      </TermChip>
+                    ) : (
+                      "Unknown"
+                    )}{" "}
+                    · Food:{" "}
+                    {foods.length ? (
+                      foods.map((entry) => (
+                        <TermChip
+                          key={entry.label}
+                          term={{
+                            kind: "food",
+                            value: entry.flavor,
+                            label: entry.label,
+                          }}
+                          onOpen={setTerm}
+                        >
+                          {entry.label}
+                        </TermChip>
+                      ))
+                    ) : (
+                      "Unknown"
+                    )}
+                  </p>
+                </div>
+              );
+            })}
             <h3>Environment setup</h3>
             {explanation.match === "different" ? (
               <div className="notice">

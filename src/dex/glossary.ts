@@ -36,6 +36,7 @@ export interface ExplainedItem {
   locations?: string[];
   recipe?: { name: string; quantity: number }[];
   recipeLocation?: string | null;
+  recipeSpecialty?: string | null;
   event?: string | null;
 }
 
@@ -161,6 +162,7 @@ function explainedFrom(
     locations: hit?.locations,
     recipe: hit?.recipe,
     recipeLocation: hit?.recipeLocation,
+    recipeSpecialty: hit?.recipeSpecialty,
     event: hit?.event,
   };
 }
@@ -168,14 +170,25 @@ function explainedFrom(
 export function itemObtain(item: ExplainedItem): string[] {
   const lines = [...(item.locations || [])];
   if (item.recipe?.length) {
-    const craft = item.recipe
+    const parts = item.recipe
       .map((part) => `${part.quantity} × ${part.name}`)
       .join(", ");
-    const idx = lines.findIndex((line) => /craft from recipe/i.test(line));
-    if (idx >= 0) lines[idx] = `Craft from: ${craft}`;
-    else if (!lines.some((line) => /^craft from:/i.test(line)))
-      lines.push(`Craft from: ${craft}`);
+    const cookIdx = lines.findIndex((line) =>
+      /cook with ingredients/i.test(line),
+    );
+    const craftIdx = lines.findIndex((line) => /craft from recipe/i.test(line));
+    if (cookIdx >= 0) lines[cookIdx] = `Cook with: ${parts}`;
+    else if (craftIdx >= 0) lines[craftIdx] = `Craft from: ${parts}`;
+    else if (!lines.some((line) => /^(craft from:|cook with:)/i.test(line)))
+      lines.push(`Craft from: ${parts}`);
   }
+  if (
+    item.recipeSpecialty &&
+    !lines.some((line) => line.includes(item.recipeSpecialty!))
+  )
+    lines.push(
+      `Needs a Pokémon with the ${item.recipeSpecialty} specialty`,
+    );
   if (item.recipeLocation && !lines.some((line) => line === item.recipeLocation))
     lines.push(`Recipe unlocked: ${item.recipeLocation}`);
   if (item.event && !lines.some((line) => line.includes(item.event!)))
@@ -1044,6 +1057,9 @@ export function explainTerm(term: TermRef, items: Item[]): TermExplanation {
 
   const item = resolveItem(term.id || value, items);
   const obtain = itemObtain(item);
+  const recipeItems = (item.recipe || []).map((part) =>
+    resolveItem(part.name, items),
+  );
   return {
     ...base,
     title: term.quantity ? `${term.quantity} × ${item.name}` : item.name,
@@ -1056,8 +1072,11 @@ export function explainTerm(term: TermRef, items: Item[]): TermExplanation {
         : `${item.name} is used in habitat builds or home furnishing.`,
     obtain: obtain.length
       ? obtain
-      : ["Where to find this isn’t recorded yet. Check the reference link below."],
-    items: [],
+      : ["Where to find this isn’t recorded yet."],
+    items: recipeItems.filter(
+      (part, index) =>
+        recipeItems.findIndex((other) => other.id === part.id) === index,
+    ),
     categories: item.categories,
     source: item.source,
     heroImage: item.image,

@@ -5,6 +5,7 @@ import { useCatalog } from "../catalog/context";
 import { useProgress } from "../progress/context";
 import {
   explainTerm,
+  itemImageUrl,
   pokemonArtUrl,
   specialtyImageUrl,
   type TermRef,
@@ -207,6 +208,40 @@ export function TermChip({
   );
 }
 /**
+ * Baked artwork for an item or kit, by catalog id. Falls back to the first
+ * letter so a missing bake never leaves an empty box.
+ */
+export function ItemThumb({
+  id,
+  name,
+  large = false,
+}: {
+  id: string;
+  name: string;
+  large?: boolean;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <span
+      className={`item-thumb ${large ? "large" : ""}`}
+      aria-hidden="true"
+      title={name}
+    >
+      {failed ? (
+        name.slice(0, 1)
+      ) : (
+        <img
+          src={itemImageUrl(id)}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  );
+}
+/**
  * An item or material name that opens the explain popup.
  * The button shows the name only; the surrounding row already prints the count.
  * Pass `quantity` with `context: "home"` for build materials so the popup says
@@ -324,23 +359,29 @@ export function ExplainDialog({
         </>
       )}
       {info.items.length > 0 && (
-        <div className="explain-items">
-          {info.items.map((item) => (
-            <button
-              type="button"
-              key={item.id}
-              className="explain-item"
-              onClick={() =>
-                open({ kind: "item", value: item.name, id: item.id })
-              }
-            >
-              <ItemPic src={item.image} name="" />
-              <span>{item.name}</span>
-            </button>
-          ))}
-        </div>
+        <>
+          {info.obtain?.some((line) =>
+            /^(Cook with:|Craft from:)/i.test(line),
+          ) ? (
+            <h3 className="explain-sub">Ingredients</h3>
+          ) : null}
+          <div className="explain-items">
+            {info.items.map((item) => (
+              <button
+                type="button"
+                key={item.id}
+                className="explain-item"
+                onClick={() =>
+                  open({ kind: "item", value: item.name, id: item.id })
+                }
+              >
+                <ItemPic src={item.image} name="" />
+                <span>{item.name}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
-      {info.source && <SourceLink url={info.source} />}
       {stack.length > 1 && (
         <button
           className="text-button explain-back"
@@ -367,18 +408,5 @@ export function Empty({
       <h3>{title}</h3>
       <p>{children}</p>
     </div>
-  );
-}
-export function SourceLink({
-  url,
-  label = "View reference",
-}: {
-  url: string;
-  label?: string;
-}) {
-  return (
-    <a className="source-link" href={url} target="_blank" rel="noreferrer">
-      {label} ↗
-    </a>
   );
 }
