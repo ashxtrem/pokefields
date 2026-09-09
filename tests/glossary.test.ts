@@ -105,6 +105,25 @@ describe("detail term explanations", () => {
     ]);
   });
 
+  it("reads a quantity as a footprint for habitats and a build cost for homes", () => {
+    const habitat = explainTerm(
+      { kind: "item", value: "Stone", quantity: "25" },
+      catalog.items,
+    );
+    expect(habitat.title).toBe("25 × Stone");
+    expect(habitat.meaning).toMatch(/habitat footprint/i);
+    const home = explainTerm(
+      { kind: "item", value: "Stone", quantity: "25", context: "home" },
+      catalog.items,
+    );
+    expect(home.title).toBe("25 × Stone");
+    expect(home.meaning).toBe("Home construction needs 25 of this.");
+    expect(home.meaning).not.toMatch(/habitat/i);
+    const plain = explainTerm({ kind: "item", value: "Stone" }, catalog.items);
+    expect(plain.title).toBe("Stone");
+    expect(plain.meaning).not.toMatch(/habitat footprint|Home construction/i);
+  });
+
   it("splits gendered food and labels content packs", () => {
     expect(foodEntries("Male: Sour Flavors; Female: Spicy flavors")).toEqual([
       { flavor: "Sour", label: "Male: Sour" },

@@ -2223,20 +2223,6 @@ hr {
 .match-unknown {
   color: #6d7580;
 }
-.what-you-need {
-  margin-top: 14px;
-  border-top: 1px solid #e6ecd9;
-  padding-top: 12px;
-  font-size: 12px;
-}
-.what-you-need summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.what-you-need h3 {
-  font-size: 13px;
-  margin-top: 14px;
-}
 .unresolved-row {
   display: flex;
   gap: 10px;

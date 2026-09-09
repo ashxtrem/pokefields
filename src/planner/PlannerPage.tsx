@@ -616,6 +616,7 @@ export function PlannerPage() {
                       <HouseQuantityPreview
                         rows={houseShopping?.construction || []}
                         onExplain={setTerm}
+                        context="home"
                       />
                     ) : (
                       <p className="notice">
@@ -725,9 +726,12 @@ export function PlannerPage() {
 function HouseQuantityPreview({
   rows,
   onExplain,
+  context,
 }: {
   rows: { label: string; quantity: number; gathered: number }[];
   onExplain: (term: TermRef) => void;
+  /** Set for build materials so the popup explains what the total is for. */
+  context?: TermRef["context"];
 }) {
   return (
     <ul className="supply-list checklist-rows">
@@ -736,7 +740,12 @@ function HouseQuantityPreview({
           key={row.label + row.quantity}
           className={row.gathered >= row.quantity ? "ready" : ""}
         >
-          <ItemButton name={row.label} onOpen={onExplain} />
+          <ItemButton
+            name={row.label}
+            quantity={context ? row.quantity : undefined}
+            context={context}
+            onOpen={onExplain}
+          />
           <strong>
             {row.gathered} / {row.quantity}
           </strong>
@@ -924,7 +933,13 @@ function ChangeHomeModal({
                 {option.materials.map((m, i) => (
                   <span key={m.name}>
                     {i ? ", " : ""}
-                    {m.quantity} × <ItemButton name={m.name} onOpen={setTerm} />
+                    {m.quantity} ×{" "}
+                    <ItemButton
+                      name={m.name}
+                      quantity={m.quantity}
+                      context="home"
+                      onOpen={setTerm}
+                    />
                   </span>
                 ))}
               </small>

@@ -249,7 +249,12 @@ export function HomeDetail({
               <ul className="supply-list">
                 {kit.materials.map((m) => (
                   <li key={m.name}>
-                    <ItemButton name={m.name} onOpen={setTerm} />
+                    <ItemButton
+                      name={m.name}
+                      quantity={m.quantity}
+                      context="home"
+                      onOpen={setTerm}
+                    />
                     <strong>× {m.quantity}</strong>
                   </li>
                 ))}
@@ -306,7 +311,12 @@ export function HomeDetail({
                               <span key={m.name}>
                                 {i ? ", " : ""}
                                 {m.quantity} ×{" "}
-                                <ItemButton name={m.name} onOpen={setTerm} />
+                                <ItemButton
+                                  name={m.name}
+                                  quantity={m.quantity}
+                                  context="home"
+                                  onOpen={setTerm}
+                                />
                               </span>
                             ))}
                           </small>
@@ -473,7 +483,12 @@ export function HomeDetail({
               <ul className="supply-list">
                 {kit.materials.map((m) => (
                   <li key={m.name}>
-                    <ItemButton name={m.name} onOpen={setTerm} />
+                    <ItemButton
+                      name={m.name}
+                      quantity={m.quantity}
+                      context="home"
+                      onOpen={setTerm}
+                    />
                     <strong>× {m.quantity}</strong>
                   </li>
                 ))}

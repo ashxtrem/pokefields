@@ -18,6 +18,11 @@ export interface TermRef {
   kind: TermKind;
   value: string;
   quantity?: string;
+  /**
+   * What the quantity counts. A habitat requirement is placed in a footprint;
+   * a home material is gathered for a build. Defaults to "habitat".
+   */
+  context?: "habitat" | "home";
   label?: string;
   id?: string;
 }
@@ -1043,7 +1048,9 @@ export function explainTerm(term: TermRef, items: Item[]): TermExplanation {
     ...base,
     title: term.quantity ? `${term.quantity} × ${item.name}` : item.name,
     meaning: term.quantity
-      ? `Place ${term.quantity} of this in the habitat footprint.`
+      ? term.context === "home"
+        ? `Home construction needs ${term.quantity} of this.`
+        : `Place ${term.quantity} of this in the habitat footprint.`
       : item.categories.length
         ? `${item.name} is a furnishing Pokémon may like.`
         : `${item.name} is used in habitat builds or home furnishing.`,

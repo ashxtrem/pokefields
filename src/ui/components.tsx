@@ -208,16 +208,21 @@ export function TermChip({
 }
 /**
  * An item or material name that opens the explain popup.
- * Quantity stays outside the button: `explainTerm` reads a quantity as a habitat
- * footprint instruction, which is wrong for home construction and furnishing counts.
+ * The button shows the name only; the surrounding row already prints the count.
+ * Pass `quantity` with `context: "home"` for build materials so the popup says
+ * what the count is for instead of the habitat-footprint wording.
  */
 export function ItemButton({
   name,
   id,
+  quantity,
+  context,
   onOpen,
 }: {
   name: string;
   id?: string;
+  quantity?: number;
+  context?: TermRef["context"];
   onOpen: (term: TermRef) => void;
 }) {
   return (
@@ -229,7 +234,13 @@ export function ItemButton({
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onOpen({ kind: "item", value: name, id });
+        onOpen({
+          kind: "item",
+          value: name,
+          id,
+          quantity: quantity === undefined ? undefined : String(quantity),
+          context,
+        });
       }}
     >
       {name}
