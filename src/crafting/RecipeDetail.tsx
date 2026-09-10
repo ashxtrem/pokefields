@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ItemThumb } from "../ui/components";
+import { itemHref, itemsListHref } from "../items/tabs";
 import { ingredientCountLabel, summarizeLocations } from "./locations";
 import { isLearned } from "./learned";
 import {
@@ -27,7 +28,7 @@ export function RecipeDetail({
   const importerDefault = recipe.countProvenance === "importer-default";
   return (
     <article className="crafting-detail">
-      <a className="back-link crafting-back" href="#/crafting">
+      <a className="back-link crafting-back" href={itemsListHref("crafting")}>
         ← Back to recipes
       </a>
       <div className="crafting-detail-head">
@@ -36,6 +37,9 @@ export function RecipeDetail({
           <h2>{recipe.outputName}</h2>
           <p className="crafting-cats">
             {recipe.categories.join(" · ") || "Uncategorized"}
+          </p>
+          <p>
+            <a href={itemHref(recipe.outputItemId, "crafting")}>Item page</a>
           </p>
         </div>
       </div>
@@ -196,7 +200,7 @@ function IngredientRow({
 export function MissingRecipe({ recipeId }: { recipeId: string }) {
   return (
     <article className="crafting-detail">
-      <a className="back-link crafting-back" href="#/crafting">
+      <a className="back-link crafting-back" href={itemsListHref("crafting")}>
         ← Back to recipes
       </a>
       <h2>That recipe isn’t in this catalog</h2>

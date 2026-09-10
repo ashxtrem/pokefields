@@ -25,17 +25,21 @@ export function useViewState<T>(
 }
 
 export function routeKey(route: string) {
-  return (route || "#/dex").split("?")[0];
+  const raw = route || "#/dex";
+  const [path, query = ""] = raw.split("?");
+  const tab = new URLSearchParams(query).get("tab");
+  return tab ? `${path}?tab=${tab}` : path;
 }
 
-export type NavSection = "dex" | "habitats" | "planner" | "crafting";
+export type NavSection = "dex" | "habitats" | "planner" | "items";
 
 export type ParsedRoute =
   | { page: "habitat-detail"; habitatId: string; query: string }
   | { page: "habitats"; query: string }
   | { page: "planner"; query: string }
-  | { page: "crafting-recipe"; recipeId: string; query: string }
-  | { page: "crafting"; query: string }
+  | { page: "items-recipe"; recipeId: string; query: string }
+  | { page: "item-detail"; itemId: string; query: string }
+  | { page: "items"; query: string }
   | { page: "pokemon"; id: string; query: string }
   | { page: "dex"; query: string };
 
@@ -43,7 +47,7 @@ export const SECTION_LIST_HREF: Record<NavSection, string> = {
   dex: "#/dex",
   habitats: "#/habitats",
   planner: "#/planner",
-  crafting: "#/crafting",
+  items: "#/items",
 };
 
 const SECTION_ROUTES_KEY = "pkm.nav.sections";
@@ -51,10 +55,20 @@ const SECTION_ROUTES_KEY = "pkm.nav.sections";
 const sectionRoutes = new Map<NavSection, string>();
 let sectionRoutesHydrated = false;
 
-export function parseRoute(hash: string): ParsedRoute {
+function splitHash(hash: string) {
   const raw = hash || "#/dex";
   const [pathPart, query = ""] = raw.replace(/^#/, "").split("?");
-  const path = pathPart.replace(/^\/+/, "");
+  return { path: pathPart.replace(/^\/+/, ""), query };
+}
+
+function withCraftingTab(query: string) {
+  const params = new URLSearchParams(query);
+  if (!params.get("tab")) params.set("tab", "crafting");
+  return params.toString();
+}
+
+export function parseRoute(hash: string): ParsedRoute {
+  const { path, query } = splitHash(hash);
   if (path.startsWith("habitats/")) {
     return {
       page: "habitat-detail" as const,
@@ -68,15 +82,35 @@ export function parseRoute(hash: string): ParsedRoute {
   if (path === "planner" || path.startsWith("planner")) {
     return { page: "planner" as const, query };
   }
+  if (path.startsWith("items/recipe/")) {
+    return {
+      page: "items-recipe" as const,
+      recipeId: decodeURIComponent(path.slice("items/recipe/".length)),
+      query,
+    };
+  }
+  if (path === "items/recipe") {
+    return { page: "items-recipe" as const, recipeId: "", query };
+  }
   if (path.startsWith("crafting/recipe/")) {
     return {
-      page: "crafting-recipe" as const,
+      page: "items-recipe" as const,
       recipeId: decodeURIComponent(path.slice("crafting/recipe/".length)),
       query,
     };
   }
   if (path === "crafting" || path.startsWith("crafting")) {
-    return { page: "crafting" as const, query };
+    return { page: "items" as const, query: withCraftingTab(query) };
+  }
+  if (path.startsWith("items/") && path !== "items") {
+    return {
+      page: "item-detail" as const,
+      itemId: decodeURIComponent(path.slice("items/".length)),
+      query,
+    };
+  }
+  if (path === "items" || path.startsWith("items")) {
+    return { page: "items" as const, query };
   }
   if (path.startsWith("pokemon/")) {
     return {
@@ -88,21 +122,35 @@ export function parseRoute(hash: string): ParsedRoute {
   return { page: "dex" as const, query };
 }
 
+/** Canonical Items URLs for shipped `#/crafting*` hashes. Null when already canonical. */
+export function canonicalItemsHref(hash: string): string | null {
+  const { path, query } = splitHash(hash);
+  if (path.startsWith("crafting/recipe/")) {
+    const recipeId = decodeURIComponent(path.slice("crafting/recipe/".length));
+    const q = query ? `?${query}` : "";
+    return `#/items/recipe/${encodeURIComponent(recipeId)}${q}`;
+  }
+  if (path === "crafting" || path.startsWith("crafting")) {
+    const next = withCraftingTab(query);
+    return next ? `#/items?${next}` : "#/items?tab=crafting";
+  }
+  return null;
+}
+
 export function navSection(route: string): NavSection {
   const page = parseRoute(route).page;
   if (page === "habitats" || page === "habitat-detail") return "habitats";
   if (page === "planner") return "planner";
-  if (page === "crafting" || page === "crafting-recipe") return "crafting";
+  if (page === "items" || page === "items-recipe" || page === "item-detail")
+    return "items";
   return "dex";
 }
 
-function isNavSection(value: string): value is NavSection {
-  return (
-    value === "dex" ||
-    value === "habitats" ||
-    value === "planner" ||
-    value === "crafting"
-  );
+function asNavSection(value: string): NavSection | null {
+  if (value === "crafting" || value === "items") return "items";
+  if (value === "dex" || value === "habitats" || value === "planner")
+    return value;
+  return null;
 }
 
 function readStoredSectionRoutes() {
@@ -111,8 +159,9 @@ function readStoredSectionRoutes() {
     if (!raw) return;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     for (const [section, href] of Object.entries(parsed)) {
-      if (isNavSection(section) && typeof href === "string" && href)
-        sectionRoutes.set(section, href);
+      const mapped = asNavSection(section);
+      if (mapped && typeof href === "string" && href)
+        sectionRoutes.set(mapped, href);
     }
   } catch {
     /* sessionStorage can be missing or blocked */
@@ -154,6 +203,7 @@ export function isRememberedRouteAvailable(
     hasPokemon: (id: string) => boolean;
     hasHabitat: (id: string) => boolean;
     hasRecipe?: (id: string) => boolean;
+    hasItem?: (id: string) => boolean;
   },
 ) {
   const parsed = parseRoute(route);
@@ -161,8 +211,10 @@ export function isRememberedRouteAvailable(
     return Boolean(parsed.id) && options.hasPokemon(parsed.id);
   if (parsed.page === "habitat-detail")
     return Boolean(parsed.habitatId) && options.hasHabitat(parsed.habitatId);
-  if (parsed.page === "crafting-recipe")
+  if (parsed.page === "items-recipe")
     return Boolean(parsed.recipeId) && (options.hasRecipe?.(parsed.recipeId) ?? true);
+  if (parsed.page === "item-detail")
+    return Boolean(parsed.itemId) && (options.hasItem?.(parsed.itemId) ?? true);
   return true;
 }
 

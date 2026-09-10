@@ -110,7 +110,7 @@ export function unresolvedIngredientKey(
 }
 
 export function recipeHref(recipeId: string) {
-  return `#/crafting/recipe/${encodeURIComponent(recipeId)}`;
+  return `#/items/recipe/${encodeURIComponent(recipeId)}`;
 }
 
 export const NOT_YET_DOCUMENTED = "Not yet documented";

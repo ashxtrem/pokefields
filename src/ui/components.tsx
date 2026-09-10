@@ -4,6 +4,7 @@ import type { Pokemon } from "../catalog/types";
 import { useCatalog } from "../catalog/context";
 import { recipesForOutputItem } from "../crafting/catalog";
 import { recipeHref } from "../crafting/types";
+import { itemHref } from "../items/tabs";
 import { useProgress } from "../progress/context";
 import {
   explainTerm,
@@ -345,11 +346,24 @@ export function ExplainDialog({
         )
       : [];
   const recipeLink = recipes[0];
+  const catalogItem =
+    current.kind === "item"
+      ? catalog.items.find(
+          (item) =>
+            item.id ===
+            resolveItem(current.id || current.value, catalog.items).id,
+        )
+      : undefined;
+  const titleHref = catalogItem
+    ? itemHref(catalogItem.id)
+    : recipeLink
+      ? recipeHref(recipeLink.id)
+      : undefined;
   return (
     <Modal
       title={info.title}
-      titleHref={recipeLink ? recipeHref(recipeLink.id) : undefined}
-      onTitleClick={recipeLink ? onClose : undefined}
+      titleHref={titleHref}
+      onTitleClick={titleHref ? onClose : undefined}
       onClose={onClose}
       sheet
     >
@@ -411,6 +425,13 @@ export function ExplainDialog({
           </div>
         </>
       )}
+      {recipeLink ? (
+        <p>
+          <a href={recipeHref(recipeLink.id)} onClick={onClose}>
+            View recipe
+          </a>
+        </p>
+      ) : null}
       {stack.length > 1 && (
         <button
           className="text-button explain-back"

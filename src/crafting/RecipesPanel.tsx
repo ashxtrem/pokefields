@@ -10,6 +10,7 @@ import {
   filterRecipes,
   type RecipeFilters,
 } from "./search";
+import { itemsListHref } from "../items/tabs";
 import {
   NOT_YET_DOCUMENTED,
   UNLOCK_RECORDED,
@@ -119,7 +120,7 @@ export function RecipesPanel({
       {merged.usesItemId ? (
         <p className="notice">
           Showing recipes that use this material.
-          <a className="text-button" href="#/crafting">
+          <a className="text-button" href={itemsListHref("crafting")}>
             Clear material filter
           </a>
         </p>

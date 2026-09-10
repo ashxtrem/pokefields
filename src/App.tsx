@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
-  Hammer,
+  Package,
   House,
   Leaf,
   Download,
@@ -15,14 +15,16 @@ import { HabitatDetail } from "./habitats/HabitatDetail";
 import { HabitatsPage } from "./habitats/HabitatsPage";
 import { getCanonicalHabitat, listCanonicalHabitats } from "./habitats/catalog";
 import { PlannerPage } from "./planner/PlannerPage";
-import { CraftingPage } from "./crafting/CraftingPage";
+import { ItemsPage } from "./items/ItemsPage";
 import { listRecipes } from "./crafting/catalog";
 import { unavailableLearned, visibleLearnedCount } from "./crafting/learned";
+import { unavailableCollected, visibleCollectedCount } from "./items/collected";
 import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
 import { Modal } from "./ui/components";
 import { validateBackup, type SaveState } from "./persistence/store";
 
 import {
+  canonicalItemsHref,
   isRememberedRouteAvailable,
   isUnmodifiedLeftClick,
   parseRoute,
@@ -31,8 +33,18 @@ import {
   sectionHref,
 } from "./ui/navigation";
 
+function liveHash() {
+  const hash = location.hash || "#/dex";
+  const canonical = canonicalItemsHref(hash);
+  if (canonical && canonical !== hash) {
+    history.replaceState(null, "", canonical);
+    return canonical;
+  }
+  return hash;
+}
+
 export default function App() {
-  const [route, setRoute] = useState(location.hash || "#/dex");
+  const [route, setRoute] = useState(liveHash);
   const [backup, setBackup] = useState(false);
   const [pending, setPending] = useState<SaveState | null>(null);
   const [error, setError] = useState("");
@@ -45,6 +57,10 @@ export default function App() {
     () => new Set(listRecipes(catalog).map((recipe) => recipe.id)),
     [catalog],
   );
+  const itemIds = useMemo(
+    () => catalog.items.map((item) => item.id),
+    [catalog],
+  );
 
   const scrollPositions = useRef(new Map<string, number>());
   const activeRoute = useRef(routeKey(route));
@@ -55,12 +71,13 @@ export default function App() {
       hasPokemon: (id) => catalog.pokemon.some((p) => p.id === id),
       hasHabitat: (id) => Boolean(getCanonicalHabitat(catalog, id)),
       hasRecipe: (id) => recipeIds.has(id),
+      hasItem: (id) => catalog.items.some((item) => item.id === id),
     });
   const [resumeHrefs, setResumeHrefs] = useState(() => ({
     dex: sectionHref("dex"),
     habitats: sectionHref("habitats"),
     planner: sectionHref("planner"),
-    crafting: sectionHref("crafting"),
+    items: sectionHref("items"),
   }));
 
   useLayoutEffect(() => {
@@ -69,7 +86,7 @@ export default function App() {
       dex: sectionHref("dex", availableRoute),
       habitats: sectionHref("habitats", availableRoute),
       planner: sectionHref("planner", availableRoute),
-      crafting: sectionHref("crafting", availableRoute),
+      items: sectionHref("items", availableRoute),
     });
   }, [route, catalog]);
 
@@ -126,7 +143,7 @@ export default function App() {
       navigating.current = true;
     };
     const fn = () => {
-      setRoute(location.hash || "#/dex");
+      setRoute(liveHash());
     };
     window.addEventListener("hashchange", fn);
     window.addEventListener("scroll", rememberScroll, { passive: true });
@@ -143,8 +160,10 @@ export default function App() {
   const habitatsActive =
     parsed.page === "habitats" || parsed.page === "habitat-detail";
   const plannerActive = parsed.page === "planner";
-  const craftingActive =
-    parsed.page === "crafting" || parsed.page === "crafting-recipe";
+  const itemsActive =
+    parsed.page === "items" ||
+    parsed.page === "items-recipe" ||
+    parsed.page === "item-detail";
   const resumeSection = (
     event: {
       button: number;
@@ -203,14 +222,14 @@ export default function App() {
             <span className="nav-count">{habitatCount}</span>
           </a>
           <a
-            href={resumeHrefs.crafting}
-            className={craftingActive ? "active" : ""}
-            aria-current={craftingActive ? "page" : undefined}
-            onClick={(event) => resumeSection(event, craftingActive)}
+            href={resumeHrefs.items}
+            className={itemsActive ? "active" : ""}
+            aria-current={itemsActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, itemsActive)}
           >
-            <Hammer size={16} />
-            <span className="nav-label">Crafting</span>
-            <span className="nav-count">{recipeIds.size}</span>
+            <Package size={16} />
+            <span className="nav-label">Items</span>
+            <span className="nav-count">{catalog.items.length}</span>
           </a>
           <a
             href={resumeHrefs.planner}
@@ -258,8 +277,10 @@ export default function App() {
             <div className="loading">Opening your notebook…</div>
           ) : parsed.page === "planner" ? (
             <PlannerPage />
-          ) : parsed.page === "crafting" || parsed.page === "crafting-recipe" ? (
-            <CraftingPage route={parsed} />
+          ) : parsed.page === "items" ||
+            parsed.page === "items-recipe" ||
+            parsed.page === "item-detail" ? (
+            <ItemsPage route={parsed} />
           ) : parsed.page === "habitats" ? (
             <HabitatsPage />
           ) : parsed.page === "habitat-detail" ? (
@@ -292,11 +313,12 @@ export default function App() {
           }}
         >
           <p>
-            Your discoveries, habitat builds, housemate plan, crafting marks and
-            any saved area layouts are stored in this browser. Export a backup to
-            move them or keep a copy. Replacing this notebook includes learned
-            recipe marks. Material quantity notes from older backups are kept
-            unused so they are not dropped.
+            Your discoveries, habitat builds, housemate plan, crafting marks,
+            collectible marks and any saved area layouts are stored in this
+            browser. Export a backup to move them or keep a copy. Replacing this
+            notebook includes learned recipe marks and collected items. Material
+            quantity notes from older backups are kept unused so they are not
+            dropped.
           </p>
           <div className="backup-stats">
             <strong>
@@ -329,6 +351,19 @@ export default function App() {
                 state.crafting?.learnedRecipeIds || [],
                 recipeIds,
               ).length === 1
+                ? "record"
+                : "records"}
+            </strong>
+            <strong>
+              {visibleCollectedCount(state.collected, itemIds)}{" "}
+              {visibleCollectedCount(state.collected, itemIds) === 1
+                ? "collectible marked"
+                : "collectibles marked"}
+            </strong>
+            <strong>
+              {unavailableCollected(state.collected, itemIds).length}{" "}
+              unavailable collected{" "}
+              {unavailableCollected(state.collected, itemIds).length === 1
                 ? "record"
                 : "records"}
             </strong>
@@ -403,12 +438,17 @@ export default function App() {
                   pending.crafting?.learnedRecipeIds || [],
                   recipeIds,
                 ).length}{" "}
-                unavailable crafting records
+                unavailable crafting records,{" "}
+                {visibleCollectedCount(pending.collected, itemIds)} collected
+                items,{" "}
+                {unavailableCollected(pending.collected, itemIds).length}{" "}
+                unavailable collected records
                 {pending.craftingQuarantine
                   ? ", plus unreadable crafting data kept aside"
                   : ""}{" "}
                 and {Object.keys(pending.plans).length} area layouts. It will
-                replace your current discoveries, plans and crafting marks.
+                replace your current discoveries, plans, crafting marks and
+                collected marks.
               </p>
               <div className="button-row">
                 <button

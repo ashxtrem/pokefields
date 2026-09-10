@@ -3925,7 +3925,8 @@ input {
   }
   .crafting-page.is-detail .crafting-recipes,
   .crafting-page.is-detail .crafting-tools,
-  .crafting-page.is-detail .crafting-learned-count {
+  .crafting-page.is-detail .crafting-learned-count,
+  .crafting-page.is-detail .items-tabs {
     display: none;
   }
   .crafting-page.is-list .crafting-detail-pane {
@@ -3937,5 +3938,72 @@ input {
   }
   .crafting-result-list {
     max-height: none;
+  }
+}
+
+.items-tabs {
+  flex-wrap: wrap;
+  gap: 0 18px;
+  margin: 4px 0 8px;
+  overflow: visible;
+}
+.items-tabs a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+.item-set {
+  margin-bottom: 18px;
+}
+.item-set-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: baseline;
+  padding: 8px 4px 4px;
+  position: sticky;
+  top: 0;
+  background: #faf9f5;
+  z-index: 1;
+}
+.item-set-head h3 {
+  font-size: 15px;
+}
+.item-set-head p {
+  margin: 0;
+  font-size: 12px;
+  color: #5f6b58;
+}
+.item-location-list,
+.item-use-list {
+  overflow-wrap: anywhere;
+  margin: 0 0 12px;
+}
+.item-kit-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px 16px;
+  margin: 0 0 12px;
+}
+.item-kit-facts div {
+  margin: 0;
+}
+.item-kit-facts dt {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #5f6b58;
+}
+.item-kit-facts dd {
+  margin: 2px 0 0;
+  color: #263d31;
+}
+@media (max-width: 390px) {
+  .items-tabs {
+    gap: 0 12px;
+  }
+  .items-tabs a {
+    font-size: 11px;
+    padding: 10px 0 12px;
   }
 }

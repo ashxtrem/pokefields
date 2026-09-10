@@ -155,6 +155,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     const after: Partial<Pick<SaveState, UndoField>> = {};
     if (fields?.includes("crafting")) after.crafting = next.crafting;
     if (fields?.includes("materialCounts")) after.materialCounts = next.materialCounts;
+    if (fields?.includes("collected")) after.collected = next.collected;
     undoStack.current = [
       { label, state: before, fields, after: fields ? after : undefined },
       ...undoStack.current,

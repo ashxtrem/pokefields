@@ -1,7 +1,7 @@
 # Items directory: sections, buildings and collectibles
 
 Date: 10 September 2026
-Status: Phases 1–2 implemented and tested on 10 September 2026. Phases 3–4 (the Items section, item detail, collected marks) are not started.
+Status: Phases 1–4 implemented and tested on 10 September 2026.
 
 ## Direction and authority
 
@@ -194,14 +194,14 @@ collected?: string[];
 
 ### Phase 3 — Directory and detail
 
-- [ ] Items section, five tabs, item detail, kit detail, collectible sets; `#/crafting*` redirects.
-- [ ] Exit evidence: a shipped-build `sessionStorage` route for `crafting` resolves; a `?uses=` deep link resolves; each tab count matches a count computed from the catalog in a test, not from prose.
+- [x] Items section, five tabs, item detail, kit detail, collectible sets; `#/crafting*` redirects.
+- [x] Exit evidence: a shipped-build `sessionStorage` route for `crafting` resolves; a `?uses=` deep link resolves; each tab count matches a count computed from the catalog in a test, not from prose.
 
 ### Phase 4 — Collected marks and verification
 
-- [ ] `collected` state, undo, export/import, unavailable-id handling.
-- [ ] Exit evidence: a pre-change backup imports with no marks and nothing else altered; a mark survives reload, export and re-import in a clean profile; an id removed from the catalog stays in the payload and is explained in the notebook dialog.
-- [ ] Tests, typecheck and production/offline build under Node 22; update `docs/navigation-ux.md`. (`README.md` was updated in Phase 1 to describe `groups`, `collection` and kit kinds.)
+- [x] `collected` state, undo, export/import, unavailable-id handling.
+- [x] Exit evidence: a pre-change backup imports with no marks and nothing else altered; a mark survives reload, export and re-import in a clean profile; an id removed from the catalog stays in the payload and is explained in the notebook dialog.
+- [x] Tests, typecheck and production/offline build under Node 22; update `docs/navigation-ux.md`. (`README.md` was updated in Phase 1 to describe `groups`, `collection` and kit kinds.)
 
 ## 9. Acceptance scenarios
 

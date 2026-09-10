@@ -1,6 +1,12 @@
 import type { SaveState } from "../persistence/store";
 
-export type UndoField = "crafting" | "materialCounts";
+function undoFieldLabel(field: UndoField) {
+  if (field === "crafting") return "crafting";
+  if (field === "collected") return "collected marks";
+  return "material notes";
+}
+
+export type UndoField = "crafting" | "materialCounts" | "collected";
 
 export interface ScopedUndoSnapshot {
   label: string;
@@ -29,7 +35,7 @@ export function applyScopedUndo(
     if (!same(current[field], snapshot.after[field])) {
       return {
         ok: false,
-        reason: `Cannot undo ${snapshot.label}: a later change to ${field === "crafting" ? "crafting" : "material notes"} is in the way.`,
+        reason: `Cannot undo ${snapshot.label}: a later change to ${undoFieldLabel(field)} is in the way.`,
       };
     }
   }
@@ -37,6 +43,7 @@ export function applyScopedUndo(
   for (const field of snapshot.fields) {
     if (field === "crafting") next.crafting = snapshot.before.crafting;
     if (field === "materialCounts") next.materialCounts = snapshot.before.materialCounts;
+    if (field === "collected") next.collected = snapshot.before.collected;
   }
   return { ok: true, next };
 }

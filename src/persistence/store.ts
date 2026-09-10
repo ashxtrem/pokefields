@@ -45,6 +45,8 @@ export interface SaveState {
   housematePlan?: HousematePlan | null;
   /** Kits the player has actually unlocked; null/absent means all kits. */
   availableKitIds?: string[] | null;
+  /** Collectible items the player has recorded. Absent means none. */
+  collected?: string[];
 }
 export const emptyState = (): SaveState => ({
   schemaVersion: 1,
@@ -180,6 +182,7 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
       throw Error("Plan does not account for its roster.");
   }
   if (data.availableKitIds !== undefined) validateAvailableKitIds(data.availableKitIds, catalog);
+  if (data.collected !== undefined) validateCollected(data.collected);
   const migratedPlan =
     data.housematePlan != null ? migrateHousematePlan(data.housematePlan) : data.housematePlan;
   if (migratedPlan != null) validateHousematePlan(migratedPlan, catalog, ids);
@@ -199,6 +202,15 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
         data.craftingLegacySnapshot ?? craftingRead.legacySnapshot,
     }),
   ) as SaveState;
+}
+
+function validateCollected(value: unknown): asserts value is string[] {
+  if (
+    !Array.isArray(value) ||
+    value.some((id) => typeof id !== "string" || !id) ||
+    new Set(value).size !== value.length
+  )
+    throw Error("Backup has invalid collected marks.");
 }
 
 function validateAvailableKitIds(
