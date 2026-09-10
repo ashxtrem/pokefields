@@ -1,8 +1,14 @@
 import { load } from "cheerio";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  foldUnlockText,
+  ingredientBundleKey,
+  parseCraftingIndex,
+  parseSerebiiItemRecipe,
+} from "./serebii-recipe.mjs";
 const run = promisify(execFile);
 async function pool(values, fn) {
   let i = 0;
@@ -17,21 +23,29 @@ async function pool(values, fn) {
 }
 await mkdir(".cache/sources", { recursive: true });
 const origin = "https://www.serebii.net";
+const refreshSources = process.argv.includes("--refresh-sources");
+const retrievedAtByUrl = new Map();
 async function get(url) {
   const file =
     ".cache/sources/" + createHash("sha256").update(url).digest("hex");
-  try {
-    return await readFile(file, "utf8");
-  } catch {}
+  if (!refreshSources) {
+    try {
+      const text = await readFile(file, "utf8");
+      const meta = await stat(file);
+      retrievedAtByUrl.set(url, meta.mtime.toISOString().slice(0, 10));
+      return text;
+    } catch {}
+  }
   // curl uses the host certificate store, which is needed in this workspace.
   const { stdout: raw } = await run(
     "curl",
-    ["--fail", "-sSL", "--max-time", "25", url],
+    ["--fail", "-sSL", "--globoff", "--max-time", "25", url],
     { maxBuffer: 8e6, encoding: "buffer" },
   );
   const text = url.includes("serebii")
     ? new TextDecoder("windows-1252").decode(raw)
     : raw.toString("utf8");
+  retrievedAtByUrl.set(url, new Date().toISOString().slice(0, 10));
   await writeFile(file, text);
   return text;
 }
@@ -49,7 +63,7 @@ const categoryName = (s) =>
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 const itemsOnly = process.argv.includes("--items-only");
 const cookingOnly = process.argv.includes("--cooking-only");
-const catalogVersion = "2026-09-09.5";
+const catalogVersion = "2026-09-10.1";
 const itemMap = new Map();
 function itemIdFromSrc(srcAttr) {
   if (!srcAttr) return null;
@@ -128,6 +142,246 @@ async function applyCookingRecipes() {
     }
   });
 }
+async function applyCraftingEnrichment() {
+  const enrichment = JSON.parse(
+    await readFile("src/crafting/data/enrichment.json", "utf8"),
+  );
+  const records = enrichment.records || {};
+  for (const item of itemMap.values()) {
+    const meta = records[item.id];
+    if (meta) item.recipeMeta = { ...item.recipeMeta, ...meta };
+  }
+}
+
+function joinUnlockLines(lines) {
+  return (lines || [])
+    .map((line) => String(line).replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" · ");
+}
+
+function pushUnlockMethod(methods, text, provider, sourceUrl, retrievedAt) {
+  const trimmed = String(text || "").replace(/\s+/g, " ").trim();
+  if (!trimmed) return;
+  const folded = foldUnlockText(trimmed);
+  if (methods.some((row) => foldUnlockText(row.text) === folded)) return;
+  methods.push({ text: trimmed, provider, sourceUrl, retrievedAt });
+}
+
+function kindFromLocations(item) {
+  const text = (item.locations || []).join(" ");
+  if (/cook with ingredients/i.test(text)) return "cook";
+  if (/craft from recipe/i.test(text)) return "craft";
+  return "unknown";
+}
+
+async function applySerebiiRecipeGuidance() {
+  const craftingUrl = `${origin}/pokemonpokopia/crafting.shtml`;
+  const apiItemsUrl = `${src}src/data/items.json`;
+  const apiRetrievedAt = "2026-09-10";
+  let indexRows = [];
+  try {
+    indexRows = parseCraftingIndex(await get(craftingUrl), craftingUrl);
+  } catch (error) {
+    console.warn(
+      "crafting.shtml was not reachable",
+      error instanceof Error ? error.message : error,
+    );
+  }
+  const indexById = new Map(indexRows.map((row) => [row.id, row]));
+  const indexRetrievedAt =
+    retrievedAtByUrl.get(craftingUrl) || new Date().toISOString().slice(0, 10);
+  const candidates = [...itemMap.values()].filter((item) => item.recipe?.length);
+  const recovered = [];
+  const confirmedAbsent = [];
+  const unreachable = [];
+  const ingredientDisagreements = [];
+  const unlockConflicts = [];
+  let done = 0;
+  await pool(candidates, async (item) => {
+    const pageUrl =
+      item.source || `${origin}/pokemonpokopia/items/${item.id}.shtml`;
+    let html = "";
+    let itemPage = "fetch-failed";
+    try {
+      html = await get(pageUrl);
+      itemPage = "fetched";
+    } catch {
+      unreachable.push(item.id);
+    }
+    const retrievedAt =
+      retrievedAtByUrl.get(pageUrl) || new Date().toISOString().slice(0, 10);
+    const parsed = html
+      ? parseSerebiiItemRecipe(html, pageUrl)
+      : { hasRecipeSection: false, unlockLines: [], ingredients: [] };
+    if (itemPage === "fetched") {
+      itemPage = parsed.hasRecipeSection ? "recipe-section" : "no-recipe-section";
+    }
+    const index = indexById.get(item.id);
+    const methods = [];
+    if (item.recipeLocation) {
+      pushUnlockMethod(
+        methods,
+        item.recipeLocation,
+        "PokopiaAPI pinned snapshot",
+        apiItemsUrl,
+        apiRetrievedAt,
+      );
+    }
+    const itemUnlock = joinUnlockLines(parsed.unlockLines);
+    if (itemUnlock) {
+      pushUnlockMethod(
+        methods,
+        itemUnlock,
+        "Serebii item page Recipe section",
+        pageUrl,
+        retrievedAt,
+      );
+    }
+    const indexUnlock = joinUnlockLines(index?.unlockLines);
+    if (indexUnlock) {
+      pushUnlockMethod(
+        methods,
+        indexUnlock,
+        "Serebii crafting.shtml",
+        craftingUrl,
+        indexRetrievedAt,
+      );
+    }
+    const conflicts = [];
+    if (methods.length > 1) {
+      for (const method of methods) conflicts.push({ ...method });
+      unlockConflicts.push(item.id);
+    }
+    const kind = item.recipeMeta?.kind || kindFromLocations(item);
+    const cook = kind === "cook";
+    const apiBundle = ingredientBundleKey(item.recipe);
+    const pageBundle = parsed.ingredients.length
+      ? ingredientBundleKey(parsed.ingredients)
+      : "";
+    const indexBundle = index?.ingredients?.length
+      ? ingredientBundleKey(index.ingredients)
+      : "";
+    const existingConflicts = [...(item.recipeMeta?.conflicts || [])];
+    if (pageBundle && pageBundle !== apiBundle) {
+      ingredientDisagreements.push({
+        itemId: item.id,
+        keep: "PokopiaAPI",
+        serebiiItemPage: parsed.ingredients,
+      });
+      existingConflicts.push({
+        fields: ["ingredients"],
+        summary: `Serebii item page ingredients disagree with the PokopiaAPI record. This catalog keeps the PokopiaAPI list and does not merge the two.`,
+      });
+    }
+    if (indexBundle && indexBundle !== apiBundle && indexBundle !== pageBundle) {
+      ingredientDisagreements.push({
+        itemId: item.id,
+        keep: "PokopiaAPI",
+        craftingIndex: index.ingredients,
+      });
+      existingConflicts.push({
+        fields: ["ingredients"],
+        summary: `Serebii crafting.shtml ingredients disagree with the PokopiaAPI record. This catalog keeps the PokopiaAPI list and does not merge the two.`,
+      });
+    }
+    const hadApiUnlock = Boolean(item.recipeLocation);
+    if (itemPage === "fetch-failed") {
+      /* counted in unreachable */
+    } else if (methods.length && !hadApiUnlock) {
+      recovered.push(item.id);
+    } else if (!methods.length) {
+      confirmedAbsent.push(item.id);
+    }
+    item.recipeMeta = {
+      ...item.recipeMeta,
+      kind,
+      kindEvidence: {
+        provider:
+          kind === "cook"
+            ? "Serebii cooking table via catalog locations"
+            : kind === "craft"
+              ? "catalog locations"
+              : "catalog",
+        sourceUrl: item.source,
+        retrievedAt: apiRetrievedAt,
+        locator:
+          kind === "unknown"
+            ? "no documented kind signal"
+            : kind === "cook"
+              ? "locations includes Cook with ingredients"
+              : "locations includes Craft from recipe",
+        status: kind === "unknown" ? "unknown" : "documented",
+        note:
+          kind === "unknown"
+            ? "Kind is not inferred from style categories."
+            : undefined,
+      },
+      unlock: { methods, conflicts },
+      countProvenance: cook ? "importer-default" : "pokopiaapi",
+      locationEvidence: {
+        provider: "PokopiaAPI pinned snapshot",
+        sourceUrl: apiItemsUrl,
+        retrievedAt: apiRetrievedAt,
+        locator: "items.json locations",
+        status: "documented",
+      },
+      conflicts: existingConflicts,
+      extraction: {
+        itemPage,
+        craftingIndex: Boolean(index),
+        apiUnlock: hadApiUnlock,
+      },
+    };
+    done += 1;
+    if (done % 50 === 0 || done === candidates.length) {
+      console.log("Recipe pages", done, "/", candidates.length);
+    }
+  });
+  const report = {
+    catalogVersion,
+    generatedAt: new Date().toISOString().slice(0, 10),
+    refreshSources,
+    recipeCandidates: candidates.length,
+    unlock: {
+      beforeRecipeLocation: candidates.filter((item) => item.recipeLocation)
+        .length,
+      afterRecordedMethods: candidates.filter(
+        (item) => item.recipeMeta?.unlock?.methods?.length,
+      ).length,
+      recoveredFromSerebii: recovered.length,
+      confirmedAbsentUpstream: confirmedAbsent.length,
+      notReachable: unreachable.length,
+      conflictingUnlock: unlockConflicts.length,
+      recoveredIds: recovered,
+      confirmedAbsentIds: confirmedAbsent,
+      unreachableIds: unreachable,
+      conflictingUnlockIds: unlockConflicts,
+    },
+    ingredients: {
+      disagreements: ingredientDisagreements.length,
+      disagreementItemIds: [
+        ...new Set(ingredientDisagreements.map((row) => row.itemId)),
+      ],
+    },
+  };
+  await writeFile(
+    ".cache/crafting-extraction.json",
+    JSON.stringify(report, null, 2),
+  );
+  console.log(
+    "Unlock extraction",
+    report.unlock.afterRecordedMethods,
+    "recorded /",
+    candidates.length,
+    "recovered",
+    recovered.length,
+    "absent",
+    confirmedAbsent.length,
+    "unreachable",
+    unreachable.length,
+  );
+}
 const src =
   "https://raw.githubusercontent.com/QuesoCaliente/pokopiapi/893936af1adb51f6d2aab18aa8fa359fc401dd0a/";
 let pokemon = [];
@@ -143,6 +397,7 @@ if (cookingOnly) {
   );
   for (const item of catalogSnapshot.items) itemMap.set(item.id, item);
   await applyCookingRecipes();
+  await applyCraftingEnrichment();
   catalogSnapshot.items = [...itemMap.values()];
   catalogSnapshot.version = catalogVersion;
   await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot));
@@ -563,6 +818,8 @@ for (const item of itemMap.values()) {
   if (hit.event?.name) item.event = hit.event.name;
 }
 await applyCookingRecipes();
+await applyCraftingEnrichment();
+await applySerebiiRecipeGuidance();
 if (itemsOnly) {
   catalogSnapshot.items = [...itemMap.values()];
   catalogSnapshot.version = catalogVersion;

@@ -29,7 +29,8 @@ import {
 } from "../habitats/search";
 import { Empty, ExplainDialog, Modal } from "../ui/components";
 import { QuantityControls } from "../shopping/QuantityControls";
-import type { HabitatBuildRecord } from "../habitats/types";
+import { HABITAT_HOUSE_GATHERED_DISCLOSURE } from "../crafting/types";
+import type { HabitatBuildRecord } from "./types";
 
 export function HabitatDetail({ habitatId }: { habitatId: string }) {
   const catalog = useCatalog();
@@ -297,6 +298,7 @@ function BuildRecordCard({
       </div>
       {record.status === "planned" && (
         <>
+          <p className="muted gathering-hint">{HABITAT_HOUSE_GATHERED_DISCLOSURE}</p>
           {record.allocations.map((row) => (
             <QuantityControls
               key={row.requirementId}

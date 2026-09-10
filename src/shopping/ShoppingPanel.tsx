@@ -17,6 +17,7 @@ import {
   type QuantityRow,
 } from "./checklists";
 import { HouseQuantitySection, QuantityControls } from "./QuantityControls";
+import { HABITAT_HOUSE_GATHERED_DISCLOSURE } from "../crafting/types";
 
 export function ShoppingPanel({
   scope,
@@ -96,7 +97,7 @@ export function ShoppingPanel({
       </div>
       <p className="muted shopping-note">
         Gathered means set aside for these builds. It is not automatically
-        synchronized with game storage.
+        synchronized with game storage. {HABITAT_HOUSE_GATHERED_DISCLOSURE}
         {scope === "habitat" && houseList
           ? " Habitat and house gathered totals remain independent."
           : ""}

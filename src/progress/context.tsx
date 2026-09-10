@@ -16,14 +16,21 @@ import {
   writeState,
   type SaveState,
 } from "../persistence/store";
+import { loadCraftingFields } from "../crafting/migration";
+import { emptyCraftingState } from "../crafting/types";
 import {
   migrateHouseChecklist,
   reconcileHouseQuantityList,
 } from "../shopping/checklists";
 
+export type { UndoField } from "../crafting/undo";
+import { applyUndoStack, type UndoField } from "../crafting/undo";
+
 interface UndoEntry {
   label: string;
   state: SaveState;
+  fields?: UndoField[];
+  after?: Partial<Pick<SaveState, UndoField>>;
 }
 
 interface Progress {
@@ -31,10 +38,16 @@ interface Progress {
   ready: boolean;
   status: string;
   error: string;
+  undoError: string;
   update: (fn: (s: SaveState) => SaveState) => void;
-  updateWithUndo: (label: string, fn: (s: SaveState) => SaveState) => void;
+  updateWithUndo: (
+    label: string,
+    fn: (s: SaveState) => SaveState,
+    fields?: UndoField[],
+  ) => void;
   undo: () => UndoEntry | null;
   pendingUndo: UndoEntry | null;
+  replaceNotebook: (next: SaveState) => void;
 }
 
 const Context = createContext<Progress | null>(null);
@@ -64,6 +77,10 @@ function normalizeLoadedState(state: SaveState, catalog: Catalog): SaveState {
     );
     next = { ...next, houseShopping: fromLegacy };
   }
+  next = {
+    ...next,
+    ...loadCraftingFields(next, catalog),
+  };
   return next;
 }
 
@@ -73,6 +90,7 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState("Loading your notebook…");
   const [error, setError] = useState("");
+  const [undoError, setUndoError] = useState("");
   const [pendingUndo, setPendingUndo] = useState<UndoEntry | null>(null);
   const ref = useRef(state);
   const queue = useRef(Promise.resolve());
@@ -126,28 +144,64 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     persist(fn(ref.current));
   };
 
-  const updateWithUndo = (label: string, fn: (s: SaveState) => SaveState) => {
+  const updateWithUndo = (
+    label: string,
+    fn: (s: SaveState) => SaveState,
+    fields?: UndoField[],
+  ) => {
     if (!ready) return;
+    const before = structuredClone(ref.current);
+    const next = fn(ref.current);
+    const after: Partial<Pick<SaveState, UndoField>> = {};
+    if (fields?.includes("crafting")) after.crafting = next.crafting;
+    if (fields?.includes("materialCounts")) after.materialCounts = next.materialCounts;
     undoStack.current = [
-      { label, state: structuredClone(ref.current) },
+      { label, state: before, fields, after: fields ? after : undefined },
       ...undoStack.current,
     ].slice(0, 12);
-    setPendingUndo({ label, state: structuredClone(ref.current) });
-    persist(fn(ref.current));
+    setPendingUndo(undoStack.current[0] || null);
+    setUndoError("");
+    persist(next);
   };
 
   const undo = () => {
-    const entry = undoStack.current.shift() || null;
-    if (entry) {
-      persist(entry.state);
-      setPendingUndo(undoStack.current[0] || null);
+    const result = applyUndoStack(undoStack.current, ref.current);
+    undoStack.current = result.stack;
+    setPendingUndo(undoStack.current[0] || null);
+    if (result.error) {
+      setUndoError(result.error);
+      return null;
     }
-    return entry;
+    if (result.applied) persist(result.current);
+    setUndoError("");
+    return result.applied;
+  };
+
+  const replaceNotebook = (next: SaveState) => {
+    if (!ready) return;
+    undoStack.current = [];
+    setPendingUndo(null);
+    setUndoError("");
+    persist({
+      ...next,
+      crafting: next.crafting || emptyCraftingState(),
+    });
   };
 
   return (
     <Context.Provider
-      value={{ state, ready, status, error, update, updateWithUndo, undo, pendingUndo }}
+      value={{
+        state,
+        ready,
+        status,
+        error,
+        undoError,
+        update,
+        updateWithUndo,
+        undo,
+        pendingUndo,
+        replaceNotebook,
+      }}
     >
       {children}
     </Context.Provider>

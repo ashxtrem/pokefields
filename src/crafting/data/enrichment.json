@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "reviewedAt": "2026-09-10",
+  "licensingDecision": "D-LIC-01",
+  "records": {
+    "woodensteps": {
+      "kind": "craft",
+      "conflicts": [
+        {
+          "fields": ["ingredients"],
+          "summary": "Independent sources disagree on Wooden steps ingredient count. This catalog keeps the existing PokopiaAPI ingredient list and does not merge another source's bundle."
+        }
+      ]
+    }
+  }
+}

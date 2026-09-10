@@ -1,0 +1,11 @@
+{
+  "id": "woodensteps",
+  "conflict": {
+    "fields": ["ingredients", "outputYield"],
+    "sources": [
+      "https://www.serebii.net/pokemonpokopia/items/woodensteps.shtml",
+      "https://bulbapedia.bulbagarden.net/wiki/List_of_recipes_in_Pok%C3%A9mon_Pokopia"
+    ],
+    "note": "Do not combine Serebii ingredient counts with another source's yield. Calculations stay suppressed."
+  }
+}

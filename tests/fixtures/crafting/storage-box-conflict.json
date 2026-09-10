@@ -1,0 +1,7 @@
+{
+  "id": "storagebox",
+  "conflict": {
+    "fields": ["unlock"],
+    "note": "Registration milestone reported as both 6 and 7. Unlock is conflicting, not asserted."
+  }
+}

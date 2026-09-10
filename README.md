@@ -23,6 +23,7 @@ npm run preview
 - Main, event and basin dexes; name/number search; discovery, found-area, spawn-area, specialty, type, time and weather filters; number/name sorting.
 - Separate found marks for every area, including Pokémon found in multiple places.
 - Detail tabs for facts, attracting habitats/requirements, preferences and progress.
+- Crafting: a recipe directory for how a recipe is unlocked and where each material comes from. Learned marks are a manual filter only. Coverage numbers live in `docs/research/crafting-audit.json`.
 - Planner uses the selected area's found roster, optional exclusions, a rectangular block plot, supported building kits and quantity limits.
 - Deterministic groups based on matching environments and shared favorite categories. These are furnishing recommendations, not a friendship simulation or proof of an optimal layout.
 - Homes respect footprint, capacity and kit limits. Drag to move, edit coordinates, move/swap residents, inspect construction/comfort requirements and see unplaced Pokémon.
@@ -35,6 +36,7 @@ npm run preview
 |---|---|
 | `src/catalog` | Typed normalized reference data and provider |
 | `src/dex` | Filtering, cards and detail views |
+| `src/crafting` | Recipe catalog adapter and Crafting directory UI |
 | `src/progress` | Shared discovery/plan state and serialized persistence |
 | `src/planner/engine.ts` | Pure grouping, placement, furnishings and swap rules |
 | `src/planner/worker.ts` | Background plan computation |
@@ -69,4 +71,4 @@ The deploy script targets the Pages project `pokopia-companion`. Create that pro
 
 Deployment has **not** been completed: the host's previous Wrangler login expired and could not refresh. The production build can be reviewed locally while that login is renewed.
 
-See `docs/pokopia-companion-plan.md` for scope and research decisions, and `docs/verification.md` for completed checks and remaining limitations.
+See `docs/pokopia-companion-plan.md` for scope and research decisions. Crafting coverage, licensing, and remaining data gaps are in `docs/research/crafting-audit.json` and `docs/research/crafting-licensing.md`. Navigation continuity notes are in `docs/navigation-ux.md`.

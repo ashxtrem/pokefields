@@ -28,12 +28,14 @@ export function routeKey(route: string) {
   return (route || "#/dex").split("?")[0];
 }
 
-export type NavSection = "dex" | "habitats" | "planner";
+export type NavSection = "dex" | "habitats" | "planner" | "crafting";
 
 export type ParsedRoute =
   | { page: "habitat-detail"; habitatId: string; query: string }
   | { page: "habitats"; query: string }
   | { page: "planner"; query: string }
+  | { page: "crafting-recipe"; recipeId: string; query: string }
+  | { page: "crafting"; query: string }
   | { page: "pokemon"; id: string; query: string }
   | { page: "dex"; query: string };
 
@@ -41,6 +43,7 @@ export const SECTION_LIST_HREF: Record<NavSection, string> = {
   dex: "#/dex",
   habitats: "#/habitats",
   planner: "#/planner",
+  crafting: "#/crafting",
 };
 
 const SECTION_ROUTES_KEY = "pkm.nav.sections";
@@ -65,6 +68,16 @@ export function parseRoute(hash: string): ParsedRoute {
   if (path === "planner" || path.startsWith("planner")) {
     return { page: "planner" as const, query };
   }
+  if (path.startsWith("crafting/recipe/")) {
+    return {
+      page: "crafting-recipe" as const,
+      recipeId: decodeURIComponent(path.slice("crafting/recipe/".length)),
+      query,
+    };
+  }
+  if (path === "crafting" || path.startsWith("crafting")) {
+    return { page: "crafting" as const, query };
+  }
   if (path.startsWith("pokemon/")) {
     return {
       page: "pokemon" as const,
@@ -79,11 +92,17 @@ export function navSection(route: string): NavSection {
   const page = parseRoute(route).page;
   if (page === "habitats" || page === "habitat-detail") return "habitats";
   if (page === "planner") return "planner";
+  if (page === "crafting" || page === "crafting-recipe") return "crafting";
   return "dex";
 }
 
 function isNavSection(value: string): value is NavSection {
-  return value === "dex" || value === "habitats" || value === "planner";
+  return (
+    value === "dex" ||
+    value === "habitats" ||
+    value === "planner" ||
+    value === "crafting"
+  );
 }
 
 function readStoredSectionRoutes() {
@@ -134,6 +153,7 @@ export function isRememberedRouteAvailable(
   options: {
     hasPokemon: (id: string) => boolean;
     hasHabitat: (id: string) => boolean;
+    hasRecipe?: (id: string) => boolean;
   },
 ) {
   const parsed = parseRoute(route);
@@ -141,6 +161,8 @@ export function isRememberedRouteAvailable(
     return Boolean(parsed.id) && options.hasPokemon(parsed.id);
   if (parsed.page === "habitat-detail")
     return Boolean(parsed.habitatId) && options.hasHabitat(parsed.habitatId);
+  if (parsed.page === "crafting-recipe")
+    return Boolean(parsed.recipeId) && (options.hasRecipe?.(parsed.recipeId) ?? true);
   return true;
 }
 

@@ -30,6 +30,17 @@ describe("parseRoute and navSection", () => {
     expect(navSection("#/habitats/fieldofflowers")).toBe("habitats");
   });
 
+  it("groups crafting details with Crafting and matches specific paths first", () => {
+    expect(parseRoute("#/crafting/recipe/recipe%3Astool%3Adefault")).toEqual({
+      page: "crafting-recipe",
+      recipeId: "recipe:stool:default",
+      query: "",
+    });
+    expect(parseRoute("#/crafting/list").page).toBe("crafting");
+    expect(navSection("#/crafting/recipe/recipe:stool:default")).toBe("crafting");
+    expect(navSection("#/crafting/list")).toBe("crafting");
+  });
+
   it("keeps query parameters on remembered habitat routes", () => {
     expect(parseRoute("#/habitats?region=Beach")).toEqual({
       page: "habitats",
@@ -71,6 +82,15 @@ describe("section resumption", () => {
     expect(lastSectionRoute("dex")).toBe("#/pokemon/ivysaur");
     expect(lastSectionRoute("habitats")).toBe("#/habitats");
     expect(lastSectionRoute("planner")).toBe("#/planner");
+  });
+
+  it("resumes a crafting recipe independently of other sections", () => {
+    rememberSectionRoute("#/crafting/recipe/recipe:stool:default");
+    rememberSectionRoute("#/planner");
+    expect(sectionHref("crafting", always)).toBe(
+      "#/crafting/recipe/recipe:stool:default",
+    );
+    expect(sectionHref("planner", always)).toBe("#/planner");
   });
 
   it("restores section routes after a session reload", () => {

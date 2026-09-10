@@ -1,6 +1,7 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
+  Hammer,
   House,
   Leaf,
   Download,
@@ -14,6 +15,9 @@ import { HabitatDetail } from "./habitats/HabitatDetail";
 import { HabitatsPage } from "./habitats/HabitatsPage";
 import { getCanonicalHabitat, listCanonicalHabitats } from "./habitats/catalog";
 import { PlannerPage } from "./planner/PlannerPage";
+import { CraftingPage } from "./crafting/CraftingPage";
+import { listRecipes } from "./crafting/catalog";
+import { unavailableLearned, visibleLearnedCount } from "./crafting/learned";
 import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
 import { Modal } from "./ui/components";
 import { validateBackup, type SaveState } from "./persistence/store";
@@ -33,10 +37,14 @@ export default function App() {
   const [pending, setPending] = useState<SaveState | null>(null);
   const [error, setError] = useState("");
   const catalog = useCatalog();
-  const { state, update, status, error: saveError, ready } = useProgress();
+  const { state, status, error: saveError, ready, replaceNotebook, pendingUndo, undo, undoError } = useProgress();
   const file = useRef<HTMLInputElement>(null);
   const parsed = parseRoute(route);
   const habitatCount = listCanonicalHabitats(catalog).length;
+  const recipeIds = useMemo(
+    () => new Set(listRecipes(catalog).map((recipe) => recipe.id)),
+    [catalog],
+  );
 
   const scrollPositions = useRef(new Map<string, number>());
   const activeRoute = useRef(routeKey(route));
@@ -46,11 +54,13 @@ export default function App() {
     isRememberedRouteAvailable(candidate, {
       hasPokemon: (id) => catalog.pokemon.some((p) => p.id === id),
       hasHabitat: (id) => Boolean(getCanonicalHabitat(catalog, id)),
+      hasRecipe: (id) => recipeIds.has(id),
     });
   const [resumeHrefs, setResumeHrefs] = useState(() => ({
     dex: sectionHref("dex"),
     habitats: sectionHref("habitats"),
     planner: sectionHref("planner"),
+    crafting: sectionHref("crafting"),
   }));
 
   useLayoutEffect(() => {
@@ -59,6 +69,7 @@ export default function App() {
       dex: sectionHref("dex", availableRoute),
       habitats: sectionHref("habitats", availableRoute),
       planner: sectionHref("planner", availableRoute),
+      crafting: sectionHref("crafting", availableRoute),
     });
   }, [route, catalog]);
 
@@ -132,6 +143,8 @@ export default function App() {
   const habitatsActive =
     parsed.page === "habitats" || parsed.page === "habitat-detail";
   const plannerActive = parsed.page === "planner";
+  const craftingActive =
+    parsed.page === "crafting" || parsed.page === "crafting-recipe";
   const resumeSection = (
     event: {
       button: number;
@@ -190,6 +203,16 @@ export default function App() {
             <span className="nav-count">{habitatCount}</span>
           </a>
           <a
+            href={resumeHrefs.crafting}
+            className={craftingActive ? "active" : ""}
+            aria-current={craftingActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, craftingActive)}
+          >
+            <Hammer size={16} />
+            <span className="nav-label">Crafting</span>
+            <span className="nav-count">{recipeIds.size}</span>
+          </a>
+          <a
             href={resumeHrefs.planner}
             className={plannerActive ? "active" : ""}
             aria-current={plannerActive ? "page" : undefined}
@@ -216,11 +239,27 @@ export default function App() {
             {saveError}
           </div>
         )}
+        {(undoError || pendingUndo) && (
+          <div className="crafting-undo" role="status">
+            {undoError ? (
+              <span>{undoError}</span>
+            ) : (
+              <span>Undo {pendingUndo?.label}?</span>
+            )}
+            {pendingUndo ? (
+              <button type="button" className="button secondary" onClick={() => undo()}>
+                Undo
+              </button>
+            ) : null}
+          </div>
+        )}
         <div ref={contentRef} className="route-content">
           {!ready ? (
             <div className="loading">Opening your notebook…</div>
           ) : parsed.page === "planner" ? (
             <PlannerPage />
+          ) : parsed.page === "crafting" || parsed.page === "crafting-recipe" ? (
+            <CraftingPage route={parsed} />
           ) : parsed.page === "habitats" ? (
             <HabitatsPage />
           ) : parsed.page === "habitat-detail" ? (
@@ -253,9 +292,11 @@ export default function App() {
           }}
         >
           <p>
-            Your discoveries, habitat builds, housemate plan and any saved area
-            layouts are stored in this browser. Export a backup to move them or
-            keep a copy.
+            Your discoveries, habitat builds, housemate plan, crafting marks and
+            any saved area layouts are stored in this browser. Export a backup to
+            move them or keep a copy. Replacing this notebook includes learned
+            recipe marks. Material quantity notes from older backups are kept
+            unused so they are not dropped.
           </p>
           <div className="backup-stats">
             <strong>
@@ -266,8 +307,46 @@ export default function App() {
               {Object.keys(state.habitatBuilds || {}).length} habitat builds
             </strong>
             <strong>{state.housematePlan ? 1 : 0} housemate plan</strong>
+            <strong>
+              {visibleLearnedCount(
+                state.crafting?.learnedRecipeIds || [],
+                recipeIds,
+              )}{" "}
+              {visibleLearnedCount(
+                state.crafting?.learnedRecipeIds || [],
+                recipeIds,
+              ) === 1
+                ? "recipe marked learned"
+                : "recipes marked learned"}
+            </strong>
+            <strong>
+              {unavailableLearned(
+                state.crafting?.learnedRecipeIds || [],
+                recipeIds,
+              ).length}{" "}
+              unavailable crafting{" "}
+              {unavailableLearned(
+                state.crafting?.learnedRecipeIds || [],
+                recipeIds,
+              ).length === 1
+                ? "record"
+                : "records"}
+            </strong>
             <strong>{Object.keys(state.plans).length} area layouts</strong>
           </div>
+          {state.craftingQuarantine ? (
+            <p className="notice" role="status">
+              Unreadable crafting data was kept aside so the rest of this
+              notebook could open: {state.craftingQuarantine.reason} It is
+              included in exports until a later build can read it.
+            </p>
+          ) : null}
+          {state.craftingLegacySnapshot ? (
+            <p className="notice">
+              An older crafting list is preserved in this notebook and will be
+              included in exports.
+            </p>
+          ) : null}
           <div className="button-row">
             <button className="button" onClick={exportFile}>
               <Download size={17} />
@@ -314,15 +393,28 @@ export default function App() {
                 This backup contains{" "}
                 {Object.values(pending.found).filter((a) => a.length).length}{" "}
                 found Pokémon, {Object.keys(pending.habitatBuilds || {}).length}{" "}
-                habitat builds, {pending.housematePlan ? 1 : 0} housemate plan
+                habitat builds, {pending.housematePlan ? 1 : 0} housemate plan,{" "}
+                {visibleLearnedCount(
+                  pending.crafting?.learnedRecipeIds || [],
+                  recipeIds,
+                )}{" "}
+                learned recipes,{" "}
+                {unavailableLearned(
+                  pending.crafting?.learnedRecipeIds || [],
+                  recipeIds,
+                ).length}{" "}
+                unavailable crafting records
+                {pending.craftingQuarantine
+                  ? ", plus unreadable crafting data kept aside"
+                  : ""}{" "}
                 and {Object.keys(pending.plans).length} area layouts. It will
-                replace your current discoveries and plans.
+                replace your current discoveries, plans and crafting marks.
               </p>
               <div className="button-row">
                 <button
                   className="button"
                   onClick={() => {
-                    update(() => pending);
+                    replaceNotebook(pending);
                     setPending(null);
                     setBackup(false);
                   }}

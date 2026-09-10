@@ -11,11 +11,28 @@ import type {
   ShoppingChecklists,
   ShoppingRow,
 } from "../shopping/checklists";
+import {
+  emptyCraftingState,
+  type CraftingQuarantine,
+  type CraftingState,
+} from "../crafting/types";
+import {
+  readCraftingRecord,
+  readQuarantine,
+} from "../crafting/migration";
 export interface SaveState {
   schemaVersion: 1;
   found: Record<string, string[]>;
-  /** A missing key means the player has not tracked this item yet. */
+  /**
+   * Unused by the Crafting directory. Kept so released backups are not stripped.
+   */
   materialCounts?: Record<string, number>;
+  /** Versioned crafting notebook. Missing means empty learned marks. */
+  crafting?: CraftingState;
+  /** Unreadable crafting payload retained verbatim. */
+  craftingQuarantine?: CraftingQuarantine;
+  /** Calculator-era quantity lists kept until an export round-trips them. */
+  craftingLegacySnapshot?: unknown;
   /** Legacy checkbox shopping lists — preserved in migration snapshot. */
   shoppingChecklists?: ShoppingChecklists;
   /** Canonical habitat build records with quantity allocations. */
@@ -33,6 +50,7 @@ export const emptyState = (): SaveState => ({
   schemaVersion: 1,
   found: {},
   materialCounts: {},
+  crafting: emptyCraftingState(),
   habitatBuilds: {},
   plans: {},
   housematePlan: null,
@@ -165,11 +183,20 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
   const migratedPlan =
     data.housematePlan != null ? migrateHousematePlan(data.housematePlan) : data.housematePlan;
   if (migratedPlan != null) validateHousematePlan(migratedPlan, catalog, ids);
+  const craftingRead = readCraftingRecord(data.crafting, catalog);
+  const craftingQuarantine =
+    data.craftingQuarantine !== undefined
+      ? readQuarantine(data.craftingQuarantine)
+      : undefined;
   return JSON.parse(
     JSON.stringify({
       ...data,
       housematePlan: migratedPlan,
       houseShopping: migratedHouseShopping,
+      crafting: craftingRead.crafting,
+      craftingQuarantine,
+      craftingLegacySnapshot:
+        data.craftingLegacySnapshot ?? craftingRead.legacySnapshot,
     }),
   ) as SaveState;
 }

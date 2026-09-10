@@ -1,0 +1,169 @@
+<div id="craft-guide" aria-label="Crafting tab concept — recipe directory">
+<style>
+#craft-guide{
+  --paper:light-dark(#faf8f1,#1e241f);--ink:light-dark(#283e31,#e4eadc);
+  --soft:light-dark(#f1efe3,#2a322a);--line:light-dark(#dde0cf,#3d473a);
+  --green:light-dark(#345b40,#bbd6a4);--on:light-dark(#ffffff,#1b2418);
+  --muted:light-dark(#6d7a6b,#9aa896);--warm:light-dark(#8a6a3a,#d8b781);
+  color:var(--ink);background:var(--paper);border-radius:18px;overflow:hidden;
+  font:15px/1.5 "Trebuchet MS",system-ui,sans-serif;color-scheme:light dark}
+#craft-guide *{box-sizing:border-box}
+#craft-guide h1,#craft-guide h2,#craft-guide h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0}
+#craft-guide .shell{display:grid;grid-template-columns:150px 1fr}
+#craft-guide aside{padding:22px 14px;background:var(--soft);border-right:1px solid var(--line)}
+#craft-guide .brand{font-family:Georgia,serif;font-weight:600;margin-bottom:24px;line-height:1.25}
+#craft-guide .navitem{padding:10px;border-radius:9px;margin:3px 0;color:var(--muted)}
+#craft-guide .navitem.current{background:var(--paper);color:var(--ink);font-weight:600}
+#craft-guide main{padding:24px;min-width:0}
+#craft-guide .eyebrow{font-size:11px;letter-spacing:.14em;color:var(--muted);margin-bottom:6px}
+#craft-guide h1{font-size:26px;margin-bottom:6px}
+#craft-guide .lede{color:var(--muted);margin:0 0 18px;max-width:56ch}
+#craft-guide .tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px}
+#craft-guide input,#craft-guide select,#craft-guide button{font:inherit;color:var(--ink);
+  background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:9px 11px;min-height:42px}
+#craft-guide input[type=search]{flex:1;min-width:180px}
+#craft-guide button{cursor:pointer}
+#craft-guide .toggle[aria-pressed=true]{background:var(--green);color:var(--on);border-color:var(--green)}
+#craft-guide .count{font-size:12px;color:var(--muted);margin:8px 0 14px}
+#craft-guide .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:18px;align-items:start}
+#craft-guide .list{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:14px}
+#craft-guide .row{display:flex;gap:11px;align-items:center;width:100%;text-align:left;
+  padding:11px 12px;border:0;border-bottom:1px solid var(--line);border-radius:0;background:none;min-height:60px}
+#craft-guide .row:last-child{border-bottom:0}
+#craft-guide .row[aria-current=true]{background:var(--soft)}
+#craft-guide .thumb{width:38px;height:38px;flex:0 0 38px;border-radius:9px;background:var(--soft);
+  display:grid;place-items:center;overflow:hidden;font-size:10px;color:var(--muted);text-align:center}
+#craft-guide .thumb img{width:100%;height:100%;object-fit:contain}
+#craft-guide .row b{display:block;font-weight:600}
+#craft-guide .row small{color:var(--muted);font-size:12px}
+#craft-guide .chip{margin-left:auto;font-size:11px;padding:3px 8px;border-radius:20px;
+  background:var(--soft);color:var(--muted);white-space:nowrap}
+#craft-guide .chip.known{background:color-mix(in srgb,var(--green) 16%,transparent);color:var(--green)}
+#craft-guide .chip.mark{background:color-mix(in srgb,var(--warm) 20%,transparent);color:var(--warm)}
+#craft-guide .detail{border:1px solid var(--line);border-radius:14px;padding:20px}
+#craft-guide .detail h2{font-size:21px;margin-bottom:4px}
+#craft-guide .cats{font-size:12px;color:var(--muted);margin-bottom:14px}
+#craft-guide h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:20px 0 8px}
+#craft-guide .learn{border-left:3px solid var(--green);background:var(--soft);padding:12px 14px;border-radius:0 10px 10px 0}
+#craft-guide .learn.unknown{border-left-color:var(--warm)}
+#craft-guide .learn p{margin:0}
+#craft-guide .learn .why{font-size:12px;color:var(--muted);margin-top:6px}
+#craft-guide .ing{border:1px solid var(--line);border-radius:11px;margin-bottom:8px;overflow:hidden}
+#craft-guide .ing summary{display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;list-style:none}
+#craft-guide .ing summary::-webkit-details-marker{display:none}
+#craft-guide .ing summary b{font-weight:600}
+#craft-guide .qty{margin-left:auto;color:var(--muted);font-size:13px}
+#craft-guide .where{padding:0 12px 12px 60px;margin:0;font-size:13px;color:var(--muted)}
+#craft-guide .where li{margin:3px 0}
+#craft-guide .learned-row{display:flex;align-items:center;gap:9px;margin:16px 0 0;
+  padding-top:14px;border-top:1px solid var(--line);font-size:14px}
+#craft-guide .learned-row input{min-height:0;width:17px;height:17px;accent-color:var(--green)}
+#craft-guide a{color:var(--green)}
+#craft-guide .foot{font-size:12px;color:var(--muted);margin-top:14px}
+#craft-guide .backlink{display:none}
+@media(max-width:760px){
+  #craft-guide .shell{grid-template-columns:1fr}
+  #craft-guide aside{display:none}
+  #craft-guide main{padding:16px}
+  #craft-guide .split{grid-template-columns:1fr}
+  #craft-guide .list{max-height:none}
+  #craft-guide.detail-open .list,#craft-guide.detail-open .tools,#craft-guide.detail-open .count{display:none}
+  #craft-guide:not(.detail-open) .detail{display:none}
+  #craft-guide.detail-open .backlink{display:inline-block;margin-bottom:12px}
+}
+</style>
+<div class="shell">
+<aside>
+  <div class="brand">Pokopia<br>Fieldnotes</div>
+  <div class="navitem">Pokedex</div>
+  <div class="navitem">Habitats</div>
+  <div class="navitem">Housemates</div>
+  <div class="navitem current">Crafting</div>
+</aside>
+<main>
+  <div class="eyebrow">BESIDE THE WORKBENCH</div>
+  <h1>How do I get this recipe?</h1>
+  <p class="lede">The game already shows you what a recipe costs. This shows what it will not:
+    how the recipe is unlocked, and where each material comes from.</p>
+
+  <div class="tools">
+    <input type="search" id="q" placeholder="Search recipes..." aria-label="Search recipes">
+    <select id="cat" aria-label="Category"><option value="">All categories</option></select>
+    <button type="button" class="toggle" id="hide" aria-pressed="false">Hide learned</button>
+  </div>
+  <p class="count" id="count"></p>
+
+  <div class="split">
+    <div class="list" id="list" role="list"></div>
+    <div class="detail" id="detail"></div>
+  </div>
+  <p class="foot">Concept - real catalog records, sample learned marks. Unlock text shown only where a source records it.</p>
+</main>
+</div>
+<script>
+(()=>{
+const root=document.getElementById('craft-guide');
+const q=s=>root.querySelector(s);
+const DATA=[{"id": "plainstool", "name": "Plain stool", "cats": ["Soft stuff", "Wooden stuff", "Fabric"], "unlock": null, "ings": [{"name": "Lumber", "qty": 1, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}, {"name": "Twine", "qty": 1, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}], "src": "https://www.serebii.net/pokemonpokopia/items/plainstool.shtml"}, {"id": "strawstool", "name": "Straw stool", "cats": ["Soft stuff", "Round stuff"], "unlock": null, "ings": [{"name": "Leaf", "qty": 1, "id": "leaf", "locs": ["Withered Wastelands (Natural)", "Bleak Beach (Natural)", "Rocky Ridges (Natural)", "Palette Town (Natural)", "Destroy tall grass"]}], "src": "https://www.serebii.net/pokemonpokopia/items/strawstool.shtml"}, {"id": "simplecushion", "name": "Simple cushion", "cats": ["Soft stuff", "Fabric"], "unlock": null, "ings": [{"name": "Twine", "qty": 1, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}, {"name": "Fluff", "qty": 1, "id": "fluff", "locs": ["Shop - Unlocked at Rocky Ridges Lv. 3", "Shop - Unlocked at Cloud Island Lv. 4"]}], "src": "https://www.serebii.net/pokemonpokopia/items/simplecushion.shtml"}, {"id": "berrychair", "name": "Berry chair", "cats": ["Soft stuff", "Cute stuff", "Lots of nature"], "unlock": null, "ings": [{"name": "Leppa Berry", "qty": 1, "id": "leppaberry", "locs": ["Withered Wastelands (Natural)", "Bleak Beach (Natural)", "Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)"]}, {"name": "Pokémetal", "qty": 1, "id": "pokemetal", "locs": ["Eevee Doll Dream Island (Natural)", "Shop - Unlocked at Withered Wastelands Lv. 6", "Shop - Unlocked at Bleak Beach Lv. 6", "Shop - Unlocked at Rocky Ridges Lv. 6", "Shop - Unlocked at Sparkling Skylands Lv. 6"]}, {"name": "Twine", "qty": 1, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}, {"name": "Copper ingot", "qty": 1, "id": "copperingot", "locs": ["Smelt Copper ore in the furnace"]}], "src": "https://www.serebii.net/pokemonpokopia/items/berrychair.shtml"}, {"id": "seashellseat", "name": "Seashell seat", "cats": ["Soft stuff", "Cute stuff", "Colorful stuff"], "unlock": "Shop – Bubbly Basin (Env. level 4)", "ings": [{"name": "Fluff", "qty": 1, "id": "fluff", "locs": ["Shop - Unlocked at Rocky Ridges Lv. 3", "Shop - Unlocked at Cloud Island Lv. 4"]}, {"name": "Seashell", "qty": 1, "id": "seashell", "locs": ["Bleak Beach (Natural)", "Pikachu Doll Dream Island (Natural)", "On beaches"]}, {"name": "Shiny pearl", "qty": 1, "id": "shinypearl", "locs": []}], "src": "https://www.serebii.net/pokemonpokopia/items/seashellseat.shtml"}, {"id": "ornatechair", "name": "Ornate chair", "cats": ["Soft stuff", "Colorful stuff", "Luxury"], "unlock": "Shop – Bubbly Basin (Env. level 6)", "ings": [{"name": "Lumber", "qty": 1, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}, {"name": "Gold ingot", "qty": 1, "id": "goldingot", "locs": ["Smelt Gold ore in the furnace"]}], "src": "https://www.serebii.net/pokemonpokopia/items/ornatechair.shtml"}, {"id": "marinesofa", "name": "Marine sofa", "cats": ["Soft stuff", "Cute stuff", "Group activities"], "unlock": "Mareanie's Request reward", "ings": [{"name": "Seashell", "qty": 1, "id": "seashell", "locs": ["Bleak Beach (Natural)", "Pikachu Doll Dream Island (Natural)", "On beaches"]}, {"name": "Shiny pearl", "qty": 1, "id": "shinypearl", "locs": []}, {"name": "Twine", "qty": 1, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}], "src": "https://www.serebii.net/pokemonpokopia/items/marinesofa.shtml"}, {"id": "woodensteps", "name": "Wooden steps", "cats": [], "unlock": null, "ings": [{"name": "Lumber", "qty": 2, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}], "src": "https://www.serebii.net/pokemonpokopia/items/woodensteps.shtml"}, {"id": "storagebox", "name": "Storage box", "cats": ["Wooden stuff"], "unlock": null, "ings": [{"name": "Lumber", "qty": 1, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}], "src": "https://www.serebii.net/pokemonpokopia/items/storagebox.shtml"}, {"id": "ironstand", "name": "Iron stand", "cats": ["Hard stuff", "Metal stuff", "Blocky stuff"], "unlock": null, "ings": [{"name": "Iron ingot", "qty": 2, "id": "ironingot", "locs": ["Smelt Iron ore in the furnace"]}], "src": "https://www.serebii.net/pokemonpokopia/items/ironstand.shtml"}, {"id": "plaintable", "name": "Plain table", "cats": ["Wooden stuff"], "unlock": null, "ings": [{"name": "Lumber", "qty": 1, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}, {"name": "Twine", "qty": 2, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}], "src": "https://www.serebii.net/pokemonpokopia/items/plaintable.shtml"}, {"id": "foodcounter", "name": "Food counter", "cats": ["Wooden stuff"], "unlock": null, "ings": [{"name": "Lumber", "qty": 2, "id": "lumber", "locs": ["Rocky Ridges (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Eevee Doll Dream Island (Natural)", "Clefairy Doll Dream Island (Natural)"]}, {"name": "Twine", "qty": 2, "id": "twine", "locs": ["Bleak Beach (Natural)", "Sparkling Skylands (Natural)", "Pikachu Doll Dream Island (Natural)", "Shop - Unlocked at Rocky Ridges Lv. 2", "Shop - Unlocked at Cloud Island Lv. 3"]}], "src": "https://www.serebii.net/pokemonpokopia/items/foodcounter.shtml"}];
+const learned=new Set(['strawstool','plaintable']);
+let sel=DATA[0].id, hide=false;
+const cats=[...new Set(DATA.flatMap(d=>d.cats))].sort();
+q('#cat').insertAdjacentHTML('beforeend',cats.map(c=>`<option>${c}</option>`).join(''));
+const img=(id,name)=>`<span class="thumb"><img loading="lazy" alt="" src="https://www.serebii.net/pokemonpokopia/items/${id}.png" onerror="this.replaceWith(document.createTextNode('${name.slice(0,8)}'))"></span>`;
+
+function visible(){
+  const term=q('#q').value.toLowerCase().trim(), cat=q('#cat').value;
+  return DATA.filter(d=>d.name.toLowerCase().includes(term)
+    && (!cat||d.cats.includes(cat))
+    && !(hide&&learned.has(d.id)));
+}
+function render(){
+  const rows=visible();
+  const withUnlock=DATA.filter(d=>d.unlock).length;
+  q('#count').textContent=`${rows.length} of ${DATA.length} recipes - ${withUnlock} with recorded unlock guidance, ${DATA.length-withUnlock} not yet documented - ${learned.size} marked learned`;
+  q('#hide').setAttribute('aria-pressed',String(hide));
+  q('#list').innerHTML=rows.map(d=>`
+    <button type="button" class="row" role="listitem" data-id="${d.id}" aria-current="${d.id===sel}">
+      ${img(d.id,d.name)}
+      <span><b>${d.name}</b><small>${d.cats.join(' - ')||'Uncategorized'}</small></span>
+      <span class="chip ${d.unlock?'known':'mark'}">${d.unlock?'Unlock recorded':'Not yet documented'}</span>
+    </button>`).join('')||'<p style="padding:16px">No matching recipes.</p>';
+  const d=DATA.find(x=>x.id===sel)||rows[0]; if(!d){q('#detail').innerHTML='';return;}
+  q('#detail').innerHTML=`
+    <button type="button" class="backlink" id="back">&larr; Back to recipes</button>
+    <h2>${d.name}</h2>
+    <p class="cats">${d.cats.join(' - ')||'Uncategorized'}</p>
+    <h3>How to learn this recipe</h3>
+    <div class="learn ${d.unlock?'':'unknown'}">
+      <p>${d.unlock||'Not yet documented'}</p>
+      <p class="why">${d.unlock
+        ? 'Recorded on the source page for this item.'
+        : 'No source records how this recipe is unlocked. It is not guessed from where the finished item can be found.'}</p>
+    </div>
+    <h3>Ingredients and where they come from</h3>
+    ${d.ings.map(i=>`
+      <details class="ing">
+        <summary>${img(i.id||'x',i.name)}<b>${i.name}</b><span class="qty">x ${i.qty} - where to find</span></summary>
+        <ul class="where">${(i.locs||[]).length
+          ? i.locs.map(l=>`<li>${l}</li>`).join('')
+          : '<li>Not yet documented</li>'}</ul>
+      </details>`).join('')}
+    <label class="learned-row"><input type="checkbox" id="mk" ${learned.has(d.id)?'checked':''}>
+      I have learned this recipe <span class="qty">(filter only - nothing is inferred)</span></label>
+    <p class="foot"><a href="${d.src}" target="_blank" rel="noreferrer">Source</a></p>`;
+}
+root.addEventListener('click',e=>{
+  const row=e.target.closest('.row');
+  if(row){sel=row.dataset.id;root.classList.add('detail-open');render();return;}
+  if(e.target.id==='back'){root.classList.remove('detail-open');render();return;}
+  if(e.target.id==='hide'){hide=!hide;render();}
+});
+root.addEventListener('change',e=>{
+  if(e.target.id==='mk'){e.target.checked?learned.add(sel):learned.delete(sel);render();}
+  if(e.target.id==='cat')render();
+});
+q('#q').addEventListener('input',render);
+render();
+})();
+</script>
+</div>

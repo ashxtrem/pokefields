@@ -10,6 +10,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
     "data:import": "node scripts/import-data.mjs",
+    "data:audit-crafting": "node scripts/audit-crafting-data.mjs",
     "deploy": "npm run build && wrangler pages deploy dist --project-name pkmpia",
     "format": "prettier --write src scripts tests *.ts *.json *.jsonc",
     "format:check": "prettier --check src scripts tests *.ts *.json *.jsonc"

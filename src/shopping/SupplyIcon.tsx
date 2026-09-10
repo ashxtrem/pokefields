@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { useCatalog } from "../catalog/context";
 import { itemImageUrl, resolveItem } from "../dex/glossary";
-export function SupplyIcon({ label }: { label: string }) {
+export function SupplyIcon({
+  label,
+  itemId,
+}: {
+  label: string;
+  itemId?: string;
+}) {
   const { items } = useCatalog();
-  const item = resolveItem(label.replace(/^Total /, ""), items);
+  const item = itemId
+    ? items.find((row) => row.id === itemId) || resolveItem(label, items)
+    : resolveItem(label.replace(/^Total /, ""), items);
   const [failed, setFailed] = useState(false);
   return (
     <span className="supply-icon" aria-hidden="true">

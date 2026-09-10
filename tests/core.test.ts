@@ -579,7 +579,13 @@ describe("housemate backup", () => {
       found: { a: ["Beach"] },
       plans: notebook().plans,
     };
-    expect(validateBackup(legacy, catalog)).toEqual(legacy);
+    const result = validateBackup(legacy, catalog);
+    expect(result.found).toEqual(legacy.found);
+    expect(result.plans).toEqual(legacy.plans);
+    expect(result.crafting).toEqual({
+      version: 2,
+      learnedRecipeIds: [],
+    });
   });
   it("rejects a housemate plan that drops residents", () => {
     const a = notebook();

@@ -1,4 +1,5 @@
 import type { Item } from "../catalog/types";
+import { normalizeItemRecipe } from "../crafting/catalog";
 
 export type TermKind =
   | "environment"
@@ -167,30 +168,40 @@ function explainedFrom(
   };
 }
 
-export function itemObtain(item: ExplainedItem): string[] {
+export function itemObtain(item: ExplainedItem, catalogItems: Item[] = []): string[] {
   const lines = [...(item.locations || [])];
-  if (item.recipe?.length) {
-    const parts = item.recipe
-      .map((part) => `${part.quantity} × ${part.name}`)
-      .join(", ");
+  const catalogItem = catalogItems.find((row) => row.id === item.id);
+  const recipe = catalogItem
+    ? normalizeItemRecipe(catalogItem, catalogItems)
+    : null;
+  const parts = recipe
+    ? recipe.ingredients
+        .map((part) => `${part.quantity} × ${part.originalLabel}`)
+        .join(", ")
+    : (item.recipe || [])
+        .map((part) => `${part.quantity} × ${part.name}`)
+        .join(", ");
+  if (parts) {
     const cookIdx = lines.findIndex((line) =>
       /cook with ingredients/i.test(line),
     );
     const craftIdx = lines.findIndex((line) => /craft from recipe/i.test(line));
-    if (cookIdx >= 0) lines[cookIdx] = `Cook with: ${parts}`;
-    else if (craftIdx >= 0) lines[craftIdx] = `Craft from: ${parts}`;
+    const ingredientLine =
+      recipe?.kind === "cook" || cookIdx >= 0
+        ? `Cook with: ${parts}`
+        : `Craft from: ${parts}`;
+    if (cookIdx >= 0) lines[cookIdx] = ingredientLine;
+    else if (craftIdx >= 0) lines[craftIdx] = ingredientLine;
     else if (!lines.some((line) => /^(craft from:|cook with:)/i.test(line)))
-      lines.push(`Craft from: ${parts}`);
+      lines.push(ingredientLine);
   }
-  if (
-    item.recipeSpecialty &&
-    !lines.some((line) => line.includes(item.recipeSpecialty!))
-  )
-    lines.push(
-      `Needs a Pokémon with the ${item.recipeSpecialty} specialty`,
-    );
-  if (item.recipeLocation && !lines.some((line) => line === item.recipeLocation))
-    lines.push(`Recipe unlocked: ${item.recipeLocation}`);
+  const specialty = recipe?.specialty || (!recipe ? item.recipeSpecialty : null);
+  if (specialty && !lines.some((line) => line.includes(specialty)))
+    lines.push(`Needs a Pokémon with the ${specialty} specialty`);
+  const unlockNote =
+    recipe?.unlock.methods[0]?.text || item.recipeLocation;
+  if (unlockNote && !lines.some((line) => line === unlockNote))
+    lines.push(`Recipe unlocked: ${unlockNote}`);
   if (item.event && !lines.some((line) => line.includes(item.event!)))
     lines.push(`Event: ${item.event}`);
   return lines;
@@ -1056,7 +1067,7 @@ export function explainTerm(term: TermRef, items: Item[]): TermExplanation {
   }
 
   const item = resolveItem(term.id || value, items);
-  const obtain = itemObtain(item);
+  const obtain = itemObtain(item, items);
   const recipeItems = (item.recipe || []).map((part) =>
     resolveItem(part.name, items),
   );

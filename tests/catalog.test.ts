@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import type { Catalog } from "../src/catalog/types";
 import { generatePlan, canPlace, furnishings } from "../src/planner/engine";
 import { recommendHousemates } from "../src/planner/recommend";
+import { listRecipes } from "../src/crafting/catalog";
 const catalog = JSON.parse(
   readFileSync("public/data/catalog.json", "utf8"),
 ) as Catalog;
@@ -41,7 +42,7 @@ describe("shipped reference catalog", () => {
     );
   });
   it("includes environment examples, flooring, and gatherables from the full Serebii item list", () => {
-    expect(catalog.version).toBe("2026-09-09.5");
+    expect(catalog.version).toBe("2026-09-10.1");
     expect(catalog.items.length).toBeGreaterThanOrEqual(1700);
     for (const id of [
       "icyrock",
@@ -83,6 +84,17 @@ describe("shipped reference catalog", () => {
     expect(
       catalog.items.find((i) => i.id === "shreddedsalad")?.recipeSpecialty,
     ).toBe("Chop");
+  });
+  it("normalizes recipes without inventing yield or prefix-matching ingredients", () => {
+    const recipes = listRecipes(catalog);
+    expect(recipes.length).toBe(883);
+    const carved = recipes.find((recipe) => recipe.outputItemId === "carvedlight-brownrock");
+    expect(carved?.ingredients[0].identity).toEqual({
+      type: "resolved",
+      itemId: "lightbrownrock",
+    });
+    const steps = recipes.find((recipe) => recipe.outputItemId === "woodensteps");
+    expect(steps?.conflicts.length).toBeGreaterThan(0);
   });
   it("uses actual items rather than category index links", () => {
     expect(

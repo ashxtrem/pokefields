@@ -41,6 +41,52 @@ export interface Pokemon {
   } | null;
   produces?: unknown;
 }
+export type RecipeKindHint = "craft" | "cook" | "other" | "unknown";
+export type RecipeKnowledgeStatus =
+  | "documented"
+  | "inferred"
+  | "conflicting"
+  | "unknown"
+  | "partial";
+export interface RecipeFieldEvidenceJson {
+  sourceUrl?: string | null;
+  provider: string;
+  sourceRevision?: string | null;
+  checkedDate?: string;
+  retrievedAt?: string;
+  locator?: string;
+  status?: RecipeKnowledgeStatus;
+  note?: string;
+}
+export interface RecipeConflictJson {
+  fields: string[];
+  summary: string;
+}
+export interface RecipeUnlockMethodJson {
+  text: string;
+  provider: string;
+  sourceUrl: string;
+  retrievedAt: string;
+}
+/** Reviewed overlay kept on catalog items so later imports cannot drop it. */
+export interface ItemRecipeMeta {
+  kind?: RecipeKindHint;
+  kindEvidence?: RecipeFieldEvidenceJson;
+  specialty?: string | null;
+  unlock?: {
+    methods: RecipeUnlockMethodJson[];
+    conflicts: RecipeUnlockMethodJson[];
+  };
+  countProvenance?: "pokopiaapi" | "importer-default" | "serebii-item-page";
+  locationEvidence?: RecipeFieldEvidenceJson;
+  conflicts?: RecipeConflictJson[];
+  extraction?: {
+    itemPage?: string;
+    craftingIndex?: boolean;
+    apiUnlock?: boolean;
+  };
+  evidence?: Record<string, RecipeFieldEvidenceJson>;
+}
 export interface Item {
   id: string;
   name: string;
@@ -51,6 +97,7 @@ export interface Item {
   recipeLocation?: string | null;
   recipeSpecialty?: string | null;
   event?: string | null;
+  recipeMeta?: ItemRecipeMeta;
 }
 export interface Material {
   name: string;

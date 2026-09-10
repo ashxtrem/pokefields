@@ -2,11 +2,14 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { X, MapPin, Check, Leaf, Info } from "lucide-react";
 import type { Pokemon } from "../catalog/types";
 import { useCatalog } from "../catalog/context";
+import { recipesForOutputItem } from "../crafting/catalog";
+import { recipeHref } from "../crafting/types";
 import { useProgress } from "../progress/context";
 import {
   explainTerm,
   itemImageUrl,
   pokemonArtUrl,
+  resolveItem,
   specialtyImageUrl,
   type TermRef,
 } from "../dex/glossary";
@@ -46,12 +49,16 @@ export function Portrait({
 }
 export function Modal({
   title,
+  titleHref,
+  onTitleClick,
   children,
   onClose,
   wide = false,
   sheet = false,
 }: {
   title: string;
+  titleHref?: string;
+  onTitleClick?: () => void;
   children: ReactNode;
   onClose: () => void;
   wide?: boolean;
@@ -76,7 +83,15 @@ export function Modal({
       }}
     >
       <div className="modal-heading">
-        <h2>{title}</h2>
+        <h2>
+          {titleHref ? (
+            <a href={titleHref} onClick={onTitleClick}>
+              {title}
+            </a>
+          ) : (
+            title
+          )}
+        </h2>
         <button
           className="icon-button"
           aria-label="Close dialog"
@@ -322,8 +337,22 @@ export function ExplainDialog({
   const current = stack[stack.length - 1];
   const info = explainTerm(current, catalog.items);
   const open = (next: TermRef) => setStack((s) => [...s, next]);
+  const recipes =
+    current.kind === "item"
+      ? recipesForOutputItem(
+          catalog,
+          resolveItem(current.id || current.value, catalog.items).id,
+        )
+      : [];
+  const recipeLink = recipes[0];
   return (
-    <Modal title={info.title} onClose={onClose} sheet>
+    <Modal
+      title={info.title}
+      titleHref={recipeLink ? recipeHref(recipeLink.id) : undefined}
+      onTitleClick={recipeLink ? onClose : undefined}
+      onClose={onClose}
+      sheet
+    >
       <p className="explain-kind">{info.kindLabel}</p>
       {info.heroImage && (
         <ItemPic src={info.heroImage} name={info.title} large />
