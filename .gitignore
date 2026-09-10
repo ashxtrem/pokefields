@@ -11,3 +11,5 @@ public/images/manifest.json
 .env.local
 graphify-out/
 *.tsbuildinfo
+.cursor/
+.impeccable/
