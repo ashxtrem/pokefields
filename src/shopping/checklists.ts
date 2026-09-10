@@ -1,4 +1,4 @@
-import type { Catalog } from "../catalog/types";
+import { plannableKitMap, type Catalog } from "../catalog/types";
 import { combinedSupplies, environmentSupplies } from "../planner/recommend";
 import type { HousematePlan } from "../planner/types";
 
@@ -87,8 +87,7 @@ export function houseQuantityList(plan: HousematePlan, catalog: Catalog): HouseQ
   const construction = supplies.construction.map(({ name, quantity }) => {
     const contributors = plan.homes
       .filter((home) =>
-        catalog.kits
-          .find((kit) => kit.id === home.kitId)
+        plannableKitMap(catalog.kits).get(home.kitId)
           ?.materials.some((material) => material.name === name && material.quantity > 0),
       )
       .map((home) => `${home.id}:${home.kitId}`)

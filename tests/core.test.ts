@@ -68,6 +68,7 @@ const p = (
 const kit: Kit = {
   id: "home",
   name: "Test home",
+  kind: "residence",
   width: 4,
   depth: 3,
   height: 3,
@@ -167,6 +168,40 @@ describe("comfort-first planning", () => {
     expect(canPlace({ ...h, x: 5 }, [], input.plot, catalog)).toBe(false);
     expect(canPlace({ ...h, id: "two" }, [h], input.plot, catalog)).toBe(false);
   });
+  it("never places a structure or an undocumented home", () => {
+    // Structures are buildings, not homes; a residence with no recorded
+    // footprint cannot be placed on the grid either. Neither may reach the
+    // planner. See docs/items-directory-plan.md section 3.3.
+    const withStructures: Catalog = {
+      ...catalog,
+      kits: [
+        kit,
+        { ...kit, id: "stage", name: "Stage", kind: "structure", capacity: null },
+        { ...kit, id: "unknown-kit", name: "Unknown", kind: "unknown", capacity: null },
+        { ...kit, id: "no-footprint", width: null, depth: null },
+      ],
+    };
+    for (const kitId of ["stage", "unknown-kit", "no-footprint"]) {
+      expect(
+        canPlace(
+          { id: "x", kitId, x: 0, y: 0, residents: [] },
+          [],
+          input.plot,
+          withStructures,
+        ),
+      ).toBe(false);
+      expect(() =>
+        generatePlan(
+          { ...input, kits: [{ id: kitId, limit: null }] },
+          withStructures,
+        ),
+      ).toThrow(/supported home kit/);
+    }
+    expect(
+      generatePlan({ ...input, kits: [{ id: "home", limit: null }] }, withStructures)
+        .homes.length,
+    ).toBeGreaterThan(0);
+  });
   it("rejects fractional positions and dimensions", () => {
     expect(() =>
       generatePlan({ ...input, plot: { width: 8.5, depth: 3 } }, catalog),
@@ -251,6 +286,22 @@ describe("backup and persistence", () => {
     const initial = saved();
     await writeState(initial);
     expect(await readState()).toEqual(initial);
+  });
+  it("refuses a saved kit filter naming a kit that is not a home", () => {
+    const withStructure: Catalog = {
+      ...catalog,
+      kits: [kit, { ...kit, id: "stage", kind: "structure", capacity: null }],
+    };
+    expect(() =>
+      validateBackup(
+        { ...saved(), availableKitIds: ["stage"] },
+        withStructure,
+      ),
+    ).toThrow(/available-kits/);
+    expect(
+      validateBackup({ ...saved(), availableKitIds: ["home"] }, withStructure)
+        .availableKitIds,
+    ).toEqual(["home"]);
   });
   it("accepts an exported notebook", () => {
     const data = saved();

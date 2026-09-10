@@ -33,6 +33,15 @@ const ITEM_IMAGE_FALLBACKS = {
   slylight: "skylight",
   "seabedflowerseeds(purple)": "seabedflowerseeds",
   pokemoncenterrebuildkit: "wastelandpokemoncenterkit",
+  cardboardbox: "cardboardboxes",
+  flodingchair: "foldingchair",
+  "aged-stonedwall": "aged-stonewall",
+  stones: "stone",
+  icicles: "icicle",
+  seaglassfragment: "seaglassfragments",
+  "patternedaged-stolewall": "patternedaged-stonewall",
+  "statelywall(upperlower))": "statelywall(upperlower)",
+  seashelllamp: "shelllamp",
 };
 log("Baking reference images into public/images (existing files are skipped)…");
 const catalog = JSON.parse(await readFile("public/data/catalog.json", "utf8"));

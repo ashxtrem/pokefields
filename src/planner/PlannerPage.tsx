@@ -3,6 +3,7 @@ import { HomeDetail } from "./HomeDetail";
 import { useMemo, useRef, useState } from "react";
 import { House, Users, Search, Pencil, Plus } from "lucide-react";
 import { useCatalog } from "../catalog/context";
+import { plannableKitMap, plannableKits } from "../catalog/types";
 import { useProgress } from "../progress/context";
 import type { TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
@@ -363,8 +364,8 @@ export function PlannerPage() {
                   onClick={() => setEditingKits(true)}
                 >
                   {availableKitIds
-                    ? `${availableKitIds.length} of ${catalog.kits.length} kits selected`
-                    : `All ${catalog.kits.length} kits available`}
+                    ? `${availableKitIds.length} of ${plannableKits(catalog.kits).length} kits selected`
+                    : `All ${plannableKits(catalog.kits).length} kits available`}
                 </button>
               </div>
               {!!legacyAreas.length && (
@@ -590,7 +591,7 @@ export function PlannerPage() {
                                 <option value="new">New group</option>
                                 {view.homes.map((h) => (
                                   <option key={h.id} value={h.id}>
-                                    {catalog.kits.find((k) => k.id === h.kitId)
+                                    {plannableKitMap(catalog.kits).get(h.kitId)
                                       ?.name || h.id}
                                   </option>
                                 ))}
@@ -786,7 +787,7 @@ function HomeCard({
   onExplain: (term: TermRef) => void;
 }) {
   const catalog = useCatalog();
-  const kit = catalog.kits.find((k) => k.id === home.kitId);
+  const kit = plannableKitMap(catalog.kits).get(home.kitId);
   const residents = home.residents
     .map((id) => catalog.pokemon.find((p) => p.id === id)!)
     .filter(Boolean);
@@ -910,7 +911,7 @@ function ChangeHomeModal({
   const catalog = useCatalog();
   const [error, setError] = useState("");
   const [term, setTerm] = useState<TermRef | null>(null);
-  const kit = catalog.kits.find((k) => k.id === home.kitId);
+  const kit = plannableKitMap(catalog.kits).get(home.kitId);
   const options = eligibleKits(home.residents.length, catalog, availableKitIds);
   return (
     <Modal title="Change home" onClose={onClose} wide>
@@ -990,9 +991,9 @@ function AvailableKitsModal({
 }) {
   const catalog = useCatalog();
   const [draft, setDraft] = useState<string[]>(
-    selected ?? catalog.kits.map((k) => k.id),
+    selected ?? plannableKits(catalog.kits).map((k) => k.id),
   );
-  const allSelected = draft.length === catalog.kits.length;
+  const allSelected = draft.length === plannableKits(catalog.kits).length;
   return (
     <Modal title="Available kits" onClose={onClose} wide>
       <p className="muted">
@@ -1003,7 +1004,7 @@ function AvailableKitsModal({
         <button
           type="button"
           className="text-button"
-          onClick={() => setDraft(catalog.kits.map((k) => k.id))}
+          onClick={() => setDraft(plannableKits(catalog.kits).map((k) => k.id))}
         >
           Select all
         </button>
@@ -1012,7 +1013,7 @@ function AvailableKitsModal({
         </button>
       </div>
       <div className="kit-options">
-        {catalog.kits.map((kit) => (
+        {plannableKits(catalog.kits).map((kit) => (
           <label className="kit-option" key={kit.id}>
             <input
               type="checkbox"

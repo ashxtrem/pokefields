@@ -271,6 +271,7 @@ describe("house quantity migration", () => {
         {
           id: "home",
           name: "Home",
+          kind: "residence" as const,
           width: 4,
           depth: 3,
           height: 3,

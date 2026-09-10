@@ -60,10 +60,26 @@ const names = ($, selector) => [
 ];
 const categoryName = (s) =>
   s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+// Fold diacritics before stripping: without this "Poké Ball bed" slugs to
+// "pokballbed" and stops matching its own id and the API record.
+const slug = (s) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
 const itemsOnly = process.argv.includes("--items-only");
 const cookingOnly = process.argv.includes("--cooking-only");
-const catalogVersion = "2026-09-10.1";
+const catalogVersion = "2026-09-10.2";
+// Den kits are excluded from the catalog: their size eligibility is not
+// modeled. Named so the exclusion is greppable rather than inline.
+const DEN_KIT_MARKER = "denkit";
+// The item index prefixes every section heading; the stored group is the bare
+// source label ("Misc.", "Lost Relics (L)"). Display names belong in the UI.
+const SECTION_PREFIX = /^List of\s+/;
+// Music discs are the one numbered set the index states outright. The number is
+// a derived fact; the description it is read from is never stored.
+const MUSIC_CD = /^Music CD #(\d+)\b/;
 const itemMap = new Map();
 function itemIdFromSrc(srcAttr) {
   if (!srcAttr) return null;
@@ -74,6 +90,14 @@ function itemIdFromSrc(srcAttr) {
   } catch {
     return null;
   }
+}
+// Pages other than the item index spell the same item several ways ("Poke Ball
+// Bed" on a habitat requirement table, "Poké Ball bed" on the index). Whichever
+// page is read first wins in ensureItem, so the index corrects the name after.
+function setCanonicalName(id, name) {
+  const trimmed = (name || "").replace(/\s+/g, " ").trim();
+  const item = itemMap.get(id);
+  if (item && trimmed && trimmed !== "Name") item.name = trimmed;
 }
 function ensureItem(id, name) {
   const trimmed = (name || "").replace(/\s+/g, " ").trim();
@@ -684,19 +708,23 @@ await pool(kitLinks, async (href) => {
     const width = Number(s.match(/Width:\s*(\d+)/)?.[1]);
     const depth = Number(s.match(/Depth:\s*(\d+)/)?.[1]);
     const height = Number(s.match(/Height:\s*(\d+)/)?.[1]);
-    let capacity = 0,
-      buildTime = "Check source";
+    // A blank capacity cell is an undocumented figure, not a documented zero:
+    // Aqua cottage kit and Basin Pokémon Center kit both leave it empty. Keep
+    // the two cases apart so neither is asserted to be a home or not a home.
+    let capacity = null,
+      buildTime = null;
     main.find("table").each((_, table) => {
       const rows = $(table).find("tr");
       rows.each((i, row) => {
         if (text($, row).includes("Liveable Pokémon")) {
           const cells = rows.eq(i + 1).children("td");
-          capacity = Number(text($, cells.eq(2)));
-          buildTime = text($, cells.eq(3));
+          const stated = text($, cells.eq(2));
+          capacity = /^\d+$/.test(stated) ? Number(stated) : null;
+          buildTime = text($, cells.eq(3)) || null;
         }
       });
     });
-    if (!width || !depth || !capacity || href.includes("denkit")) return;
+    if (href.includes(DEN_KIT_MARKER)) return;
     const materials = [];
     main.find("tr").each((_, row) => {
       const cells = $(row).children("td");
@@ -741,15 +769,23 @@ await pool(kitLinks, async (href) => {
           materials.push({ name, quantity: Number(m[3]) });
       }
     }
-    const helpers = Number(s.match(/(\d+) Pokémon including/)?.[1] || 0);
+    const helpers = Number(s.match(/(\d+) Pokémon including/)?.[1]);
     kits.push({
       id: href.split("/").pop().replace(".shtml", ""),
       name: text($, "main h1"),
-      width,
-      depth,
-      height,
+      // A documented capacity above zero is a home; a documented zero is a
+      // structure; an undocumented capacity is neither claim. Only residences
+      // may reach the planner; see docs/items-directory-plan.md section 3.3.
+      kind:
+        capacity === null ? "unknown" : capacity > 0 ? "residence" : "structure",
+      // Absent figures stay null so the app can say "not documented" rather
+      // than render an imported zero as a recorded count. The Pokémon Center
+      // kits record no footprint at all.
+      width: Number.isFinite(width) ? width : null,
+      depth: Number.isFinite(depth) ? depth : null,
+      height: Number.isFinite(height) ? height : null,
       capacity,
-      helpers,
+      helpers: Number.isFinite(helpers) ? helpers : null,
       specialties: names($, 'main a[href*="/specialty/"]'),
       materials,
       buildTime,
@@ -774,6 +810,38 @@ $index('a[href*="items/"]').each((_, e) => {
   if (!id || indexSkip.has(id) || href.includes("itemdex")) return;
   itemsByName.set(slug(name), { id, name });
   ensureItem(id, name);
+  setCanonicalName(id, name);
+});
+// Section membership: the index's own answer to "what kind of thing is this",
+// which the preference categories do not give. An item can be listed under more
+// than one section, so groups is a set in first-seen order. Row descriptions are
+// read for derived facts only and are not stored; see the plan, section 3.4.
+$index("main table.dextable").each((_, table) => {
+  const section = text($index, $index(table).prevAll("h2").first()).replace(
+    SECTION_PREFIX,
+    "",
+  );
+  if (!section) return;
+  $index(table)
+    .find("tr")
+    .each((_, row) => {
+      const cells = $index(row).children("td");
+      if (cells.length < 3) return;
+      const link = cells.eq(1).find('a[href*="items/"]').first();
+      const id = (link.attr("href") || "")
+        .split("/")
+        .pop()
+        ?.replace(/\.shtml.*/i, "");
+      if (!id || indexSkip.has(id)) return;
+      ensureItem(id, text($index, link));
+      setCanonicalName(id, text($index, link));
+      const item = itemMap.get(id);
+      if (!item) return;
+      if (!item.groups) item.groups = [];
+      if (!item.groups.includes(section)) item.groups.push(section);
+      const cd = MUSIC_CD.exec(text($index, cells.eq(2)));
+      if (cd) item.collection = { set: "music-cd", number: Number(cd[1]) };
+    });
 });
 function ingestNamed(name) {
   const stripped = name.replace(/\s*\([^)]*\)\s*/g, " ").replace(/\s+/g, " ").trim();
@@ -797,7 +865,7 @@ for (const page of [...indexSkip]) {
   });
 }
 const apiItems = JSON.parse(await get(src + "src/data/items.json"));
-const apiSlug = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+const apiSlug = slug;
 const apiById = new Map(
   apiItems.map((i) => [apiSlug(i.slug || i.name), i]),
 );
@@ -820,6 +888,56 @@ for (const item of itemMap.values()) {
 await applyCookingRecipes();
 await applyCraftingEnrichment();
 await applySerebiiRecipeGuidance();
+// Favorite-category pages are fetched concurrently, so append order varied
+// between runs and a re-import reshuffled these lists for no reason. They are a
+// set, not a ranking: sort them so the same sources produce the same catalog.
+for (const item of itemMap.values()) item.categories?.sort();
+// Classification coverage, reported rather than asserted: an item the index does
+// not list stays unsorted and is named here instead of being absorbed into a
+// section. Set sizes come from the highest number seen, never from the count of
+// documented entries.
+function classificationReport(items, kitList) {
+  const sections = {};
+  const unsorted = [];
+  const sets = {};
+  for (const item of items) {
+    if (item.groups?.length)
+      for (const group of item.groups)
+        sections[group] = (sections[group] || 0) + 1;
+    else unsorted.push(item.id);
+    if (item.collection) {
+      const set = (sets[item.collection.set] ||= { documented: 0, highest: 0 });
+      set.documented += 1;
+      set.highest = Math.max(set.highest, item.collection.number);
+    }
+  }
+  return {
+    items: items.length,
+    classified: items.length - unsorted.length,
+    sections,
+    unsortedIds: unsorted,
+    collections: sets,
+    kits: {
+      total: kitList.length,
+      residence: kitList.filter((kit) => kit.kind === "residence").length,
+      structure: kitList.filter((kit) => kit.kind === "structure").length,
+      unknownCapacityIds: kitList
+        .filter((kit) => kit.kind === "unknown")
+        .map((kit) => kit.id),
+      withoutFootprintIds: kitList
+        .filter((kit) => kit.width === null || kit.depth === null)
+        .map((kit) => kit.id),
+      plannable: kitList.filter(
+        (kit) =>
+          kit.kind === "residence" &&
+          kit.capacity &&
+          kit.width !== null &&
+          kit.depth !== null &&
+          kit.height !== null,
+      ).length,
+    },
+  };
+}
 if (itemsOnly) {
   catalogSnapshot.items = [...itemMap.values()];
   catalogSnapshot.version = catalogVersion;
@@ -832,6 +950,10 @@ if (itemsOnly) {
         items: catalogSnapshot.items.length,
         kits: catalogSnapshot.kits.length,
         mode: "items-only",
+        classification: classificationReport(
+          catalogSnapshot.items,
+          catalogSnapshot.kits,
+        ),
       },
       null,
       2,
@@ -869,6 +991,7 @@ await writeFile(
       habitats: habitatSources.size,
       items: out.items.length,
       kits: kits.length,
+      classification: classificationReport(out.items, kits),
       failures,
     },
     null,

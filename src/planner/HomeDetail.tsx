@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { House, Check } from "lucide-react";
 import { useCatalog } from "../catalog/context";
+import { plannableKitMap } from "../catalog/types";
 import { useViewState } from "../ui/navigation";
 import { explainTerm, foodEntries, type TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
@@ -41,7 +42,7 @@ export function HomeDetail({
   onTabChange: (tab: string) => void;
 }) {
   const catalog = useCatalog();
-  const kit = catalog.kits.find((k) => k.id === home.kitId);
+  const kit = plannableKitMap(catalog.kits).get(home.kitId);
   const residents = home.residents
     .map((id) => catalog.pokemon.find((p) => p.id === id)!)
     .filter(Boolean);
@@ -161,7 +162,7 @@ export function HomeDetail({
                     .filter((h) => h.id !== home.id)
                     .map((h) => (
                       <option key={h.id} value={h.id}>
-                        {catalog.kits.find((k) => k.id === h.kitId)?.name ||
+                        {plannableKitMap(catalog.kits).get(h.kitId)?.name ||
                           h.id}{" "}
                         · {h.residents.length} residents
                       </option>

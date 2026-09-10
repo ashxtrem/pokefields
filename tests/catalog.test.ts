@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
-import type { Catalog } from "../src/catalog/types";
+import { plannableKitMap, type Catalog } from "../src/catalog/types";
 import { generatePlan, canPlace, furnishings } from "../src/planner/engine";
 import { recommendHousemates } from "../src/planner/recommend";
 import { listRecipes } from "../src/crafting/catalog";
@@ -42,7 +42,7 @@ describe("shipped reference catalog", () => {
     );
   });
   it("includes environment examples, flooring, and gatherables from the full Serebii item list", () => {
-    expect(catalog.version).toBe("2026-09-10.1");
+    expect(catalog.version).toBe("2026-09-10.2");
     expect(catalog.items.length).toBeGreaterThanOrEqual(1700);
     for (const id of [
       "icyrock",
@@ -87,7 +87,7 @@ describe("shipped reference catalog", () => {
   });
   it("normalizes recipes without inventing yield or prefix-matching ingredients", () => {
     const recipes = listRecipes(catalog);
-    expect(recipes.length).toBe(883);
+    expect(recipes.length).toBe(885);
     const carved = recipes.find((recipe) => recipe.outputItemId === "carvedlight-brownrock");
     expect(carved?.ingredients[0].identity).toEqual({
       type: "resolved",
@@ -129,6 +129,60 @@ describe("shipped reference catalog", () => {
   });
   it("does not include size-restricted dens without size eligibility", () => {
     expect(catalog.kits.some((k) => k.id.includes("denkit"))).toBe(false);
+  });
+  it("records the item index's own sections without inferring one", () => {
+    // Sections are a set: this item is listed twice on the index.
+    expect(catalog.items.find((i) => i.id === "luckyegg")?.groups).toEqual([
+      "Other",
+      "Lost Relics (S)",
+    ]);
+    expect(catalog.items.find((i) => i.id === "honey")?.groups).toEqual([
+      "Materials",
+    ]);
+    // Section labels are stored in the source's own wording.
+    expect(catalog.items.find((i) => i.id === "pikachudoll")?.groups).toEqual([
+      "Misc.",
+    ]);
+    const unsorted = catalog.items.filter((i) => !i.groups?.length);
+    expect(unsorted.length).toBeGreaterThan(0);
+    // An item the index does not list stays unsorted rather than being placed.
+    expect(unsorted.every((i) => i.groups === undefined)).toBe(true);
+  });
+  it("numbers music discs from the index and does not close the set", () => {
+    const disc = catalog.items.find((i) => i.id === "pallettown");
+    expect(disc?.collection).toEqual({ set: "music-cd", number: 2 });
+    const discs = catalog.items.filter((i) => i.collection?.set === "music-cd");
+    const highest = Math.max(...discs.map((i) => i.collection!.number));
+    // The set is known to be incomplete upstream; coverage must not be
+    // reported as complete by counting only what is documented.
+    expect(highest).toBeGreaterThan(discs.length);
+  });
+  it("never stores the description text a derived fact was read from", () => {
+    for (const item of catalog.items)
+      expect(Object.keys(item)).not.toContain("description");
+  });
+  it("keeps structures out of the plannable kit list", () => {
+    const structures = catalog.kits.filter((k) => k.kind !== "residence");
+    expect(structures.length).toBeGreaterThan(0);
+    expect(catalog.kits.find((k) => k.id === "concertstagekit")?.kind).toBe(
+      "structure",
+    );
+    // A blank capacity cell is not a documented zero, so no claim is made.
+    expect(catalog.kits.find((k) => k.id === "aquacottagekit")?.kind).toBe(
+      "unknown",
+    );
+    const plannable = plannableKitMap(catalog.kits);
+    expect(structures.every((k) => !plannable.has(k.id))).toBe(true);
+    // The homes the planner may use are unchanged by admitting structures.
+    expect(plannable.size).toBe(26);
+  });
+  it("keeps kits whose footprint the source never records, unplannable", () => {
+    const centre = catalog.kits.find((k) => k.id === "beachpokemoncenterkit");
+    expect(centre).toBeDefined();
+    expect(centre!.width).toBeNull();
+    expect(plannableKitMap(catalog.kits).has("beachpokemoncenterkit")).toBe(
+      false,
+    );
   });
   it("plans a full catalog roster within selected boundaries and capacity", () => {
     const input = {
@@ -173,7 +227,7 @@ describe("shipped reference catalog", () => {
     expect(new Set(housed).size).toBe(housed.length);
     expect(
       plan.homes.every((h) => {
-        const kit = catalog.kits.find((k) => k.id === h.kitId)!;
+        const kit = plannableKitMap(catalog.kits).get(h.kitId)!;
         return h.residents.length <= kit.capacity;
       }),
     ).toBe(true);

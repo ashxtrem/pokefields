@@ -109,11 +109,13 @@ describe("detail term explanations", () => {
       "Event: More Spores for Hoppip",
     ]);
     expect(flower.achieve).toBeUndefined();
+    // Categories are a set, and the importer now sorts them so that a
+    // re-import cannot reshuffle this list.
     expect(flower.categories).toEqual([
-      "Soft stuff",
       "Cute stuff",
       "Group activities",
       "Pretty flowers",
+      "Soft stuff",
     ]);
     const fluff = explainTerm({ kind: "item", value: "Fluff" }, catalog.items);
     expect(fluff.obtain).toEqual([

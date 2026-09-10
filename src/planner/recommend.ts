@@ -1,4 +1,10 @@
-import type { Catalog, Kit, Pokemon } from "../catalog/types";
+import {
+  plannableKitMap,
+  plannableKits,
+  type Catalog,
+  type PlannableKit,
+  type Pokemon,
+} from "../catalog/types";
 import { environmentExampleIds } from "../dex/glossary";
 import { furnishings } from "./engine";
 import type {
@@ -110,8 +116,8 @@ export function explainGroup(residents: Pokemon[]) {
 export function suggestHomeKit(
   occupants: number,
   catalog: Catalog,
-): Kit | null {
-  const fit = catalog.kits.filter((k) => k.capacity >= occupants);
+): PlannableKit | null {
+  const fit = plannableKits(catalog.kits).filter((k) => k.capacity >= occupants);
   if (!fit.length) return null;
   return [...fit].sort(
     (a, b) =>
@@ -126,7 +132,7 @@ export function eligibleKits(
   catalog: Catalog,
   availableKitIds: string[] | null = null,
 ) {
-  return catalog.kits
+  return plannableKits(catalog.kits)
     .filter((k) => k.capacity >= occupants)
     .filter((k) => !availableKitIds || availableKitIds.includes(k.id))
     .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
@@ -138,8 +144,8 @@ export function effectiveMaxResidents(
   availableKitIds: string[] | null = null,
 ) {
   const kits = availableKitIds
-    ? catalog.kits.filter((k) => availableKitIds.includes(k.id))
-    : catalog.kits;
+    ? plannableKits(catalog.kits).filter((k) => availableKitIds.includes(k.id))
+    : plannableKits(catalog.kits);
   const maxCapacity = Math.max(0, ...kits.map((k) => k.capacity));
   return Math.max(0, Math.min(settings.maxResidents, maxCapacity));
 }
@@ -281,8 +287,8 @@ export function recommendHousemates(
   const settings = options?.settings ?? DEFAULT_HOUSEMATE_SETTINGS;
   const availableKitIds = options?.availableKitIds ?? null;
   const usableKits = availableKitIds
-    ? catalog.kits.filter((k) => availableKitIds.includes(k.id))
-    : catalog.kits;
+    ? plannableKits(catalog.kits).filter((k) => availableKitIds.includes(k.id))
+    : plannableKits(catalog.kits);
   const usableCatalog: Catalog = { ...catalog, kits: usableKits };
   if (!roster.length)
     return {
@@ -373,7 +379,7 @@ export function convertSpatialPlan(
     reason: r.reason,
   }));
   for (const home of plan.homes) {
-    const kit = catalog.kits.find((k) => k.id === home.kitId);
+    const kit = plannableKitMap(catalog.kits).get(home.kitId);
     const suggested =
       kit && home.residents.length <= kit.capacity
         ? kit
@@ -418,7 +424,7 @@ function assertKitCapacity(
   residents: string[],
   catalog: Catalog,
 ) {
-  const kit = catalog.kits.find((k) => k.id === kitId);
+  const kit = plannableKitMap(catalog.kits).get(kitId);
   if (!kit) throw Error("Choose a supported home.");
   if (residents.length > kit.capacity)
     throw Error(
@@ -547,7 +553,7 @@ export function combinedSupplies(plan: HousematePlan, catalog: Catalog) {
     { name: string; quantity: number; homeIds: string[] }
   >();
   for (const home of plan.homes) {
-    const kit = catalog.kits.find((k) => k.id === home.kitId);
+    const kit = plannableKitMap(catalog.kits).get(home.kitId);
     kit?.materials.forEach((m) =>
       construction.set(m.name, (construction.get(m.name) || 0) + m.quantity),
     );
@@ -653,7 +659,7 @@ export function addHome(
   kitId: string,
   catalog: Catalog,
 ): HousematePlan {
-  const kit = catalog.kits.find((k) => k.id === kitId);
+  const kit = plannableKitMap(catalog.kits).get(kitId);
   if (!kit) throw Error("Choose a supported home.");
   return touch({
     ...plan,

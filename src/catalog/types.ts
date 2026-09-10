@@ -87,10 +87,23 @@ export interface ItemRecipeMeta {
   };
   evidence?: Record<string, RecipeFieldEvidenceJson>;
 }
+/** A numbered in-game set an item belongs to. Derived facts only. */
+export interface ItemCollection {
+  set: "music-cd";
+  number: number;
+}
 export interface Item {
   id: string;
   name: string;
+  /** Pokémon preference categories: what a Pokémon likes, not what this is. */
   categories: string[];
+  /**
+   * Serebii item-index sections this item is listed under, in source wording.
+   * An item can belong to several. Absent or empty means unsorted; a section is
+   * never inferred for it.
+   */
+  groups?: string[];
+  collection?: ItemCollection;
   source: string;
   locations?: string[];
   recipe?: { name: string; quantity: number }[];
@@ -103,18 +116,69 @@ export interface Material {
   name: string;
   quantity: number;
 }
+/**
+ * "unknown" is a real state: some build pages leave the liveable-capacity cell
+ * blank, which is not the same as a documented zero.
+ */
+export type KitKind = "residence" | "structure" | "unknown";
 export interface Kit {
   id: string;
   name: string;
+  /** Only residences house Pokémon; structures must never reach the planner. */
+  kind: KitKind;
+  /** Null when the source records no footprint, as on the Pokémon Center kits. */
+  width: number | null;
+  depth: number | null;
+  height: number | null;
+  /** Null when the source records no liveable capacity, as for structures. */
+  capacity: number | null;
+  helpers: number | null;
+  specialties: string[];
+  materials: Material[];
+  buildTime: string | null;
+  source: string;
+}
+/** A kit documented well enough to place: a home with a footprint and capacity. */
+export interface PlannableKit extends Kit {
+  kind: "residence";
   width: number;
   depth: number;
   height: number;
   capacity: number;
-  helpers: number;
-  specialties: string[];
-  materials: Material[];
-  buildTime: string;
-  source: string;
+}
+export function isResidence(kit: Kit): boolean {
+  return kit.kind === "residence";
+}
+/**
+ * The only kits the planner and its shopping lists may see. A structure is not
+ * a home, and a residence with undocumented dimensions cannot be placed on the
+ * grid; neither may reach placement. See docs/items-directory-plan.md 3.3.
+ */
+export function isPlannable(kit: Kit): kit is PlannableKit {
+  return (
+    kit.kind === "residence" &&
+    typeof kit.width === "number" &&
+    typeof kit.depth === "number" &&
+    typeof kit.height === "number" &&
+    typeof kit.capacity === "number" &&
+    kit.capacity > 0
+  );
+}
+export function plannableKits(kits: Kit[]): PlannableKit[] {
+  return kits.filter(isPlannable);
+}
+/**
+ * Placement rescans the kit list for every candidate square, so the filtered
+ * lookup is memoized per catalog rather than rebuilt inside those loops.
+ */
+const plannableIndex = new WeakMap<Kit[], Map<string, PlannableKit>>();
+export function plannableKitMap(kits: Kit[]): Map<string, PlannableKit> {
+  let index = plannableIndex.get(kits);
+  if (!index) {
+    index = new Map(plannableKits(kits).map((kit) => [kit.id, kit]));
+    plannableIndex.set(kits, index);
+  }
+  return index;
 }
 export interface Catalog {
   version: string;

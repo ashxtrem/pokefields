@@ -1,4 +1,9 @@
-import type { Catalog, Item, Pokemon } from "../catalog/types";
+import {
+  plannableKitMap,
+  type Catalog,
+  type Item,
+  type Pokemon,
+} from "../catalog/types";
 import type { Home, Plan, PlannerInput, Plot } from "./types";
 export function validPlot(p: Plot) {
   return (
@@ -16,7 +21,7 @@ export function canPlace(
   plot: Plot,
   catalog: Catalog,
 ) {
-  const k = catalog.kits.find((k) => k.id === home.kitId);
+  const k = plannableKitMap(catalog.kits).get(home.kitId);
   if (
     !k ||
     !Number.isInteger(home.x) ||
@@ -30,7 +35,7 @@ export function canPlace(
   return homes
     .filter((h) => h.id !== home.id)
     .every((h) => {
-      const o = catalog.kits.find((k) => k.id === h.kitId);
+      const o = plannableKitMap(catalog.kits).get(h.kitId);
       return (
         o &&
         (home.x + k.width <= h.x ||
@@ -72,7 +77,7 @@ export function generatePlan(input: PlannerInput, catalog: Catalog): Plan {
   if (ids.some((id) => !catalog.pokemon.some((p) => p.id === id)))
     throw Error("Roster contains an unknown Pokémon.");
   const choices = input.kits.filter((c) =>
-    catalog.kits.some((k) => k.id === c.id),
+    plannableKitMap(catalog.kits).has(c.id),
   );
   if (!choices.length) throw Error("Choose at least one supported home kit.");
   if (
@@ -87,8 +92,8 @@ export function generatePlan(input: PlannerInput, catalog: Catalog): Plan {
     choices,
     [...choices].reverse(),
     [...choices].sort((a, b) => {
-      const x = catalog.kits.find((k) => k.id === a.id)!;
-      const y = catalog.kits.find((k) => k.id === b.id)!;
+      const x = plannableKitMap(catalog.kits).get(a.id)!;
+      const y = plannableKitMap(catalog.kits).get(b.id)!;
       return (
         (x.width * x.depth) / x.capacity - (y.width * y.depth) / y.capacity
       );
@@ -110,7 +115,7 @@ export function generatePlan(input: PlannerInput, catalog: Catalog): Plan {
       let next: Home | null = null;
       for (const c of order) {
         if (c.limit !== null && (used.get(c.id) || 0) >= c.limit) continue;
-        const k = catalog.kits.find((k) => k.id === c.id)!;
+        const k = plannableKitMap(catalog.kits).get(c.id)!;
         for (let y = 0; y <= input.plot.depth - k.depth && !next; y++)
           for (let x = 0; x <= input.plot.width - k.width && !next; x++) {
             const candidate = {
@@ -128,7 +133,7 @@ export function generatePlan(input: PlannerInput, catalog: Catalog): Plan {
       if (!next) break;
       const anchor = pmap.get(remaining.shift()!)!;
       next.residents.push(anchor.id);
-      const kit = catalog.kits.find((k) => k.id === next!.kitId)!;
+      const kit = plannableKitMap(catalog.kits).get(next!.kitId)!;
       while (next.residents.length < kit.capacity && remaining.length) {
         const ranked = remaining
           .map((id) => ({
@@ -230,7 +235,7 @@ export function swapResidents(
     a.residents.push(other);
   }
   b.residents.push(resident);
-  if (b.residents.length > catalog.kits.find((k) => k.id === b.kitId)!.capacity)
+  if (b.residents.length > plannableKitMap(catalog.kits).get(b.kitId)!.capacity)
     throw Error("That home is full. Choose a resident to swap.");
   return { ...plan, homes };
 }

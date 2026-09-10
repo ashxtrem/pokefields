@@ -1,5 +1,5 @@
 import Dexie, { type Table } from "dexie";
-import type { Catalog } from "../catalog/types";
+import { plannableKitMap, type Catalog } from "../catalog/types";
 import type { HabitatBuildRecord } from "../habitats/types";
 import type { HousematePlan, Plan } from "../planner/types";
 import { DEFAULT_HOUSEMATE_SETTINGS, HOUSEMATE_PLAN_VERSION } from "../planner/types";
@@ -141,7 +141,7 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
       throw Error("Invalid plan roster.");
     for (const c of p.kits)
       if (
-        !catalog.kits.some((k) => k.id === c.id) ||
+        !plannableKitMap(catalog.kits).has(c.id) ||
         (c.limit !== null && (!Number.isInteger(c.limit) || c.limit < 0))
       )
         throw Error("Invalid kit selection.");
@@ -152,7 +152,7 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
     )
       throw Error("Duplicated or unknown resident.");
     for (const h of p.homes) {
-      const k = catalog.kits.find((k) => k.id === h.kitId);
+      const k = plannableKitMap(catalog.kits).get(h.kitId);
       if (
         !k ||
         !Array.isArray(h.residents) ||
@@ -208,7 +208,7 @@ function validateAvailableKitIds(
   if (
     value !== null &&
     (!Array.isArray(value) ||
-      value.some((id) => !catalog.kits.some((k) => k.id === id)) ||
+      value.some((id) => !plannableKitMap(catalog.kits).has(id)) ||
       new Set(value).size !== value.length)
   )
     throw Error("Backup has an invalid available-kits filter.");
@@ -368,7 +368,7 @@ function validateHousematePlan(
   )
     throw Error("Duplicated or unknown housemate.");
   for (const h of plan.homes) {
-    const k = catalog.kits.find((k) => k.id === h.kitId);
+    const k = plannableKitMap(catalog.kits).get(h.kitId);
     if (!k || !Array.isArray(h.residents) || h.residents.length > k.capacity)
       throw Error("A suggested home is missing or over capacity.");
   }

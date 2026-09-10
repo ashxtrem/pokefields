@@ -56,7 +56,9 @@ npm run preview
 
 Pokémon names and artwork remain the property of their respective owners. This is an unofficial fan project, unaffiliated with Nintendo, Game Freak, Creatures or The Pokémon Company. The API code license does not grant ownership of Pokémon artwork.
 
-Known boundaries: den kits are excluded because their size eligibility is not modeled. The grid checks footprints, not doors, paths, terrain, interior layout, furnishing reach, unlocks or comfort levels. Construction helpers are distinct from resident capacity. Food guidance for Frillish/Jellicent distinguishes male/female flavors within the species entry. Special encounters without recorded attracting habitats link to their reference rather than inventing a recipe.
+The catalog also records, per item, the sections the Serebii item index lists it under (`groups`) and membership in a numbered set such as the music discs (`collection`). Item descriptions are not imported; only facts derived from them, such as a disc's number. Build kits include non-residential structures, marked `kind`; a kit is only offered to the planner when it is a documented residence with a recorded footprint and capacity, so structures and kits whose figures the source never records are listed but never placed. Coverage, unsorted items and undocumented kit figures are enumerated in `docs/research/import-report.json`.
+
+Known boundaries: den kits are excluded because their size eligibility is not modeled. Two item icons (`coppeingot`, `gold`) 404 upstream and fall back to text. The grid checks footprints, not doors, paths, terrain, interior layout, furnishing reach, unlocks or comfort levels. Construction helpers are distinct from resident capacity. Food guidance for Frillish/Jellicent distinguishes male/female flavors within the species entry. Special encounters without recorded attracting habitats link to their reference rather than inventing a recipe.
 
 ## Cloudflare Pages
 
