@@ -1,9 +1,15 @@
 import { useState } from "react";
-import { House, Check } from "lucide-react";
+import { House, Check, Lock } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { plannableKitMap } from "../catalog/types";
 import { useViewState } from "../ui/navigation";
-import { explainTerm, foodEntries, type TermRef } from "../dex/glossary";
+import { useProgress } from "../progress/context";
+import {
+  explainTerm,
+  foodEntries,
+  itemEnvLock,
+  type TermRef,
+} from "../dex/glossary";
 import { furnishings } from "./engine";
 import {
   changeHomeKit,
@@ -18,6 +24,7 @@ import {
 } from "./recommend";
 import type { HousematePlan, RecommendedHome } from "./types";
 import {
+  EnvLockNote,
   ExplainDialog,
   ItemButton,
   ItemThumb,
@@ -42,6 +49,8 @@ export function HomeDetail({
   onTabChange: (tab: string) => void;
 }) {
   const catalog = useCatalog();
+  const { state } = useProgress();
+  const envLevels = state.envLevels;
   const kit = plannableKitMap(catalog.kits).get(home.kitId);
   const residents = home.residents
     .map((id) => catalog.pokemon.find((p) => p.id === id)!)
@@ -57,7 +66,7 @@ export function HomeDetail({
   const residentId = home.residents.includes(resident)
     ? resident
     : home.residents[0] || "";
-  const setup = furnishings(residents, catalog.items);
+  const setup = furnishings(residents, catalog.items, envLevels);
   const explanation = explainGroup(residents);
   const options = eligibleKits(home.residents.length, catalog);
   const sharedEnvironment = homeEnvironment(home, catalog);
@@ -356,9 +365,9 @@ export function HomeDetail({
               a verified minimum for every resident. Place items where residents
               can use them and check each Pokémon in-game.
             </p>
-            {setup.selected.map(({ item, benefits, categories }) => (
-              <div className="furnishing" key={item.id}>
-                <Check size={18} />
+            {setup.selected.map(({ item, benefits, categories, locked, envRequirement }) => (
+              <div className={`furnishing${locked ? " locked" : ""}`} key={item.id}>
+                {locked ? <Lock size={18} /> : <Check size={18} />}
                 <div>
                   <strong>
                     1 × <ItemButton name={item.name} id={item.id} onOpen={setTerm} />
@@ -373,6 +382,9 @@ export function HomeDetail({
                       .join(", ")}
                     : {categories.join(", ")}
                   </small>
+                  {locked && envRequirement && (
+                    <EnvLockNote requirement={envRequirement} />
+                  )}
                 </div>
               </div>
             ))}
@@ -464,15 +476,21 @@ export function HomeDetail({
                 {environmentInfo.achieve && <p>{environmentInfo.achieve}</p>}
                 {!!environmentInfo.items.length && (
                   <ul className="supply-list environment-items">
-                    {environmentInfo.items.map((item) => (
-                      <li key={item.id}>
-                        <ItemButton
-                          name={item.name}
-                          id={item.id}
-                          onOpen={setTerm}
-                        />
-                      </li>
-                    ))}
+                    {environmentInfo.items.map((item) => {
+                      const lock = itemEnvLock(item, envLevels);
+                      return (
+                        <li key={item.id}>
+                          <span className="supply-item-copy">
+                            <ItemButton
+                              name={item.name}
+                              id={item.id}
+                              onOpen={setTerm}
+                            />
+                            {lock && <EnvLockNote requirement={lock} />}
+                          </span>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </div>
@@ -525,10 +543,16 @@ export function HomeDetail({
             )}
             <h3>Furnishings (suggested)</h3>
             {setup.selected.length ? (
-              setup.selected.map(({ item, categories }) => (
+              setup.selected.map(({ item, categories, locked, envRequirement }) => (
                 <p key={item.id}>
                   1 × <ItemButton name={item.name} id={item.id} onOpen={setTerm} />{" "}
                   — {categories.join(", ")}
+                  {locked && envRequirement && (
+                    <>
+                      {" "}
+                      <EnvLockNote requirement={envRequirement} />
+                    </>
+                  )}
                 </p>
               ))
             ) : (
@@ -539,12 +563,21 @@ export function HomeDetail({
               <p>
                 {sharedEnvironment}:{" "}
                 {environmentInfo.items.length
-                  ? environmentInfo.items.map((i, index) => (
-                      <span key={i.id}>
-                        {index ? ", " : ""}
-                        <ItemButton name={i.name} id={i.id} onOpen={setTerm} />
-                      </span>
-                    ))
+                  ? environmentInfo.items.map((i, index) => {
+                      const lock = itemEnvLock(i, envLevels);
+                      return (
+                        <span key={i.id}>
+                          {index ? ", " : ""}
+                          <ItemButton name={i.name} id={i.id} onOpen={setTerm} />
+                          {lock && (
+                            <>
+                              {" "}
+                              <EnvLockNote requirement={lock} />
+                            </>
+                          )}
+                        </span>
+                      );
+                    })
                   : "no example items recorded"}
               </p>
             ) : (

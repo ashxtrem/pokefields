@@ -1,5 +1,7 @@
 import type { Catalog, Item, Kit } from "../catalog/types";
-import { ItemThumb } from "../ui/components";
+import { EnvLockNote, ItemThumb } from "../ui/components";
+import { useProgress } from "../progress/context";
+import { itemEnvLock } from "../dex/glossary";
 import {
   recipesConsumingItem,
   recipesForOutputItem,
@@ -54,6 +56,8 @@ export function ItemDetail({
   const collection = item.collection;
   const cdCoverage = collection?.set === "music-cd" ? musicCdCoverage(catalog.items) : null;
   const locations = item.locations || [];
+  const { state } = useProgress();
+  const envLock = itemEnvLock(item, state.envLevels);
   return (
     <article className="crafting-detail">
       <a className="back-link crafting-back" href={itemsListHref(tab)}>
@@ -112,6 +116,7 @@ export function ItemDetail({
         catalog={catalog}
         tab={tab}
       />
+      {envLock && <EnvLockNote requirement={envLock} />}
 
       {kit ? <KitFacts kit={kit} catalog={catalog} tab={tab} /> : null}
 

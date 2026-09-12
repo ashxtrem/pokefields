@@ -81,8 +81,12 @@ function reconciledQuantityRows(
   });
 }
 
-export function houseQuantityList(plan: HousematePlan, catalog: Catalog): HouseQuantityList {
-  const supplies = combinedSupplies(plan, catalog);
+export function houseQuantityList(
+  plan: HousematePlan,
+  catalog: Catalog,
+  envLevels?: Record<string, number> | null,
+): HouseQuantityList {
+  const supplies = combinedSupplies(plan, catalog, envLevels);
   const planId = housePlanId(plan);
   const construction = supplies.construction.map(({ name, quantity }) => {
     const contributors = plan.homes
@@ -112,7 +116,7 @@ export function houseQuantityList(plan: HousematePlan, catalog: Catalog): HouseQ
       signature: rowSignature(id),
     };
   });
-  const environment = environmentSupplies(plan, catalog).map(
+  const environment = environmentSupplies(plan, catalog, envLevels).map(
     ({ name, quantity, homeIds }) => {
       const id = `environment:${name}:${quantity}:${[...homeIds].sort().join(",")}`;
       return {
@@ -131,8 +135,9 @@ export function reconcileHouseQuantityList(
   previous: HouseQuantityList | undefined,
   plan: HousematePlan,
   catalog: Catalog,
+  envLevels?: Record<string, number> | null,
 ): HouseQuantityList {
-  const next = houseQuantityList(plan, catalog);
+  const next = houseQuantityList(plan, catalog, envLevels);
   if (!previous || previous.planId !== next.planId) return next;
   return {
     ...next,
@@ -174,8 +179,9 @@ export function migrateHouseChecklist(
   previous: HouseChecklist | undefined,
   plan: HousematePlan,
   catalog: Catalog,
+  envLevels?: Record<string, number> | null,
 ): HouseQuantityList {
-  const next = houseQuantityList(plan, catalog);
+  const next = houseQuantityList(plan, catalog, envLevels);
   if (!previous) return next;
   const fromBool = (rows: ShoppingRow[], target: QuantityRow[]) =>
     target.map((row) => {
@@ -249,8 +255,12 @@ export function reconcileHabitatChecklist(
   return { ...next, rows: reconciledRows(next.rows, previous?.rows) };
 }
 
-export function houseChecklist(plan: HousematePlan, catalog: Catalog) {
-  const list = houseQuantityList(plan, catalog);
+export function houseChecklist(
+  plan: HousematePlan,
+  catalog: Catalog,
+  envLevels?: Record<string, number> | null,
+) {
+  const list = houseQuantityList(plan, catalog, envLevels);
   return {
     planId: list.planId,
     construction: list.construction.map((row) => ({

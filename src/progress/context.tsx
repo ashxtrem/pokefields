@@ -74,6 +74,7 @@ function normalizeLoadedState(state: SaveState, catalog: Catalog): SaveState {
       state.shoppingChecklists?.house,
       next.housematePlan,
       catalog,
+      next.envLevels,
     );
     next = { ...next, houseShopping: fromLegacy };
   }
@@ -223,9 +224,10 @@ export function useHouseShoppingUpdate() {
     update((saved) => ({
       ...saved,
       houseShopping: reconcileHouseQuantityList(
-        saved.houseShopping || migrateHouseChecklist(saved.shoppingChecklists?.house, plan, catalog),
+        saved.houseShopping || migrateHouseChecklist(saved.shoppingChecklists?.house, plan, catalog, saved.envLevels),
         plan,
         catalog,
+        saved.envLevels,
       ),
     }));
   };

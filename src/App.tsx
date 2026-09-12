@@ -20,7 +20,7 @@ import { listRecipes } from "./crafting/catalog";
 import { unavailableLearned, visibleLearnedCount } from "./crafting/learned";
 import { unavailableCollected, visibleCollectedCount } from "./items/collected";
 import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
-import { Modal } from "./ui/components";
+import { EnvLevelsModal, Modal } from "./ui/components";
 import { validateBackup, type SaveState } from "./persistence/store";
 
 import {
@@ -46,6 +46,7 @@ function liveHash() {
 export default function App() {
   const [route, setRoute] = useState(liveHash);
   const [backup, setBackup] = useState(false);
+  const [editingEnvLevels, setEditingEnvLevels] = useState(false);
   const [pending, setPending] = useState<SaveState | null>(null);
   const [error, setError] = useState("");
   const catalog = useCatalog();
@@ -369,6 +370,14 @@ export default function App() {
             </strong>
             <strong>{Object.keys(state.plans).length} area layouts</strong>
           </div>
+          <div className="button-row">
+            <button
+              className="button secondary"
+              onClick={() => setEditingEnvLevels(true)}
+            >
+              Town environment levels
+            </button>
+          </div>
           {state.craftingQuarantine ? (
             <p className="notice" role="status">
               Unreadable crafting data was kept aside so the rest of this
@@ -490,6 +499,9 @@ export default function App() {
             project is not affiliated with Nintendo or The Pokémon Company.
           </small>
         </Modal>
+      )}
+      {editingEnvLevels && (
+        <EnvLevelsModal onClose={() => setEditingEnvLevels(false)} />
       )}
     </div>
   );

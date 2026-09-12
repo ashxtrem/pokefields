@@ -45,6 +45,12 @@ export interface SaveState {
   housematePlan?: HousematePlan | null;
   /** Kits the player has actually unlocked; null/absent means all kits. */
   availableKitIds?: string[] | null;
+  /**
+   * Self-reported environment level per town. Absent, {}, or 0 for a town
+   * falls back to its starting level: 3 for Withered Wastelands, 1 elsewhere
+   * (see `DEFAULT_ENV_LEVELS` in src/dex/glossary.ts).
+   */
+  envLevels?: Record<string, number>;
   /** Collectible items the player has recorded. Absent means none. */
   collected?: string[];
 }
@@ -57,6 +63,7 @@ export const emptyState = (): SaveState => ({
   plans: {},
   housematePlan: null,
   availableKitIds: null,
+  envLevels: {},
 });
 class Database extends Dexie {
   state!: Table<{ id: string; value: SaveState }>;
@@ -182,6 +189,7 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
       throw Error("Plan does not account for its roster.");
   }
   if (data.availableKitIds !== undefined) validateAvailableKitIds(data.availableKitIds, catalog);
+  if (data.envLevels !== undefined) validateEnvLevels(data.envLevels);
   if (data.collected !== undefined) validateCollected(data.collected);
   const migratedPlan =
     data.housematePlan != null ? migrateHousematePlan(data.housematePlan) : data.housematePlan;
@@ -224,6 +232,21 @@ function validateAvailableKitIds(
       new Set(value).size !== value.length)
   )
     throw Error("Backup has an invalid available-kits filter.");
+}
+
+function validateEnvLevels(value: unknown): asserts value is Record<string, number> {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error("Backup has invalid environment levels.");
+  for (const [area, level] of Object.entries(value)) {
+    if (
+      typeof area !== "string" ||
+      !area.trim() ||
+      !Number.isInteger(level) ||
+      level < 0 ||
+      level > 99
+    )
+      throw Error("Backup has invalid environment levels.");
+  }
 }
 
 function validQuantityRows(rows: unknown): rows is QuantityRow[] {

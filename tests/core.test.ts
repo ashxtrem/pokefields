@@ -263,6 +263,64 @@ describe("comfort-first planning", () => {
     expect(result.selected[0].benefits).toEqual(["a"]);
     expect(result.uncovered).toEqual(["Soft"]);
   });
+  it("flags furnishings above the recorded environment level without hiding them", () => {
+    const items = [
+      {
+        id: "gated",
+        name: "Gated plant",
+        categories: ["Nature"],
+        source: "https://example.com",
+        recipeLocation: "Shop – Bubbly Basin (Env. level 10)",
+      },
+    ];
+    const residents = [p("a", "Bright", ["Nature"])];
+    expect(furnishings(residents, items).selected[0].locked).toBe(true);
+    const locked = furnishings(residents, items, { "Bubbly Basin": 4 });
+    expect(locked.selected).toHaveLength(1);
+    expect(locked.selected[0].locked).toBe(true);
+    expect(locked.selected[0].envRequirement).toEqual({
+      area: "Bubbly Basin",
+      level: 10,
+    });
+    expect(
+      furnishings(residents, items, { "Bubbly Basin": 10 }).selected[0].locked,
+    ).toBe(false);
+  });
+  it("prefers an obtainable furnishing once an environment level is recorded", () => {
+    const items = [
+      {
+        id: "gated",
+        name: "Gated plant",
+        categories: ["Nature", "Soft"],
+        source: "https://example.com",
+        recipeLocation: "Shop – Bubbly Basin (Env. level 10)",
+      },
+      {
+        id: "plain",
+        name: "Plain plant",
+        categories: ["Nature"],
+        source: "https://example.com",
+      },
+    ];
+    const residents = [p("a", "Bright", ["Nature", "Soft"])];
+    expect(furnishings(residents, items).selected.map((row) => row.item.id)).toEqual([
+      "plain",
+      "gated",
+    ]);
+    expect(
+      furnishings(residents, items, { "Bubbly Basin": 4 }).selected.map(
+        (row) => row.item.id,
+      ),
+    ).toEqual(["plain", "gated"]);
+    expect(
+      furnishings(residents, items, { "Bubbly Basin": 4 }).selected[1].locked,
+    ).toBe(true);
+    expect(
+      furnishings(residents, items, { "Bubbly Basin": 10 }).selected.map(
+        (row) => row.item.id,
+      ),
+    ).toEqual(["gated"]);
+  });
   it("allows a manual swap without duplicate residents", () => {
     const plan = generatePlan(input, catalog);
     const next = swapResidents(plan, "home-1", "home-2", "b", "c", catalog);
@@ -302,6 +360,27 @@ describe("backup and persistence", () => {
       validateBackup({ ...saved(), availableKitIds: ["home"] }, withStructure)
         .availableKitIds,
     ).toEqual(["home"]);
+  });
+  it("round-trips recorded environment levels and accepts old backups without them", () => {
+    expect(
+      validateBackup(
+        { ...saved(), envLevels: { "Bubbly Basin": 4 } },
+        catalog,
+      ).envLevels,
+    ).toEqual({ "Bubbly Basin": 4 });
+    const { envLevels: _envLevels, ...legacy } = saved();
+    expect(validateBackup(legacy, catalog).envLevels).toBeUndefined();
+  });
+  it("rejects invalid recorded environment levels", () => {
+    expect(() =>
+      validateBackup({ ...saved(), envLevels: { Beach: -1 } }, catalog),
+    ).toThrow(/environment levels/);
+    expect(() =>
+      validateBackup({ ...saved(), envLevels: [] }, catalog),
+    ).toThrow(/environment levels/);
+    expect(() =>
+      validateBackup({ ...saved(), envLevels: { "": 3 } }, catalog),
+    ).toThrow(/environment levels/);
   });
   it("accepts an exported notebook", () => {
     const data = saved();
@@ -765,6 +844,39 @@ describe("environment guidance and manual builds", () => {
     const list = houseQuantityList(plan, withEnvItems);
     expect(list.environment.some((row) => row.label === "Desk light")).toBe(true);
     expect(list.construction.some((row) => row.label === "Desk light")).toBe(false);
+  });
+  it("flags environment guidance items above the recorded level without hiding them", () => {
+    const gated = {
+      ...withEnvItems,
+      items: withEnvItems.items.map((item) =>
+        item.id === "desklight"
+          ? {
+              ...item,
+              recipeLocation: "Shop – Bubbly Basin (Env. level 10)",
+            }
+          : item,
+      ),
+    };
+    const plan = recommendHousemates(
+      { roster: ["a", "b"], sourceRoster: ["a", "b"], areaFilter: null },
+      gated,
+      now,
+    );
+    const unrestricted = environmentSupplies(plan, gated);
+    expect(unrestricted.find((row) => row.name === "Desk light")?.locked).toBe(
+      true,
+    );
+    const locked = environmentSupplies(plan, gated, { "Bubbly Basin": 3 });
+    expect(locked.find((row) => row.name === "Desk light")).toMatchObject({
+      name: "Desk light",
+      locked: true,
+      envRequirement: { area: "Bubbly Basin", level: 10 },
+    });
+    expect(
+      environmentSupplies(plan, gated, { "Bubbly Basin": 10 }).find(
+        (row) => row.name === "Desk light",
+      )?.locked,
+    ).toBe(false);
   });
   it("does not report a shared environment for a mixed-environment home", () => {
     const plan = recommendHousemates(

@@ -120,6 +120,143 @@ export function parseRequirement(raw: string) {
   return { quantity, name, kind: requirementKind(name) };
 }
 
+export interface EnvLevelRequirement {
+  area: string;
+  level: number;
+}
+
+/**
+ * The towns a player self-reports an environment level for. Fixed to the
+ * game's town list (`AREAS` below carries the same seven) rather than derived
+ * from the catalog, so the level popup always offers every town even if the
+ * catalog does not (yet) carry a gated item for one of them.
+ */
+export const ENV_LEVEL_TOWNS = [
+  "Withered Wastelands",
+  "Bleak Beach",
+  "Rocky Ridges",
+  "Sparkling Skylands",
+  "Palette Town",
+  "Cloud Island",
+  "Bubbly Basin",
+] as const;
+
+/** Environment levels run 1–10 in every town. */
+export const ENV_LEVEL_MAX = 10;
+
+/**
+ * Starting levels before the player records anything. Withered Wastelands is
+ * the first area rebuilt, so it is assumed to already be at level 3; every
+ * other town defaults to 1.
+ */
+const DEFAULT_ENV_LEVELS: Record<string, number> = {
+  "Withered Wastelands": 3,
+};
+const DEFAULT_ENV_LEVEL_FALLBACK = 1;
+
+const AREA_LEVEL_PATTERN = new RegExp(
+  `(${ENV_LEVEL_TOWNS.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})` +
+    `\\s*\\(?(?:Env\\.\\s*)?(?:l?Lv\\.?|Level)\\s*(\\d+)`,
+  "i",
+);
+
+/**
+ * Pull a single `{ area, level }` requirement out of one line of unlock text.
+ * Recognizes every wording seen in the catalog: `Shop – Bubbly Basin (Env.
+ * level 10)`, `Shop - Withered Wastelands Lv. 5`, `Shop (as bundle) - Palette
+ * Town Lv. 9`, `Shop after reaching Bubbly Basin Level 5`, and the `lLv.`
+ * typo variant.
+ */
+export function parseEnvLevel(text?: string | null): EnvLevelRequirement | null {
+  if (!text) return null;
+  const match = text.replace(/\s+/g, " ").trim().match(AREA_LEVEL_PATTERN);
+  if (!match) return null;
+  const area = ENV_LEVEL_TOWNS.find(
+    (town) => town.toLowerCase() === match[1].toLowerCase(),
+  );
+  const level = Number(match[2]);
+  if (!area || !Number.isInteger(level) || level < 1) return null;
+  return { area, level };
+}
+
+interface EnvSourceItem {
+  recipeLocation?: string | null;
+  locations?: string[] | null;
+  recipeMeta?: {
+    unlock?: { methods?: { text: string }[] | null } | null;
+  } | null;
+}
+
+function envSourceTexts(item: EnvSourceItem): string[] {
+  return [
+    item.recipeLocation,
+    ...(item.locations || []),
+    ...(item.recipeMeta?.unlock?.methods || []).map((m) => m.text),
+  ].filter((line): line is string => !!line);
+}
+
+/**
+ * Every distinct town/level gate recorded for an item, read from
+ * `recipeLocation`, `locations`, and `recipeMeta.unlock.methods` alike — the
+ * catalog spreads the same shop-unlock fact across those fields depending on
+ * import source. Duplicate mentions of the same town keep the lowest level.
+ */
+export function itemEnvRequirements(item: EnvSourceItem): EnvLevelRequirement[] {
+  const byArea = new Map<string, number>();
+  for (const text of envSourceTexts(item)) {
+    const requirement = parseEnvLevel(text);
+    if (!requirement) continue;
+    byArea.set(
+      requirement.area,
+      Math.min(byArea.get(requirement.area) ?? requirement.level, requirement.level),
+    );
+  }
+  return [...byArea.entries()].map(([area, level]) => ({ area, level }));
+}
+
+/** Missing or 0 for a town falls back to its starting level (see `DEFAULT_ENV_LEVELS`). */
+export function recordedEnvLevel(
+  area: string,
+  envLevels?: Record<string, number> | null,
+): number {
+  const recorded = envLevels?.[area];
+  if (Number.isInteger(recorded) && (recorded as number) >= 1) return recorded as number;
+  return DEFAULT_ENV_LEVELS[area] ?? DEFAULT_ENV_LEVEL_FALLBACK;
+}
+
+export function isEnvLevelLocked(
+  requirement: EnvLevelRequirement | null | undefined,
+  envLevels?: Record<string, number> | null,
+): boolean {
+  if (!requirement) return false;
+  return recordedEnvLevel(requirement.area, envLevels) < requirement.level;
+}
+
+/**
+ * The item's env-level requirement when it is locked for the player;
+ * otherwise null. An item with several recorded routes (e.g. sold in two
+ * towns, or also craftable or found in the wild) is only locked when every
+ * route is unmet — reaching any one town's level, or having an ungated route
+ * at all, unlocks it. When locked, reports the lowest unmet requirement.
+ */
+export function itemEnvLock(
+  item: EnvSourceItem,
+  envLevels?: Record<string, number> | null,
+): EnvLevelRequirement | null {
+  const requirements = itemEnvRequirements(item);
+  if (!requirements.length) return null;
+  const unmet = requirements.filter((req) => isEnvLevelLocked(req, envLevels));
+  if (!unmet.length) return null;
+  if (unmet.length < requirements.length) return null;
+  const hasUngatedRoute = envSourceTexts(item).some((text) => !parseEnvLevel(text));
+  if (hasUngatedRoute) return null;
+  return unmet.reduce((closest, req) => (req.level < closest.level ? req : closest));
+}
+
+export function catalogEnvLevelAreas(): { area: string; maxLevel: number }[] {
+  return ENV_LEVEL_TOWNS.map((area) => ({ area, maxLevel: ENV_LEVEL_MAX }));
+}
+
 function flavorKey(value: string) {
   const match = value.match(/\b(Sweet|Sour|Spicy|Bitter|Dry)\b/i);
   return match

@@ -4,6 +4,7 @@ import {
   type Item,
   type Pokemon,
 } from "../catalog/types";
+import { itemEnvLock, type EnvLevelRequirement } from "../dex/glossary";
 import type { Home, Plan, PlannerInput, Plot } from "./types";
 export function validPlot(p: Plot) {
   return (
@@ -182,26 +183,44 @@ export function generatePlan(input: PlannerInput, catalog: Catalog): Plan {
     createdAt: new Date().toISOString(),
   };
 }
-export function furnishings(residents: Pokemon[], items: Item[]) {
+export function furnishings(
+  residents: Pokemon[],
+  items: Item[],
+  envLevels?: Record<string, number> | null,
+) {
   const needed = new Set(residents.flatMap((p) => p.favorites));
-  const selected: { item: Item; benefits: string[]; categories: string[] }[] =
-    [];
+  const selected: {
+    item: Item;
+    benefits: string[];
+    categories: string[];
+    envRequirement: EnvLevelRequirement | null;
+    locked: boolean;
+  }[] = [];
   while (needed.size) {
     const ranked = items
-      .map((item) => ({
-        item,
-        categories: item.categories.filter((f) => needed.has(f)),
-      }))
+      .map((item) => {
+        const envRequirement = itemEnvLock(item, envLevels);
+        return {
+          item,
+          categories: item.categories.filter((f) => needed.has(f)),
+          envRequirement,
+          locked: !!envRequirement,
+        };
+      })
       .filter((x) => x.categories.length)
       .sort(
         (a, b) =>
+          Number(a.locked) - Number(b.locked) ||
           b.categories.length - a.categories.length ||
           a.item.name.localeCompare(b.item.name),
       );
     if (!ranked.length) break;
     const best = ranked[0];
     selected.push({
-      ...best,
+      item: best.item,
+      categories: best.categories,
+      envRequirement: best.envRequirement,
+      locked: best.locked,
       benefits: residents
         .filter((p) => p.favorites.some((f) => best.categories.includes(f)))
         .map((p) => p.id),

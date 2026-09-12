@@ -1,15 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { X, MapPin, Check, Leaf, Info } from "lucide-react";
+import { X, MapPin, Check, Leaf, Info, Lock } from "lucide-react";
 import type { Pokemon } from "../catalog/types";
 import { useCatalog } from "../catalog/context";
 import { recipesForOutputItem } from "../crafting/catalog";
 import { recipeHref } from "../crafting/types";
 import { itemHref } from "../items/tabs";
 import { useProgress } from "../progress/context";
+import { reconcileHouseQuantityList } from "../shopping/checklists";
 import {
+  catalogEnvLevelAreas,
   explainTerm,
+  itemEnvLock,
   itemImageUrl,
   pokemonArtUrl,
+  recordedEnvLevel,
   resolveItem,
   specialtyImageUrl,
   type TermRef,
@@ -298,6 +302,85 @@ export function ItemButton({
     </button>
   );
 }
+export function EnvLockNote({
+  requirement,
+}: {
+  requirement: { area: string; level: number };
+}) {
+  return (
+    <span
+      className="env-lock-note"
+      title={`Locked until ${requirement.area} reaches environment level ${requirement.level}`}
+    >
+      <Lock size={11} strokeWidth={2.25} aria-hidden="true" />
+      Requires Env. level {requirement.level}
+    </span>
+  );
+}
+/**
+ * All seven towns' self-reported environment levels in one popup. Used from
+ * the Housemates setup, its quick-view summary, and My notebook, so a level
+ * set anywhere is visible everywhere.
+ */
+export function EnvLevelsModal({
+  highlightArea,
+  onClose,
+}: {
+  /** Pre-highlighted town, typically the current planning area filter. */
+  highlightArea?: string | null;
+  onClose: () => void;
+}) {
+  const catalog = useCatalog();
+  const { state, update, ready } = useProgress();
+  const setLevel = (area: string, level: number) => {
+    update((s) => {
+      const envLevels = { ...(s.envLevels || {}), [area]: level };
+      return {
+        ...s,
+        envLevels,
+        houseShopping: s.housematePlan
+          ? reconcileHouseQuantityList(
+              s.houseShopping,
+              s.housematePlan,
+              catalog,
+              envLevels,
+            )
+          : s.houseShopping,
+      };
+    });
+  };
+  return (
+    <Modal title="Town environment levels" onClose={onClose}>
+      <p className="muted">
+        Record the environment level you have actually reached in each town.
+        Housemate furnishing suggestions flag items you cannot buy yet until
+        that town's level catches up.
+      </p>
+      <div className="env-level-list">
+        {catalogEnvLevelAreas().map(({ area, maxLevel }) => (
+          <label
+            key={area}
+            className={`env-level-row${area === highlightArea ? " highlighted" : ""}`}
+          >
+            <span>{area}</span>
+            <select
+              aria-label={`${area} environment level`}
+              disabled={!ready}
+              value={String(recordedEnvLevel(area, state.envLevels))}
+              onChange={(e) => setLevel(area, Number(e.target.value))}
+            >
+              {Array.from({ length: maxLevel }, (_, n) => n + 1).map((level) => (
+                <option key={level} value={level}>
+                  Level {level}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+    </Modal>
+  );
+}
 function ItemPic({
   src,
   name,
@@ -333,6 +416,7 @@ export function ExplainDialog({
   onClose: () => void;
 }) {
   const catalog = useCatalog();
+  const { state } = useProgress();
   const [stack, setStack] = useState<TermRef[]>([term]);
   useEffect(() => setStack([term]), [term]);
   const current = stack[stack.length - 1];
@@ -359,6 +443,7 @@ export function ExplainDialog({
     : recipeLink
       ? recipeHref(recipeLink.id)
       : undefined;
+  const envLock = catalogItem ? itemEnvLock(catalogItem, state.envLevels) : null;
   return (
     <Modal
       title={info.title}
@@ -380,6 +465,7 @@ export function ExplainDialog({
               <li key={line}>{line}</li>
             ))}
           </ul>
+          {envLock && <EnvLockNote requirement={envLock} />}
         </>
       ) : info.achieve ? (
         <>

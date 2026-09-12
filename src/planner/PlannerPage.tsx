@@ -5,7 +5,7 @@ import { House, Users, Search, Pencil, Plus } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { plannableKitMap, plannableKits } from "../catalog/types";
 import { useProgress } from "../progress/context";
-import type { TermRef } from "../dex/glossary";
+import { itemEnvLock, recordedEnvLevel, type TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
 import {
   addHome,
@@ -26,6 +26,8 @@ import {
 } from "./recommend";
 import type { HousematePlan, HousematePlanSettings, RecommendedHome } from "./types";
 import {
+  EnvLevelsModal,
+  EnvLockNote,
   ExplainDialog,
   Empty,
   ItemButton,
@@ -75,6 +77,7 @@ export function PlannerPage() {
   const [changeHomeId, setChangeHomeId] = useState("");
   const [presetId, setPresetId] = useViewState("planner.preset", DEFAULT_PRESET_ID);
   const [editingKits, setEditingKits] = useState(false);
+  const [editingEnvLevels, setEditingEnvLevels] = useState(false);
   const [addingHome, setAddingHome] = useState(false);
   const [term, setTerm] = useState<TermRef | null>(null);
   const workspaceRef = useRef<HTMLDivElement>(null);
@@ -88,6 +91,7 @@ export function PlannerPage() {
   const view = draft || saved;
   const active = view?.homes.find((h) => h.id === selected);
   const availableKitIds = state.availableKitIds ?? null;
+  const envLevels = state.envLevels;
   const preset = PRESETS.find((p) => p.id === presetId) || PRESETS[PRESETS.length - 1];
 
   const available = useMemo(() => {
@@ -127,7 +131,7 @@ export function PlannerPage() {
     update((s) => ({
       ...s,
       housematePlan: next,
-      houseShopping: reconcileHouseQuantityList(s.houseShopping, next, catalog),
+      houseShopping: reconcileHouseQuantityList(s.houseShopping, next, catalog, s.envLevels),
     }));
   const persistView = (next: HousematePlan) => {
     if (draft) setDraft(next);
@@ -161,11 +165,13 @@ export function PlannerPage() {
       workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );
   };
-  const supplies = view ? combinedSupplies(view, catalog) : null;
-  const environmentGuidanceRows = view ? environmentSupplies(view, catalog) : [];
+  const supplies = view ? combinedSupplies(view, catalog, envLevels) : null;
+  const environmentGuidanceRows = view
+    ? environmentSupplies(view, catalog, envLevels)
+    : [];
   const houseShopping =
     saved && !draft
-      ? reconcileHouseQuantityList(state.houseShopping, saved, catalog)
+      ? reconcileHouseQuantityList(state.houseShopping, saved, catalog, envLevels)
       : null;
   const changing = view?.homes.find((h) => h.id === changeHomeId);
   const housedCount = view ? view.homes.reduce((s, h) => s + h.residents.length, 0) : 0;
@@ -368,6 +374,22 @@ export function PlannerPage() {
                     : `All ${plannableKits(catalog.kits).length} kits available`}
                 </button>
               </div>
+              <div className="field">
+                <span>Town levels</span>
+                <small>
+                  Set the environment level you have actually reached in each
+                  town. Furnishing suggestions flag items above your level.
+                </small>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setEditingEnvLevels(true)}
+                >
+                  {area
+                    ? `${area} Lv. ${recordedEnvLevel(area, state.envLevels)}`
+                    : "Set town levels"}
+                </button>
+              </div>
               {!!legacyAreas.length && (
                 <div className="field">
                   <span>Existing layout</span>
@@ -431,13 +453,24 @@ export function PlannerPage() {
                 <span> · {view!.areaFilter || "All found Pokémon"}</span>
                 <span> · {preset.label}</span>
               </div>
-              <button
-                type="button"
-                className="button secondary"
-                onClick={() => setEditingSetup(true)}
-              >
-                <Pencil size={14} /> Edit selection
-              </button>
+              <div className="setup-summary-actions">
+                <button
+                  type="button"
+                  className="chip env-level-chip"
+                  onClick={() => setEditingEnvLevels(true)}
+                  title="Set town environment levels"
+                >
+                  {view!.areaFilter || "Withered Wastelands"} Lv.{" "}
+                  {recordedEnvLevel(view!.areaFilter || "Withered Wastelands", state.envLevels)}
+                </button>
+                <button
+                  type="button"
+                  className="button secondary"
+                  onClick={() => setEditingSetup(true)}
+                >
+                  <Pencil size={14} /> Edit selection
+                </button>
+              </div>
             </div>
           )}
           <section className="planner-workspace" ref={workspaceRef}>
@@ -727,6 +760,12 @@ export function PlannerPage() {
           plan={view}
         />
       )}
+      {editingEnvLevels && (
+        <EnvLevelsModal
+          highlightArea={area || view?.areaFilter || "Withered Wastelands"}
+          onClose={() => setEditingEnvLevels(false)}
+        />
+      )}
       {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
     </>
   );
@@ -742,24 +781,35 @@ function HouseQuantityPreview({
   /** Set for build materials so the popup explains what the total is for. */
   context?: TermRef["context"];
 }) {
+  const catalog = useCatalog();
+  const { state } = useProgress();
+  const envLevels = state.envLevels;
   return (
     <ul className="supply-list checklist-rows">
-      {rows.map((row) => (
-        <li
-          key={row.label + row.quantity}
-          className={row.gathered >= row.quantity ? "ready" : ""}
-        >
-          <ItemButton
-            name={row.label}
-            quantity={context ? row.quantity : undefined}
-            context={context}
-            onOpen={onExplain}
-          />
-          <strong>
-            {row.gathered} / {row.quantity}
-          </strong>
-        </li>
-      ))}
+      {rows.map((row) => {
+        const item = catalog.items.find((entry) => entry.name === row.label);
+        const lock =
+          context === "home" ? null : itemEnvLock(item || {}, envLevels);
+        return (
+          <li
+            key={row.label + row.quantity}
+            className={row.gathered >= row.quantity ? "ready" : ""}
+          >
+            <span className="supply-item-copy">
+              <ItemButton
+                name={row.label}
+                quantity={context ? row.quantity : undefined}
+                context={context}
+                onOpen={onExplain}
+              />
+              {lock && <EnvLockNote requirement={lock} />}
+            </span>
+            <strong>
+              {row.gathered} / {row.quantity}
+            </strong>
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -787,12 +837,13 @@ function HomeCard({
   onExplain: (term: TermRef) => void;
 }) {
   const catalog = useCatalog();
+  const { state } = useProgress();
   const kit = plannableKitMap(catalog.kits).get(home.kitId);
   const residents = home.residents
     .map((id) => catalog.pokemon.find((p) => p.id === id)!)
     .filter(Boolean);
   const explanation = explainGroup(residents);
-  const setup = furnishings(residents, catalog.items);
+  const setup = furnishings(residents, catalog.items, state.envLevels);
   const env = homeEnvironment(home, catalog);
   const envClass = env ? ENVIRONMENT_CLASS[env] || "" : "";
   const spare = kit ? kit.capacity - residents.length : 0;
@@ -846,8 +897,8 @@ function HomeCard({
           </button>
           {setup.selected.length ? (
             <ul className="card-furnishing-list">
-              {setup.selected.map(({ item, categories }) => (
-                <li key={item.id}>
+              {setup.selected.map(({ item, categories, locked, envRequirement }) => (
+                <li key={item.id} className={locked ? "locked" : undefined}>
                   <ItemThumb id={item.id} name={item.name} />
                   <div>
                     <strong>
@@ -859,6 +910,9 @@ function HomeCard({
                       />
                     </strong>
                     <small>{categories.join(" · ")}</small>
+                    {locked && envRequirement && (
+                      <EnvLockNote requirement={envRequirement} />
+                    )}
                   </div>
                 </li>
               ))}
@@ -1098,3 +1152,4 @@ function AddHomeModal({
     </Modal>
   );
 }
+

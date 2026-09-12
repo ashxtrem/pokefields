@@ -5,7 +5,11 @@ import {
   type PlannableKit,
   type Pokemon,
 } from "../catalog/types";
-import { environmentExampleIds } from "../dex/glossary";
+import {
+  environmentExampleIds,
+  itemEnvLock,
+  type EnvLevelRequirement,
+} from "../dex/glossary";
 import { furnishings } from "./engine";
 import type {
   HousematePlan,
@@ -546,7 +550,11 @@ export function swapHousemates(
   return touch({ ...plan, homes });
 }
 
-export function combinedSupplies(plan: HousematePlan, catalog: Catalog) {
+export function combinedSupplies(
+  plan: HousematePlan,
+  catalog: Catalog,
+  envLevels?: Record<string, number> | null,
+) {
   const construction = new Map<string, number>();
   const furnishingCounts = new Map<
     string,
@@ -560,7 +568,7 @@ export function combinedSupplies(plan: HousematePlan, catalog: Catalog) {
     const residents = home.residents
       .map((id) => catalog.pokemon.find((p) => p.id === id))
       .filter((p): p is Pokemon => !!p);
-    furnishings(residents, catalog.items).selected.forEach(({ item }) => {
+    furnishings(residents, catalog.items, envLevels).selected.forEach(({ item }) => {
       const current = furnishingCounts.get(item.id) || {
         name: item.name,
         quantity: 0,
@@ -594,10 +602,20 @@ export function homeEnvironment(
   return residents.find((p) => p.environment)?.environment || null;
 }
 
-export function environmentSupplies(plan: HousematePlan, catalog: Catalog) {
+export function environmentSupplies(
+  plan: HousematePlan,
+  catalog: Catalog,
+  envLevels?: Record<string, number> | null,
+) {
   const counts = new Map<
     string,
-    { name: string; quantity: number; homeIds: string[] }
+    {
+      name: string;
+      quantity: number;
+      homeIds: string[];
+      envRequirement: EnvLevelRequirement | null;
+      locked: boolean;
+    }
   >();
   for (const home of plan.homes) {
     const env = homeEnvironment(home, catalog);
@@ -605,10 +623,13 @@ export function environmentSupplies(plan: HousematePlan, catalog: Catalog) {
     for (const itemId of environmentExampleIds(env)) {
       const item = catalog.items.find((i) => i.id === itemId);
       if (!item) continue;
+      const envRequirement = itemEnvLock(item, envLevels);
       const current = counts.get(item.id) || {
         name: item.name,
         quantity: 0,
         homeIds: [],
+        envRequirement,
+        locked: !!envRequirement,
       };
       current.quantity += 1;
       current.homeIds.push(home.id);
