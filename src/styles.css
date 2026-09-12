@@ -3772,6 +3772,10 @@ input {
   font-size: 13px;
   overflow-wrap: anywhere;
 }
+.item-row-tags {
+  font-style: italic;
+  color: #8a6a3a;
+}
 .crafting-chip {
   flex: 0 1 auto;
   font-size: 12px;
@@ -3820,6 +3824,10 @@ input {
 .crafting-cats,
 .crafting-source {
   color: #4d5c4c;
+}
+.item-tags {
+  font-style: italic;
+  color: #8a6a3a;
 }
 .crafting-source {
   margin-top: 14px;

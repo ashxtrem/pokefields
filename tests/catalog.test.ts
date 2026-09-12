@@ -42,7 +42,7 @@ describe("shipped reference catalog", () => {
     );
   });
   it("includes environment examples, flooring, and gatherables from the full Serebii item list", () => {
-    expect(catalog.version).toBe("2026-09-10.2");
+    expect(catalog.version).toBe("2026-09-10.4");
     expect(catalog.items.length).toBeGreaterThanOrEqual(1700);
     for (const id of [
       "icyrock",

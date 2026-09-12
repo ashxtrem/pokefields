@@ -4,15 +4,18 @@ import type { Catalog } from "../src/catalog/types";
 import { recipeHref } from "../src/crafting/types";
 import { locationTargetId } from "../src/items/locations";
 import { kitForItem, requiredByItem } from "../src/items/requiredBy";
+import { defaultItemFilters, filterItems } from "../src/items/search";
 import {
   collectibleSets,
   coverageLabel,
   defaultItemTabRoutes,
   displayGroups,
+  displayTags,
   itemInTab,
   itemsListHref,
   musicCdCoverage,
   rememberedItemTabHref,
+  TAG_DISPLAY,
   tabCounts,
   tabFromQuery,
 } from "../src/items/tabs";
@@ -107,6 +110,43 @@ describe("item directory tabs", () => {
     )!;
     expect(displayGroups(paper)).toContain("Wallpaper");
     expect(paper.collection).toBeUndefined();
+  });
+});
+
+describe("item tags", () => {
+  it("stays within the fixed vocabulary the app can display", () => {
+    const known = new Set(Object.keys(TAG_DISPLAY));
+    for (const item of catalog.items) {
+      for (const tag of item.tags || []) {
+        expect(known.has(tag)).toBe(true);
+      }
+    }
+  });
+
+  it("shows no tags for an untagged item rather than inventing one", () => {
+    const untagged = catalog.items.find((item) => !item.tags?.length);
+    expect(untagged).toBeDefined();
+    expect(displayTags(untagged!)).toEqual([]);
+  });
+
+  it("matches an item by tag in search even when the query isn't in the name", () => {
+    const candle = catalog.items.find((item) => item.id === "slendercandle")!;
+    expect(candle.tags).toContain("fire");
+    const results = filterItems(catalog.items, "all", {
+      ...defaultItemFilters(),
+      search: "fire",
+    });
+    expect(results.map((item) => item.id)).toContain("slendercandle");
+  });
+
+  it("resolves a tag synonym used in conversation to its canonical tag", () => {
+    const birdhouse = catalog.items.find((item) => item.id === "woodenbirdhouse")!;
+    expect(birdhouse.tags).toContain("flying");
+    const results = filterItems(catalog.items, "all", {
+      ...defaultItemFilters(),
+      search: "bird",
+    });
+    expect(results.map((item) => item.id)).toContain("woodenbirdhouse");
   });
 });
 

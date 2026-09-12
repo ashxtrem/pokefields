@@ -8,6 +8,7 @@ import {
   collectibleSets,
   coverageLabel,
   displayGroups,
+  displayTags,
   itemHref,
   itemInTab,
   type ItemTab,
@@ -60,8 +61,8 @@ export function ItemsPanel({
           <Search size={19} />
           <input
             type="text"
-            aria-label="Search items by name"
-            placeholder="Search items…"
+            aria-label="Search items by name or tag"
+            placeholder="Search items or tags…"
             value={filters.search}
             onChange={(e) =>
               setFilters((current) => ({ ...current, search: e.target.value }))
@@ -158,6 +159,7 @@ function ItemRow({
   collected: boolean;
 }) {
   const groups = displayGroups(item);
+  const tags = displayTags(item);
   const number =
     item.collection?.set === "music-cd" ? `#${item.collection.number}` : "";
   return (
@@ -174,6 +176,11 @@ function ItemRow({
           {number ? `${number} · ` : ""}
           {groups.join(" · ")}
         </small>
+        {tags.length ? (
+          <small className="item-row-tags" title="Suggested by matching the item's name — not a game fact">
+            {tags.join(" · ")}
+          </small>
+        ) : null}
       </span>
       {collected ? <span className="crafting-chip known">Collected</span> : null}
     </a>

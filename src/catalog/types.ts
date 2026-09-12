@@ -103,6 +103,12 @@ export interface Item {
    * never inferred for it.
    */
   groups?: string[];
+  /**
+   * Theme tags (e.g. "fire", "flying") assigned by keyword-matching this
+   * item's name against a fixed vocabulary. A heuristic browsing aid, not a
+   * sourced fact like `groups` — see scripts/tag-items.mjs.
+   */
+  tags?: string[];
   collection?: ItemCollection;
   source: string;
   locations?: string[];

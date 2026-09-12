@@ -126,6 +126,39 @@ export function displayGroups(item: Item): string[] {
   return names.length ? names : ["Unsorted"];
 }
 
+/**
+ * Display labels for the tags scripts/tag-items.mjs assigns. Kept as the
+ * canonical vocabulary here (rather than importing the build script into the
+ * app) so a stray tag id is a test failure, not a silent blank label.
+ */
+export const TAG_DISPLAY: Record<string, string> = {
+  fire: "Fire",
+  water: "Water",
+  flying: "Flying",
+  grass: "Grass",
+  electric: "Electric",
+  ice: "Ice",
+  rock: "Rock",
+  ground: "Ground",
+  bug: "Bug",
+  ghost: "Ghost",
+  steel: "Steel",
+  psychic: "Psychic",
+  dragon: "Dragon",
+  dark: "Dark",
+  fairy: "Fairy",
+  poison: "Poison",
+  "seasonal-holiday": "Seasonal & holiday",
+  "space-sky": "Space & sky",
+  "music-sound": "Music & sound",
+  "vintage-antique": "Vintage & antique",
+};
+
+/** Suggested theme tags for an item. Empty when none matched; never invented. */
+export function displayTags(item: Item): string[] {
+  return (item.tags || []).map((id) => TAG_DISPLAY[id] || id);
+}
+
 export function musicCdCoverage(items: Item[]) {
   const discs = items.filter((item) => item.collection?.set === "music-cd");
   const documented = discs.length;

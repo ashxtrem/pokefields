@@ -11,6 +11,7 @@ import { kitForItem, requiredByItem } from "./requiredBy";
 import {
   coverageLabel,
   displayGroups,
+  displayTags,
   itemHref,
   itemsListHref,
   musicCdCoverage,
@@ -49,6 +50,7 @@ export function ItemDetail({
   const usedIn = recipesConsumingItem(catalog, item.id);
   const required = requiredByItem(catalog, item.id);
   const groups = displayGroups(item);
+  const tags = displayTags(item);
   const collection = item.collection;
   const cdCoverage = collection?.set === "music-cd" ? musicCdCoverage(catalog.items) : null;
   const locations = item.locations || [];
@@ -65,6 +67,14 @@ export function ItemDetail({
           {item.categories.length ? (
             <p className="crafting-cats">
               Liked as {item.categories.join(" · ")}
+            </p>
+          ) : null}
+          {tags.length ? (
+            <p
+              className="crafting-cats item-tags"
+              title="Suggested by matching the item's name — not a game fact"
+            >
+              Tagged: {tags.join(" · ")}
             </p>
           ) : null}
         </div>
