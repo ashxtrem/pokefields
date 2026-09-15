@@ -30,6 +30,8 @@ export interface Plan extends PlannerInput {
 export const HOUSEMATE_PLAN_VERSION = 2 as const;
 export type PreferenceMatch = "shared" | "different" | "unknown";
 export interface RecommendedHome {
+  /** Player confirmed the home is built and these residents have moved in. */
+  completed?: boolean;
   id: string;
   kitId: string;
   residents: string[];

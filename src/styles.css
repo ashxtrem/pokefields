@@ -2443,14 +2443,19 @@ hr {
 .card-badges {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 6px;
   margin: 4px 0;
 }
+/* Match the TermChip beside it so the kit label reads as the same row. */
 .chip.static {
-  min-height: unset;
-  padding: 3px 9px;
-  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 6px 10px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1.2;
 }
 /* Any item or material name opens the explain popup, wherever it appears. */
 .item-button {
@@ -3878,19 +3883,54 @@ input {
 .crafting-detail-head {
   display: flex;
   gap: 14px;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 12px;
 }
-.crafting-cats,
-.crafting-source {
+.crafting-detail-copy {
+  min-width: 0;
+  flex: 1;
+}
+.crafting-detail-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.crafting-detail-title-row h2 {
+  min-width: 0;
+  margin: 0;
+}
+.detail-status-toggle {
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #d5decc;
+  border-radius: 9px;
+  background: #fffcf6;
+  color: #61705d;
+}
+.detail-status-toggle:hover:not(:disabled) {
+  border-color: #345b40;
+  background: #ebefe3;
+  color: #345b40;
+}
+.detail-status-toggle[aria-pressed="true"] {
+  border-color: #345b40;
+  background: #345b40;
+  color: #fff;
+}
+.detail-status-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.crafting-cats {
   color: #4d5c4c;
 }
 .item-tags {
   font-style: italic;
   color: #8a6a3a;
-}
-.crafting-source {
-  margin-top: 14px;
 }
 .crafting-back {
   display: none;
@@ -3919,6 +3959,88 @@ input {
 .crafting-learn ul {
   margin: 10px 0 0;
   padding-left: 1.1em;
+}
+.cooking-boost {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f1efe3;
+}
+.cooking-boost p {
+  margin: 0;
+}
+.cooking-boost-content {
+  min-width: 0;
+}
+.cooking-boost-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-top: 5px;
+  color: #4d5c4c;
+  font-size: 13px;
+}
+.cooking-boost-stats strong {
+  color: #263d31;
+  font-variant-numeric: tabular-nums;
+}
+.cooking-boost-stronger {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #a93632;
+  font-weight: 700;
+}
+.cooking-boost-mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #e3eadc;
+  color: #345b40;
+}
+.cooking-boost-arrow {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fffcf6;
+  color: #a93632;
+}
+.cooking-ingredient-list {
+  display: grid;
+  gap: 8px;
+}
+.cooking-ingredient-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 1px solid #dde0cf;
+  border-radius: 11px;
+  color: inherit;
+  text-decoration: none;
+}
+a.cooking-ingredient-row:hover {
+  background: #f7f4ea;
+}
+.cooking-ingredient-name {
+  font-weight: 600;
+}
+.cooking-ingredient-count {
+  margin-left: auto;
+  color: #4d5c4c;
+  font-size: 14px;
 }
 .crafting-ingredient-list {
   display: grid;
@@ -4075,3 +4197,70 @@ input {
     padding: 10px 0 12px;
   }
 }
+
+/* Housemates: compact resident trays and a shared action baseline. */
+.housemate-cards { gap: 16px; }
+.housemate-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0;
+  padding: 14px;
+  border-radius: 14px;
+}
+.housemate-card.is-complete { background: #f0f5eb; border-color: #779373; }
+.housemate-card-header { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.housemate-card-header h4 { flex: 1; min-width: 0; margin: 0; color: #30492f; font-size: 14px; line-height: 1.35; overflow-wrap: anywhere; }
+.housemate-card-header .home-list-icon { width: 32px; height: 32px; flex: 0 0 32px; }
+.housemate-card-header .chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; padding: 4px 6px; min-height: 44px; }
+.home-completion { display: inline-flex; align-items: center; justify-content: flex-end; gap: 5px; min-height: 44px; cursor: pointer; color: #385734; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.home-completion input { width: 18px; height: 18px; margin: 0; accent-color: #385734; }
+.home-completion:has(input:disabled) { opacity: .55; cursor: default; }
+.housemate-residents { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.housemate-portraits { display: flex; flex-wrap: nowrap; gap: 0; }
+.housemate-avatar { position: relative; display: inline-flex; justify-content: center; align-items: center; width: 44px; height: 44px; border: 1px solid #d7dfcc; background: #f3f5ea; border-radius: 0; text-decoration: none; }
+.housemate-avatar + .housemate-avatar { border-left: 0; }
+.housemate-avatar:first-child { border-radius: 9px 0 0 9px; }
+.housemate-avatar:last-child { border-radius: 0 9px 9px 0; }
+.housemate-avatar:only-child { border-radius: 9px; }
+.housemate-avatar .portrait { width: 36px; height: 36px; }
+.housemate-tooltip { display: none; position: absolute; bottom: calc(100% + 5px); left: 0; z-index: 2; padding: 6px 8px; background: #2f472e; color: #fff; border-radius: 6px; font-size: 12px; width: max-content; max-width: 200px; pointer-events: none; }
+.housemate-avatar:is(:hover, :focus-visible) .housemate-tooltip { display: block; }
+.housemate-capacity { color: #59654f; font-size: 11px; }
+.housemate-card > .match-label { margin: 6px 0 0; color: #4a613e; }
+.housemate-card .card-furnishings { margin: 8px 0 12px; padding-top: 6px; }
+.housemate-card .card-section-heading { min-height: 32px; margin: 0 0 4px; color: #4f6248; font-size: 11px; text-transform: none; letter-spacing: normal; }
+.housemate-card .card-furnishing-list { gap: 8px; }
+.housemate-card .card-furnishing-list li { align-items: center; gap: 9px; }
+.furnishing-thumbnail { flex: 0 0 32px; display: inline-flex; }
+.housemate-card .furnishing-copy { flex: 1; display: flex; flex-direction: row; align-items: center; flex-wrap: wrap; column-gap: 8px; row-gap: 3px; }
+.housemate-card .furnishing-copy > .item-button { font-size: 12px; font-weight: 600; }
+.furnishing-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+.furnishing-tags > span { display: inline-block; background: #eaf0e2; color: #4d6043; font-size: 10px; line-height: 1.4; padding: 2px 5px; border-radius: 4px; }
+.housemate-card .card-furnishings .muted { margin: 6px 0 0; font-size: 12px; color: #59654f; }
+.housemate-action-dock { display: flex; gap: 8px; align-items: stretch; margin-top: auto; padding: 10px 0 0; border-top: 1px solid #e0e6d7; }
+.housemate-action-dock .button { display: inline-flex; justify-content: center; align-items: center; gap: 6px; flex: 1; min-height: 44px; padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+.housemate-compact-summary { color: #59654f; font-size: 12px; margin: 8px 0 12px; }
+.housemate-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 16px 0 24px; }
+.housemate-toolbar p { color: #59654f; font-size: 12px; line-height: 1.5; max-width: 65ch; margin: 0; }
+.housemate-density { display: flex; flex-shrink: 0; gap: 3px; padding: 3px; border: 1px solid #d7dfcc; border-radius: 10px; }
+.housemate-density button { min-height: 44px; padding: 6px 12px; border: 0; border-radius: 7px; background: transparent; color: #4d6043; font-size: 12px; font-weight: 600; }
+.housemate-density button[aria-pressed="true"] { background: #385734; color: white; }
+.housemate-density button:hover:not([aria-pressed="true"]) { background: #eaf0e2; }
+@media (min-width: 900px) { .housemate-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .housemate-toolbar { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .housemate-card { padding: 12px; }
+  .housemate-card-header { gap: 6px; }
+  .housemate-card-header h4 { font-size: 13px; }
+  .housemate-card-header .home-list-icon { display: none; }
+}
+
+.planner-title { min-height: 0; padding: 24px 0; margin-bottom: 20px; }
+.planner-title h1 { font-size: clamp(28px, 3.2vw, 40px); line-height: 1.15; margin: 0; }
+.planner-title p { margin: 10px 0 0; }
+.planner-scope { color: #59654f; font-size: 12px; }
+.result-summary-strip span { color: #59654f; }
+.housemate-card .home-completion span { font-size: 11px; }
+.housemate-card .card-furnishings { border-color: #dce3d2; }
+.housemate-card .card-section-heading { min-height: 28px; }

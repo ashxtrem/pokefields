@@ -1,4 +1,15 @@
 import type { Catalog, Item, Kit } from "../catalog/types";
+import {
+  ArrowUp,
+  Droplets,
+  Hammer,
+  Leaf,
+  Package,
+  PackageCheck,
+  Scissors,
+  Sparkles,
+  Waves,
+} from "lucide-react";
 import { EnvLockNote, ItemThumb } from "../ui/components";
 import { useProgress } from "../progress/context";
 import { itemEnvLock } from "../dex/glossary";
@@ -49,6 +60,7 @@ export function ItemDetail({
 }) {
   const kit = kitForItem(catalog, item);
   const recipes = recipesForOutputItem(catalog, item.id);
+  const cookingRecipes = recipes.filter((recipe) => recipe.kind === "cook");
   const usedIn = recipesConsumingItem(catalog, item.id);
   const required = requiredByItem(catalog, item.id);
   const groups = displayGroups(item);
@@ -65,8 +77,27 @@ export function ItemDetail({
       </a>
       <div className="crafting-detail-head">
         <ItemThumb id={item.id} name={item.name} large />
-        <div>
-          <h2>{item.name}</h2>
+        <div className="crafting-detail-copy">
+          <div className="crafting-detail-title-row">
+            <h2>{item.name}</h2>
+            {onToggleCollected ? (
+              <button
+                type="button"
+                className="detail-status-toggle"
+                aria-pressed={collected}
+                aria-label={
+                  collected
+                    ? `Mark ${item.name} as not collected`
+                    : `Mark ${item.name} as collected`
+                }
+                title={collected ? "Marked collected" : "Mark as collected"}
+                disabled={!ready}
+                onClick={onToggleCollected}
+              >
+                {collected ? <PackageCheck size={19} /> : <Package size={19} />}
+              </button>
+            ) : null}
+          </div>
           <p className="crafting-cats">{groups.join(" · ")}</p>
           {item.categories.length ? (
             <p className="crafting-cats">
@@ -86,7 +117,7 @@ export function ItemDetail({
 
       {recipes.length ? (
         <p>
-          <a href={recipeHref(recipes[0].id)}>How to learn this recipe</a>
+          <a href={recipeHref(recipes[0].id)}>View recipe details</a>
         </p>
       ) : null}
 
@@ -117,6 +148,14 @@ export function ItemDetail({
         tab={tab}
       />
       {envLock && <EnvLockNote requirement={envLock} />}
+
+      {item.cookingEffect ? (
+        <CookingEffect effect={item.cookingEffect} />
+      ) : null}
+
+      {cookingRecipes.length ? (
+        <CookingIngredients recipes={cookingRecipes} tab={tab} />
+      ) : null}
 
       {kit ? <KitFacts kit={kit} catalog={catalog} tab={tab} /> : null}
 
@@ -159,27 +198,116 @@ export function ItemDetail({
         </p>
       )}
 
-      {onToggleCollected ? (
-        <label className="crafting-learned-row">
-          <input
-            type="checkbox"
-            checked={collected}
-            disabled={!ready}
-            onChange={onToggleCollected}
-            aria-label={`${collected ? "Unmark" : "Mark"} ${item.name} collected`}
-          />
-          <span>I have this collectible</span>
-        </label>
-      ) : null}
-
-      {item.source ? (
-        <p className="crafting-source">
-          <a href={item.source} target="_blank" rel="noreferrer">
-            Source
-          </a>
-        </p>
-      ) : null}
     </article>
+  );
+}
+
+function CookingEffect({
+  effect,
+}: {
+  effect: NonNullable<Item["cookingEffect"]>;
+}) {
+  const move = cookingMove(effect.description);
+  const stronger = /power(?:s)? up .+\ba lot\b/i.test(effect.description);
+  return (
+    <>
+      <h3>Move boost</h3>
+      <div className="cooking-boost">
+        <span className="cooking-boost-mark" aria-hidden="true">
+          <CookingMoveIcon move={move} />
+          <span className="cooking-boost-arrow">
+            <ArrowUp size={12} strokeWidth={2.5} />
+          </span>
+        </span>
+        <div className="cooking-boost-content">
+          <p>{effect.description}</p>
+          <div className="cooking-boost-stats">
+            <span>
+              {cookingMeasureLabel(effect.measure)}: <strong>{effect.measure}</strong>
+            </span>
+            {stronger ? (
+              <span className="cooking-boost-stronger">
+                <ArrowUp size={13} strokeWidth={2.5} /> Stronger boost
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function cookingMeasureLabel(measure: string) {
+  return /\b(?:min|sec|hour)s?\b/i.test(measure)
+    ? "Boost duration"
+    : "PP restored";
+}
+
+function cookingMove(description: string) {
+  return (
+    description
+      .match(/power(?:s)? up\s+(.+?)(?:\s+when eaten|[.!]|$)/i)?.[1]
+      ?.replace(/\s+a lot$/i, "") || null
+  );
+}
+
+function CookingMoveIcon({ move }: { move: string | null }) {
+  const props = { size: 22, strokeWidth: 1.8 };
+  if (move === "Cut") return <Scissors {...props} />;
+  if (move === "Leafage") return <Leaf {...props} />;
+  if (move === "Water Gun") return <Droplets {...props} />;
+  if (move === "Rock Smash") return <Hammer {...props} />;
+  if (move === "Surf") return <Waves {...props} />;
+  return <Sparkles {...props} />;
+}
+
+function CookingIngredients({
+  recipes,
+  tab,
+}: {
+  recipes: ReturnType<typeof recipesForOutputItem>;
+  tab: ItemTab;
+}) {
+  return (
+    <>
+      <h3>Cooking ingredients</h3>
+      {recipes.map((recipe) => (
+        <div className="cooking-ingredient-list" key={recipe.id}>
+          {recipe.ingredients.map((ingredient) =>
+            ingredient.identity.type === "resolved" ? (
+              <a
+                className="cooking-ingredient-row"
+                href={itemHref(ingredient.identity.itemId, tab)}
+                key={ingredient.rowId}
+              >
+                <ItemThumb
+                  id={ingredient.identity.itemId}
+                  name={ingredient.originalLabel}
+                />
+                <span className="cooking-ingredient-name">
+                  {ingredient.originalLabel}
+                </span>
+                <span className="cooking-ingredient-count">
+                  × {ingredient.quantity}
+                </span>
+              </a>
+            ) : (
+              <div className="cooking-ingredient-row" key={ingredient.rowId}>
+                <span className="item-thumb" aria-hidden="true">
+                  ?
+                </span>
+                <span className="cooking-ingredient-name">
+                  {ingredient.originalLabel}
+                </span>
+                <span className="cooking-ingredient-count">
+                  × {ingredient.quantity}
+                </span>
+              </div>
+            ),
+          )}
+        </div>
+      ))}
+    </>
   );
 }
 

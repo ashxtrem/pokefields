@@ -1,7 +1,19 @@
 import { useViewState } from "../ui/navigation";
 import { HomeDetail } from "./HomeDetail";
 import { useMemo, useRef, useState } from "react";
-import { House, Users, Search, Pencil, Plus } from "lucide-react";
+import {
+  House,
+  Users,
+  Search,
+  Pencil,
+  Plus,
+  Sun,
+  Moon,
+  CloudRain,
+  Thermometer,
+  Snowflake,
+  Droplets,
+} from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { plannableKitMap, plannableKits } from "../catalog/types";
 import { useProgress } from "../progress/context";
@@ -9,6 +21,7 @@ import { itemEnvLock, recordedEnvLevel, type TermRef } from "../dex/glossary";
 import { furnishings } from "./engine";
 import {
   addHome,
+  setHomeCompleted,
   changeHomeKit,
   combinedSupplies,
   convertSpatialPlan,
@@ -24,7 +37,11 @@ import {
   recommendHousemates,
   uniqueFoundRoster,
 } from "./recommend";
-import type { HousematePlan, HousematePlanSettings, RecommendedHome } from "./types";
+import type {
+  HousematePlan,
+  HousematePlanSettings,
+  RecommendedHome,
+} from "./types";
 import {
   EnvLevelsModal,
   EnvLockNote,
@@ -38,15 +55,38 @@ import {
 } from "../ui/components";
 import { reconcileHouseQuantityList } from "../shopping/checklists";
 
-const PRESETS: { id: string; label: string; settings: HousematePlanSettings }[] = [
-  { id: "1", label: "Own space (1)", settings: { maxResidents: 1, affinityFloor: false } },
-  { id: "2", label: "Pairs (2)", settings: { maxResidents: 2, affinityFloor: false } },
-  { id: "balanced", label: "Balanced (auto)", settings: { maxResidents: 4, affinityFloor: true } },
-  { id: "4", label: "Full houses (4)", settings: { maxResidents: 4, affinityFloor: false } },
+const PRESETS: {
+  id: string;
+  label: string;
+  settings: HousematePlanSettings;
+}[] = [
+  {
+    id: "1",
+    label: "Own space (1)",
+    settings: { maxResidents: 1, affinityFloor: false },
+  },
+  {
+    id: "2",
+    label: "Pairs (2)",
+    settings: { maxResidents: 2, affinityFloor: false },
+  },
+  {
+    id: "balanced",
+    label: "Balanced (auto)",
+    settings: { maxResidents: 4, affinityFloor: true },
+  },
+  {
+    id: "4",
+    label: "Full houses (4)",
+    settings: { maxResidents: 4, affinityFloor: false },
+  },
 ];
 const DEFAULT_PRESET_ID = "4";
 
-function environmentGroupKey(home: RecommendedHome, catalog: ReturnType<typeof useCatalog>) {
+function environmentGroupKey(
+  home: RecommendedHome,
+  catalog: ReturnType<typeof useCatalog>,
+) {
   return homeEnvironment(home, catalog);
 }
 
@@ -63,6 +103,10 @@ export function PlannerPage() {
     "planner.unhousedOnly",
     false,
   );
+  const [density, setDensity] = useViewState<"detailed" | "compact">(
+    "planner.density",
+    "detailed",
+  );
   const [error, setError] = useState("");
   const [selected, setSelected] = useViewState("planner.selected", "");
   const [detailTab, setDetailTab] = useViewState(
@@ -75,7 +119,10 @@ export function PlannerPage() {
   );
   const [convertArea, setConvertArea] = useViewState("planner.convertArea", "");
   const [changeHomeId, setChangeHomeId] = useState("");
-  const [presetId, setPresetId] = useViewState("planner.preset", DEFAULT_PRESET_ID);
+  const [presetId, setPresetId] = useViewState(
+    "planner.preset",
+    DEFAULT_PRESET_ID,
+  );
   const [editingKits, setEditingKits] = useState(false);
   const [editingEnvLevels, setEditingEnvLevels] = useState(false);
   const [addingHome, setAddingHome] = useState(false);
@@ -92,7 +139,8 @@ export function PlannerPage() {
   const active = view?.homes.find((h) => h.id === selected);
   const availableKitIds = state.availableKitIds ?? null;
   const envLevels = state.envLevels;
-  const preset = PRESETS.find((p) => p.id === presetId) || PRESETS[PRESETS.length - 1];
+  const preset =
+    PRESETS.find((p) => p.id === presetId) || PRESETS[PRESETS.length - 1];
 
   const available = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -125,13 +173,27 @@ export function PlannerPage() {
   const roster = foundIds.filter((id) => !excluded.includes(id));
   const stale = saved ? planIsStale(saved, state.found, catalog) : false;
   const legacyAreas = Object.keys(state.plans).sort();
-  const estimate = estimateHomeCount(roster, catalog, preset.settings, availableKitIds);
-  const effectiveCap = effectiveMaxResidents(preset.settings, catalog, availableKitIds);
+  const estimate = estimateHomeCount(
+    roster,
+    catalog,
+    preset.settings,
+    availableKitIds,
+  );
+  const effectiveCap = effectiveMaxResidents(
+    preset.settings,
+    catalog,
+    availableKitIds,
+  );
   const save = (next: HousematePlan) =>
     update((s) => ({
       ...s,
       housematePlan: next,
-      houseShopping: reconcileHouseQuantityList(s.houseShopping, next, catalog, s.envLevels),
+      houseShopping: reconcileHouseQuantityList(
+        s.houseShopping,
+        next,
+        catalog,
+        s.envLevels,
+      ),
     }));
   const persistView = (next: HousematePlan) => {
     if (draft) setDraft(next);
@@ -162,7 +224,10 @@ export function PlannerPage() {
     }
     setEditingSetup(false);
     requestAnimationFrame(() =>
-      workspaceRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      workspaceRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
     );
   };
   const supplies = view ? combinedSupplies(view, catalog, envLevels) : null;
@@ -171,15 +236,24 @@ export function PlannerPage() {
     : [];
   const houseShopping =
     saved && !draft
-      ? reconcileHouseQuantityList(state.houseShopping, saved, catalog, envLevels)
+      ? reconcileHouseQuantityList(
+          state.houseShopping,
+          saved,
+          catalog,
+          envLevels,
+        )
       : null;
   const changing = view?.homes.find((h) => h.id === changeHomeId);
-  const housedCount = view ? view.homes.reduce((s, h) => s + h.residents.length, 0) : 0;
+  const housedCount = view
+    ? view.homes.reduce((s, h) => s + h.residents.length, 0)
+    : 0;
   const groupedHomes = useMemo(() => {
     if (!view) return [];
     const groups = new Map<string, RecommendedHome[]>();
     for (const home of view.homes) {
-      const key = environmentGroupKey(home, catalog) || (home.residents.length ? "Mixed or unrecorded" : "Empty");
+      const key =
+        environmentGroupKey(home, catalog) ||
+        (home.residents.length ? "Mixed or unrecorded" : "Empty");
       const list = groups.get(key) || [];
       list.push(home);
       groups.set(key, list);
@@ -192,21 +266,13 @@ export function PlannerPage() {
     <>
       <div className="planner-title">
         <div>
-          <div className="eyebrow">HOUSEMATES</div>
           <h1>
-            Plan homes for
-            <br />
-            your Pokémon<span className="dot">.</span>
+            Plan homes for your Pokémon<span className="dot">.</span>
           </h1>
           <p>
             Choose who should live together, then see what to build or gather
             for them.
           </p>
-        </div>
-        <div className="planner-illustration" aria-hidden="true">
-          <House size={90} strokeWidth={1} />
-          <span>✦</span>
-          <span className="little-tree">♧</span>
         </div>
       </div>
       {!foundIds.length && !area && !view ? (
@@ -265,7 +331,9 @@ export function PlannerPage() {
                     className="text-button"
                     onClick={() =>
                       setExcluded((x) =>
-                        x.filter((id) => !visibleRoster.some((p) => p.id === id)),
+                        x.filter(
+                          (id) => !visibleRoster.some((p) => p.id === id),
+                        ),
                       )
                     }
                   >
@@ -361,8 +429,8 @@ export function PlannerPage() {
               <div className="field">
                 <span>Available kits</span>
                 <small>
-                  Limit suggestions to kits you have actually unlocked.
-                  Defaults to every kit in the catalog.
+                  Limit suggestions to kits you have actually unlocked. Defaults
+                  to every kit in the catalog.
                 </small>
                 <button
                   type="button"
@@ -394,8 +462,8 @@ export function PlannerPage() {
                 <div className="field">
                   <span>Existing layout</span>
                   <small>
-                    Saved map layouts are kept. Convert residents and home choices
-                    once; the original stays.
+                    Saved map layouts are kept. Convert residents and home
+                    choices once; the original stays.
                   </small>
                   <select
                     aria-label="Convert existing plan"
@@ -461,7 +529,10 @@ export function PlannerPage() {
                   title="Set town environment levels"
                 >
                   {view!.areaFilter || "Withered Wastelands"} Lv.{" "}
-                  {recordedEnvLevel(view!.areaFilter || "Withered Wastelands", state.envLevels)}
+                  {recordedEnvLevel(
+                    view!.areaFilter || "Withered Wastelands",
+                    state.envLevels,
+                  )}
                 </button>
                 <button
                   type="button"
@@ -517,7 +588,7 @@ export function PlannerPage() {
               <>
                 <div className="canvas-heading">
                   <div>
-                    <span className="eyebrow">
+                    <span className="planner-scope">
                       {view.areaFilter || "All found Pokémon"}
                       {draft ? " · preview" : ""}
                     </span>
@@ -543,21 +614,45 @@ export function PlannerPage() {
                   </div>
                   <div>
                     <strong>{housedCount}</strong>
-                    <span>housed</span>
+                    <span>assigned</span>
                   </div>
                   <div>
                     <strong>{view.unresolved.length}</strong>
                     <span>needs review</span>
                   </div>
                   <div>
-                    <strong>{supplies ? supplies.construction.length : 0}</strong>
-                    <span>material types</span>
+                    <strong>
+                      {view.homes.filter((home) => home.completed).length}
+                    </strong>
+                    <span>built & moved in</span>
                   </div>
                 </div>
                 <p className="muted card-disclaimer">
                   Suggested for capacity, not confirmed affordability or unlock
                   availability.
                 </p>
+                <div className="housemate-toolbar">
+                  <p id="home-completion-help">
+                    Check a home once it is built and its Pokémon have moved in.
+                    Changing residents or the home clears its check.
+                  </p>
+                  <div
+                    className="housemate-density"
+                    role="group"
+                    aria-label="Card detail"
+                  >
+                    {(["detailed", "compact"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        aria-pressed={density === mode}
+                        onClick={() => setDensity(mode)}
+                      >
+                        {mode === "detailed" ? "Detailed" : "Compact"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 {groupedHomes.map(([groupKey, homes]) => (
                   <section className="home-group" key={groupKey}>
                     <h3 className="home-group-heading">{groupKey}</h3>
@@ -567,6 +662,12 @@ export function PlannerPage() {
                           key={home.id}
                           home={home}
                           preview={!!draft}
+                          compact={density === "compact"}
+                          onComplete={(completed) =>
+                            persistView(
+                              setHomeCompleted(view, home.id, completed),
+                            )
+                          }
                           onOpen={(tab) => {
                             setDetailTab(tab);
                             setSelected(home.id);
@@ -823,15 +924,28 @@ const ENVIRONMENT_CLASS: Record<string, string> = {
   Dry: "env-dry",
 };
 
+const ENVIRONMENT_ICON = {
+  Bright: Sun,
+  Dark: Moon,
+  Warm: Thermometer,
+  Cool: Snowflake,
+  Humid: CloudRain,
+  Dry: Droplets,
+};
+
 function HomeCard({
   home,
   preview,
+  compact,
+  onComplete,
   onOpen,
   onChangeHome,
   onExplain,
 }: {
   home: RecommendedHome;
   preview: boolean;
+  compact: boolean;
+  onComplete: (completed: boolean) => void;
   onOpen: (tab: string) => void;
   onChangeHome: () => void;
   onExplain: (term: TermRef) => void;
@@ -846,46 +960,87 @@ function HomeCard({
   const setup = furnishings(residents, catalog.items, state.envLevels);
   const env = homeEnvironment(home, catalog);
   const envClass = env ? ENVIRONMENT_CLASS[env] || "" : "";
+  const EnvironmentIcon =
+    ENVIRONMENT_ICON[env as keyof typeof ENVIRONMENT_ICON];
   const spare = kit ? kit.capacity - residents.length : 0;
   return (
-    <article className={`housemate-card ${envClass}`}>
-      <span className={`home-list-icon ${envClass || "env-unknown"}`}>
-        {kit ? (
-          <ItemThumb id={kit.id} name={kit.name} />
-        ) : (
-          <House size={22} />
+    <article
+      className={`housemate-card ${envClass} ${home.completed ? "is-complete" : ""} ${compact ? "is-compact" : ""}`}
+      aria-label={`${kit?.name || "Home"}: ${residents.map((p) => p.name).join(", ") || "No residents"}`}
+    >
+      <header className="housemate-card-header">
+        <span
+          className={`home-list-icon ${envClass || "env-unknown"}`}
+          aria-hidden="true"
+        >
+          {kit ? (
+            <ItemThumb id={kit.id} name={kit.name} />
+          ) : (
+            <House size={22} />
+          )}
+        </span>
+        <h4>{kit?.name || "Home"}</h4>
+        {env && (
+          <TermChip
+            term={{ kind: "environment", value: env }}
+            onOpen={onExplain}
+          >
+            {EnvironmentIcon && (
+              <EnvironmentIcon size={13} aria-hidden="true" />
+            )}{" "}
+            {env}
+          </TermChip>
         )}
-      </span>
-      <div className="housemate-card-body">
+        <label
+          className="home-completion"
+          title="Home built and Pokémon moved in"
+        >
+          <input
+            type="checkbox"
+            checked={!!home.completed}
+            disabled={preview || !residents.length}
+            onChange={(event) => onComplete(event.target.checked)}
+            aria-label={`Home built and Pokémon moved in: ${residents.map((p) => p.name).join(", ") || "empty home"}`}
+            aria-describedby="home-completion-help"
+          />
+          <span>{home.completed ? "Done" : "To do"}</span>
+        </label>
+      </header>
+      <div className="housemate-residents">
         <div className="housemate-portraits">
           {residents.map((p) => (
-            <Portrait key={p.id} pokemon={p} small />
+            <a
+              className="housemate-avatar"
+              key={p.id}
+              href={`#/pokemon/${p.id}`}
+              aria-label={`${p.name} · ${p.types[0] || "Type unrecorded"}`}
+            >
+              <Portrait pokemon={p} small />
+              <span className="housemate-tooltip" role="tooltip">
+                {p.name} · {p.types[0] || "Type unrecorded"}
+              </span>
+            </a>
           ))}
         </div>
-        <strong>
-          {residents.map((p) => p.name).join(", ") || "No residents"}
-        </strong>
-        <div className="card-badges">
-          {env && (
-            <TermChip
-              term={{ kind: "environment", value: env }}
-              onOpen={onExplain}
-            >
-              {env}
-            </TermChip>
-          )}
-          {kit && (
-            <span className="chip static">
-              {kit.name}
-              {spare > 0
-                ? ` · room for ${spare} more`
-                : ""}
-            </span>
-          )}
-        </div>
-        <p className={`match-label match-${explanation.match}`}>
-          {preferenceLabel(explanation.match)}
+        <span className="housemate-capacity">
+          {residents.length
+            ? `${residents.length} resident${residents.length === 1 ? "" : "s"}`
+            : "No residents"}
+          {spare > 0 && ` · ${spare} free`}
+        </span>
+      </div>
+      <p className={`match-label match-${explanation.match}`}>
+        {preferenceLabel(explanation.match)}
+      </p>
+      {compact ? (
+        <p className="housemate-compact-summary">
+          {setup.selected.length} suggested furnishing
+          {setup.selected.length === 1 ? "" : "s"}
+          {setup.uncovered.length
+            ? ` · ${setup.uncovered.length} categories need references`
+            : ""}
         </p>
+      ) : (
         <div className="card-furnishings">
           <button
             type="button"
@@ -893,58 +1048,63 @@ function HomeCard({
             disabled={preview}
             onClick={() => onOpen("Furnishings")}
           >
-            Furnishings to place <span>{setup.selected.length}</span>
+            Suggested furnishings <span>{setup.selected.length}</span>
           </button>
           {setup.selected.length ? (
             <ul className="card-furnishing-list">
-              {setup.selected.map(({ item, categories, locked, envRequirement }) => (
-                <li key={item.id} className={locked ? "locked" : undefined}>
-                  <ItemThumb id={item.id} name={item.name} />
-                  <div>
-                    <strong>
-                      1 ×{" "}
+              {setup.selected.map(
+                ({ item, categories, locked, envRequirement }) => (
+                  <li key={item.id} className={locked ? "locked" : undefined}>
+                    <span className="furnishing-thumbnail">
+                      <ItemThumb id={item.id} name={item.name} />
+                    </span>
+                    <div className="furnishing-copy">
                       <ItemButton
                         name={item.name}
                         id={item.id}
                         onOpen={onExplain}
                       />
-                    </strong>
-                    <small>{categories.join(" · ")}</small>
-                    {locked && envRequirement && (
-                      <EnvLockNote requirement={envRequirement} />
-                    )}
-                  </div>
-                </li>
-              ))}
+                      <div className="furnishing-tags">
+                        {categories.map((category) => (
+                          <span key={category}>{category}</span>
+                        ))}
+                      </div>
+                      {locked && envRequirement && (
+                        <EnvLockNote requirement={envRequirement} />
+                      )}
+                    </div>
+                  </li>
+                ),
+              )}
             </ul>
           ) : (
-            <small className="muted">
+            <p className="muted">
               No furnishing item is recorded for this group's favorites.
-            </small>
+            </p>
           )}
           {!!setup.uncovered.length && (
-            <small className="muted">
+            <p className="muted">
               Still needs an item reference: {setup.uncovered.join(", ")}.
-            </small>
+            </p>
           )}
         </div>
-        <div className="button-row">
-          <button
-            className="button secondary"
-            disabled={preview}
-            onClick={() => onOpen("Residents")}
-          >
-            Change housemates
-          </button>
-          <button
-            className="button secondary"
-            disabled={preview}
-            onClick={onChangeHome}
-          >
-            Change home
-          </button>
-        </div>
-      </div>
+      )}
+      <footer className="housemate-action-dock">
+        <button
+          className="button secondary"
+          disabled={preview}
+          onClick={onChangeHome}
+        >
+          <House size={16} /> Change home
+        </button>
+        <button
+          className="button"
+          disabled={preview}
+          onClick={() => onOpen("Residents")}
+        >
+          <Users size={16} /> Housemates
+        </button>
+      </footer>
     </article>
   );
 }
@@ -1062,7 +1222,11 @@ function AvailableKitsModal({
         >
           Select all
         </button>
-        <button type="button" className="text-button" onClick={() => setDraft([])}>
+        <button
+          type="button"
+          className="text-button"
+          onClick={() => setDraft([])}
+        >
           Select none
         </button>
       </div>
@@ -1114,8 +1278,8 @@ function AddHomeModal({
   return (
     <Modal title="Add a home" onClose={onClose} wide>
       <p className="muted">
-        Creates an empty group you can fill by hand from the resident lists.
-        It is dropped automatically if it ends up empty again.
+        Creates an empty group you can fill by hand from the resident lists. It
+        is dropped automatically if it ends up empty again.
       </p>
       {error && (
         <p className="notice error" role="alert">
@@ -1152,4 +1316,3 @@ function AddHomeModal({
     </Modal>
   );
 }
-

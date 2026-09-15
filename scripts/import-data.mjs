@@ -70,7 +70,7 @@ const slug = (s) =>
     .replace(/[^a-z0-9]/g, "");
 const itemsOnly = process.argv.includes("--items-only");
 const cookingOnly = process.argv.includes("--cooking-only");
-const catalogVersion = "2026-09-10.2";
+const catalogVersion = "2026-09-15.2";
 // Den kits are excluded from the catalog: their size eligibility is not
 // modeled. Named so the exclusion is greppable rather than inline.
 const DEN_KIT_MARKER = "denkit";
@@ -135,7 +135,10 @@ function resolveMappedItem(id, name) {
   );
 }
 async function applyCookingRecipes() {
-  const $cook = load(await get(`${origin}/pokemonpokopia/cooking.shtml`));
+  const cookingUrl = `${origin}/pokemonpokopia/cooking.shtml`;
+  const $cook = load(await get(cookingUrl));
+  const cookingRetrievedAt =
+    retrievedAtByUrl.get(cookingUrl) || new Date().toISOString().slice(0, 10);
   $cook("table.dextable tr").each((_, tr) => {
     const cells = $cook(tr).children("td");
     if (cells.length < 7) return;
@@ -155,6 +158,18 @@ async function applyCookingRecipes() {
       });
     if (!parts.length) return;
     item.recipe = parts;
+    const effect = text($cook, cells.eq(2));
+    const measure = text($cook, cells.eq(3));
+    if (effect && measure) {
+      item.cookingEffect = {
+        description: effect,
+        measure,
+        source: cookingUrl,
+        retrievedAt: cookingRetrievedAt,
+      };
+    } else {
+      delete item.cookingEffect;
+    }
     const specImg = $cook(cells.eq(7)).find("img[alt]").attr("alt");
     const spec = (specImg || $cook(cells.eq(7)).text() || "")
       .replace(/\s+/g, " ")
@@ -424,7 +439,7 @@ if (cookingOnly) {
   await applyCraftingEnrichment();
   catalogSnapshot.items = [...itemMap.values()];
   catalogSnapshot.version = catalogVersion;
-  await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot));
+  await writeFile("public/data/catalog.json", JSON.stringify(catalogSnapshot, null, 2));
   console.log("Done cooking recipes", catalogSnapshot.items.length, "items");
   process.exit(0);
 }

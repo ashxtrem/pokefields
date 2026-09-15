@@ -10,6 +10,8 @@ import {
 } from "../src/planner/engine";
 import {
   addHome,
+  changeHomeKit,
+  setHomeCompleted,
   combinedSupplies,
   convertSpatialPlan,
   environmentSupplies,
@@ -910,5 +912,120 @@ describe("environment guidance and manual builds", () => {
     expect(filled.homes.find((h) => h.id === plan.homes[0].id)).toBeUndefined();
     const emptiedAgain = moveResident(filled, added.id, "new", "a", catalog);
     expect(emptiedAgain.homes.some((h) => h.id === added.id)).toBe(false);
+  });
+});
+
+describe("home built and moved-in marks", () => {
+  const makePlan = () => {
+    const plan = recommendHousemates(
+      { roster: ["a", "b", "c", "d"], sourceRoster: ["a", "b", "c", "d"], areaFilter: null },
+      catalog,
+    );
+    return {
+      ...plan,
+      homes: plan.homes.map((home) => ({ ...home, completed: true })),
+    };
+  };
+  it("saves and restores marks while accepting older homes without marks", async () => {
+    const state = { ...emptyState(), housematePlan: makePlan() };
+    const restored = validateBackup(JSON.parse(JSON.stringify(state)), catalog);
+    await writeState(restored);
+    expect(
+      (await readState()).housematePlan?.homes.every((home) => home.completed),
+    ).toBe(true);
+    expect(
+      validateBackup(
+        {
+          ...state,
+          housematePlan: recommendHousemates(
+            { roster: ["a"], sourceRoster: ["a"], areaFilter: null },
+            catalog,
+          ),
+        },
+        catalog,
+      ).housematePlan?.homes[0].completed,
+    ).toBeUndefined();
+  });
+  it("clears both affected homes after a move and preserves unrelated homes", () => {
+    const plan = makePlan();
+    const moved = moveResident(plan, "home-1", "home-2", "b", catalog);
+    expect(moved.homes.map((home) => home.completed)).toEqual([
+      false,
+      false,
+      true,
+    ]);
+    expect(plan.homes.every((home) => home.completed)).toBe(true);
+  });
+  it("clears the source after moving to a new group or splitting", () => {
+    for (const result of [
+      moveResident(makePlan(), "home-1", "new", "b", catalog),
+      splitResident(makePlan(), "home-1", "b", catalog),
+    ]) {
+      expect(result.homes.find((home) => home.id === "home-1")?.completed).toBe(
+        false,
+      );
+      expect(
+        result.homes.find(
+          (home) => home.residents.length === 1 && home.residents[0] === "b",
+        )?.completed,
+      ).toBeFalsy();
+      expect(result.homes.find((home) => home.id === "home-2")?.completed).toBe(
+        true,
+      );
+    }
+  });
+  it("clears both swapped groups", () => {
+    expect(
+      swapHousemates(
+        makePlan(),
+        "home-1",
+        "home-2",
+        "b",
+        "c",
+        catalog,
+      ).homes.map((home) => home.completed),
+    ).toEqual([false, false, true]);
+  });
+  it("clears a changed kit but preserves a no-op kit selection", () => {
+    const plan = makePlan();
+    expect(
+      changeHomeKit(plan, "home-1", "home", catalog).homes[0].completed,
+    ).toBe(true);
+    const changed = changeHomeKit(plan, "home-1", "other", {
+      ...catalog,
+      kits: [...catalog.kits, { ...kit, id: "other" }],
+    });
+    expect(changed.homes.map((home) => home.completed)).toEqual([
+      false,
+      true,
+      true,
+    ]);
+  });
+  it("allows checking and unchecking but rejects empty homes and malformed marks", () => {
+    const plan = makePlan();
+    expect(setHomeCompleted(plan, "home-1", false).homes[0].completed).toBe(
+      false,
+    );
+    expect(setHomeCompleted(plan, "home-1", true).homes[0].completed).toBe(
+      true,
+    );
+    const empty = addHome(plan, "home", catalog);
+    expect(() => setHomeCompleted(empty, empty.homes.at(-1)!.id, true)).toThrow(
+      "Add residents",
+    );
+    const invalid = JSON.parse(
+      JSON.stringify({ ...emptyState(), housematePlan: plan }),
+    );
+    invalid.housematePlan.homes[0].completed = "yes";
+    expect(() => validateBackup(invalid, catalog)).toThrow("completion mark");
+  });
+  it("clears a completed destination when an unresolved resident joins", () => {
+    const plan = makePlan();
+    plan.homes = plan.homes.filter((home) => home.id !== "home-3");
+    plan.unresolved = [{ id: "d", reason: "Needs a home" }];
+    expect(
+      moveResident(plan, "unresolved", "home-2", "d", catalog).homes[1]
+        .completed,
+    ).toBe(false);
   });
 });

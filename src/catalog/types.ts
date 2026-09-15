@@ -87,6 +87,13 @@ export interface ItemRecipeMeta {
   };
   evidence?: Record<string, RecipeFieldEvidenceJson>;
 }
+/** The move benefit stated for a cooked dish on Serebii's cooking table. */
+export interface CookingEffect {
+  description: string;
+  measure: string;
+  source: string;
+  retrievedAt: string;
+}
 /** A numbered in-game set an item belongs to. Derived facts only. */
 export interface ItemCollection {
   set: "music-cd";
@@ -115,6 +122,7 @@ export interface Item {
   recipe?: { name: string; quantity: number }[];
   recipeLocation?: string | null;
   recipeSpecialty?: string | null;
+  cookingEffect?: CookingEffect;
   event?: string | null;
   recipeMeta?: ItemRecipeMeta;
 }

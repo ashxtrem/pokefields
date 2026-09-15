@@ -1,5 +1,5 @@
 {
-  "version": "2026-09-10.4",
+  "version": "2026-09-15.2",
   "pokemon": [
     {
       "id": "bulbasaur",
@@ -78318,6 +78318,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "An ordinary salad made with leaves. Powers up Leafage when eaten.",
+        "measure": "40",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78368,6 +78374,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A sweet salad made with Leppa Berries. Powers up Leafage when eaten.",
+        "measure": "20",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78418,6 +78430,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter-tasting salad made with seaweed. Powers up Leafage when eaten.",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78465,6 +78483,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A sour salad made with finely chopped leaves. Powers up Leafage when eaten.",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78516,6 +78540,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A salad with a dry flavor, made with crushed Chesto Berries. Powers up Leafage when eaten.",
+        "measure": "80",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78566,6 +78596,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A spicy salad with a delightfully crunchy texture. Powers up Leafage when eaten.",
+        "measure": "80",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78612,6 +78648,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "An ordinary soup made with Fresh Water. Powers up Water Gun when eaten.",
+        "measure": "40",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78662,6 +78704,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter-tasting soup made with seaweed.. Powers up Water Gun when eaten.",
+        "measure": "20",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78712,6 +78760,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A soup with a dry flavor made with mushroom broth.. Powers up Water Gun when eaten.",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78759,6 +78813,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A shockingly spicy soup.. Powers up Water Gun when eaten.",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78813,6 +78873,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A spicy soup with an aromatic bean flavor.. Powers up Water Gun when eaten.",
+        "measure": "80",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78867,6 +78933,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A sour soup bursting with flavor. Powers up Water Gun when eaten.",
+        "measure": "80",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78913,6 +78985,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Ordinary wheat bread. Powers up Cut when eaten.",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -78963,6 +79041,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Sour-tasting bread made with Leppa Berry jam.. Powers up Cut when eaten.",
+        "measure": "20",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79013,6 +79097,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Spicy bread with an intense carrot flavor. Powers up Cut when eaten.",
+        "measure": "90",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79064,6 +79154,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Bitter-tasting bread made by reusing other bread. Powers up Cut when eaten",
+        "measure": "90",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79115,6 +79211,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Sweet bread made with Pecha Berries. Powers up cut when eaten.",
+        "measure": "120",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79166,6 +79268,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Spicy bread that's delicious even when burnt. Powers up Cut when eaten.",
+        "measure": "120",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79212,6 +79320,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "An ordinary hamburger steak, made with beans. Powers up Rock Smash when eaten.",
+        "measure": "350",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79262,6 +79376,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A hamburger steak with an intensely dry, mushroomy flavor. Powers up Rock Smash when eaten.",
+        "measure": "240",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79312,6 +79432,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A hamburger steak that brings out the sour flavor of its ingredients.. Powers up Rock Smash when eaten.",
+        "measure": "500",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79362,6 +79488,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A satisfyingly sweet hamburger steak. Powers up Rock Smash a lot when eaten.",
+        "measure": "500",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79416,6 +79548,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter-tasting hamberuger steak topped with leaves. Powers up Rock Smash when eaten",
+        "measure": "650",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79470,6 +79608,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A hamburger steak made with lots of ingredients. Powers up Rock Smash a lot when eaten",
+        "measure": "650",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79654,6 +79798,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter salad made with plenty of sea grapes. Powers up Leafage when eaten",
+        "measure": "60",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79704,6 +79854,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter soup that smells of the sea. Powers up Water Gun when eaten",
+        "measure": "20",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79754,6 +79910,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "Sweet bread made with watermelon. Powers up Cut when eaten",
+        "measure": "90",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79809,6 +79971,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A hamburger steak so spicy you'll leap out of your seat. Powers up Rock Smash a lot when eaten!",
+        "measure": "650",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79855,6 +80023,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A smoothie made with watermelon. Drink one to power up Surf.",
+        "measure": "20 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -79908,7 +80082,13 @@
       },
       "tags": [
         "water"
-      ]
+      ],
+      "cookingEffect": {
+        "description": "A dry-tasting smoothie with a springy, popping texture. Drink one to power up Surf.",
+        "measure": "22 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
+      }
     },
     {
       "id": "leppasmoothie",
@@ -79958,6 +80138,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A sweet smoothie made with Leppa Berries. Drink one to power up Surf",
+        "measure": "22 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -80009,6 +80195,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A smoothie so spicy it nearly burns your tongue. Drink one to power up Surf.",
+        "measure": "24 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -80063,6 +80255,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A sour, highly carbonated smoothie. Drink one to power up Surf.",
+        "measure": "26 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {
@@ -80117,6 +80315,12 @@
           "craftingIndex": false,
           "apiUnlock": false
         }
+      },
+      "cookingEffect": {
+        "description": "A bitter smoothie with a rich depth of flavor. Drink one to power up Surf.",
+        "measure": "26 min 20 seconds",
+        "source": "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+        "retrievedAt": "2026-09-15"
       }
     },
     {

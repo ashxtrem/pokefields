@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pokopia Companion - Multi-Card Island Planner Redesign</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans & Quicksand -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #f7f9f6;
+      color: #1e293b;
+    }
+    .font-brand {
+      font-family: 'Quicksand', system-ui, sans-serif;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Smooth card hover lift */
+    .card-hover {
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+    }
+    .card-hover:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px -5px rgba(22, 101, 52, 0.08);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-emerald-200 selection:text-emerald-900 text-slate-800 antialiased">
+
+  <header class="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-emerald-900/10 px-4 py-2.5 sm:px-6 shadow-xs">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Companion Nav -->
+      <div class="flex items-center gap-6">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-800 flex items-center justify-center text-white shadow-xs">
+            <i data-lucide="home" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <span class="font-brand font-bold text-lg text-slate-900 leading-tight">pokopia</span>
+            <span class="text-[10px] font-semibold text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded ml-1 border border-emerald-200">Companion</span>
+          </div>
+        </div>
+
+        <!-- Secondary Nav Links from actual app -->
+        <nav class="hidden md:flex items-center space-x-1 text-xs font-semibold text-slate-500">
+          <a href="#" class="px-2.5 py-1.5 rounded-lg hover:text-slate-800 hover:bg-slate-100 transition-colors">Pokédex</a>
+          <a href="#" class="px-2.5 py-1.5 rounded-lg hover:text-slate-800 hover:bg-slate-100 transition-colors">Items</a>
+          <a href="#" class="px-2.5 py-1.5 rounded-lg text-emerald-800 bg-emerald-50/80 font-bold border border-emerald-200/60 flex items-center gap-1">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-700"></i> House Planner
+          </a>
+        </nav>
+      </div>
+
+      <!-- Viewport & Filter Actions -->
+      <div class="flex items-center gap-2">
+        <!-- View Toggle (Desktop Grid vs Mobile Simulator vs Side-by-Side) -->
+        <div class="inline-flex p-1 bg-slate-100 rounded-xl border border-slate-200 text-xs font-semibold">
+          <button id="view-desktop" onclick="switchView('desktop')" class="px-3 py-1.5 rounded-lg bg-white text-emerald-900 shadow-xs transition-all flex items-center gap-1.5 font-bold">
+            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Desktop Grid</span>
+          </button>
+          <button id="view-split" onclick="switchView('split')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+            <i data-lucide="columns-2" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Side-by-Side</span>
+          </button>
+          <button id="view-mobile" onclick="switchView('mobile')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+            <span>Mobile</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-6">
+
+    <!-- Top Planner Hero & Stats Deck -->
+    <section class="bg-white rounded-3xl border border-emerald-900/10 p-5 sm:p-7 shadow-xs relative overflow-hidden">
+      <div class="absolute -right-6 -bottom-6 w-48 h-48 bg-gradient-to-br from-emerald-100/50 via-teal-50/30 to-transparent rounded-full pointer-events-none"></div>
+      
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+            Island Planner
+          </span>
+          <h2 class="font-brand font-bold text-2xl sm:text-3xl text-slate-900 mt-2">
+            Plan homes for your Pokémon.
+          </h2>
+          <p class="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
+            Multi-card layout with reduced vertical clutter, glanceable affinity tags, real-time item checklists, and equalized column cards.
+          </p>
+        </div>
+
+        <!-- Global Summary Counters -->
+        <div class="grid grid-cols-4 gap-2 sm:gap-3 bg-slate-50/90 border border-slate-200/80 p-3 rounded-2xl">
+          <div class="text-center px-2 py-1">
+            <span id="stat-homes" class="block text-lg sm:text-xl font-extrabold text-slate-800">5</span>
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">Homes</span>
+          </div>
+          <div class="text-center px-2 py-1 border-l border-slate-200">
+            <span id="stat-pokemon" class="block text-lg sm:text-xl font-extrabold text-slate-800">19</span>
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">Housed</span>
+          </div>
+          <div class="text-center px-2 py-1 border-l border-slate-200">
+            <span id="stat-furnishings" class="block text-lg sm:text-xl font-extrabold text-amber-700">18</span>
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">Items</span>
+          </div>
+          <div class="text-center px-2 py-1 border-l border-slate-200">
+            <span id="stat-progress" class="block text-lg sm:text-xl font-extrabold text-emerald-700">0%</span>
+            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-tight">Done</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-6 pt-5 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
+        <!-- Area Filter Tabs -->
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <span class="text-xs font-bold text-slate-400 mr-1 hidden sm:inline">Filter Area:</span>
+          <button onclick="filterArea('all')" class="area-pill px-3 py-1 rounded-xl text-xs font-bold bg-emerald-800 text-white shadow-xs transition-all" data-area="all">All (5)</button>
+          <button onclick="filterArea('Area 1')" class="area-pill px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" data-area="Area 1">Area 1 (2)</button>
+          <button onclick="filterArea('Cave')" class="area-pill px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" data-area="Cave">Cave (1)</button>
+          <button onclick="filterArea('Cliff')" class="area-pill px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" data-area="Cliff">Cliff (1)</button>
+          <button onclick="filterArea('Floor')" class="area-pill px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all" data-area="Floor">Floor (1)</button>
+        </div>
+
+        <!-- Density & Action Buttons -->
+        <div class="flex items-center gap-2">
+          <!-- Density Toggle -->
+          <div class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200 text-xs">
+            <button id="density-detailed" onclick="setDensity('detailed')" class="px-2.5 py-1 rounded-lg bg-white font-bold text-slate-800 shadow-2xs transition-all">Detailed</button>
+            <button id="density-compact" onclick="setDensity('compact')" class="px-2.5 py-1 rounded-lg text-slate-500 font-semibold hover:text-slate-800 transition-all">Compact</button>
+          </div>
+
+          <!-- Add Home Action -->
+          <button onclick="simulateAction('Add Home Modal')" class="px-3.5 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            <span>Add Home</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <div id="workspace-container" class="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start">
+      
+      <!-- ================= DESKTOP MULTI-CARD GRID ================= -->
+      <section id="desktop-grid-wrapper" class="xl:col-span-12 space-y-6 transition-all duration-300">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <h3 class="font-brand font-bold text-slate-900 text-lg">Configured Homes</h3>
+            <span class="text-xs font-medium text-slate-400">• Click items to check off or hover Pokémon for affinities</span>
+          </div>
+          <button onclick="toggleCheckAll()" class="text-xs font-bold text-emerald-800 hover:underline flex items-center gap-1">
+            <i data-lucide="check-check" class="w-3.5 h-3.5"></i> Mark all items complete
+          </button>
+        </div>
+
+        <!-- Render Target for Desktop Cards by Area Groups -->
+        <div id="desktop-areas-container" class="space-y-8">
+          <!-- Injected dynamically by JS -->
+        </div>
+      </section>
+
+      <!-- ================= MOBILE VIEWPORT SIMULATOR ================= -->
+      <section id="mobile-shell-wrapper" class="hidden xl:col-span-4 transition-all duration-300">
+        <div class="flex items-center justify-between mb-3 px-1">
+          <div class="flex items-center gap-2">
+            <span class="p-1 rounded-lg bg-slate-200 text-slate-700">
+              <i data-lucide="smartphone" class="w-4 h-4"></i>
+            </span>
+            <h3 class="font-bold text-slate-800 text-sm">Mobile View Preview</h3>
+          </div>
+          <span class="text-[11px] text-slate-400">iPhone 15 frame</span>
+        </div>
+
+        <!-- Mobile Phone Container -->
+        <div class="mx-auto max-w-[390px] rounded-[44px] p-3.5 bg-slate-900 shadow-2xl border-4 border-slate-800 ring-1 ring-white/10">
+          <div class="bg-[#fbfcfa] rounded-[34px] overflow-hidden min-h-[690px] flex flex-col justify-between border border-slate-200/50 relative">
+            
+            <!-- Dynamic Island Header -->
+            <div class="h-6 bg-transparent flex items-center justify-between px-6 pt-2 text-[11px] font-bold text-slate-600">
+              <span>9:41</span>
+              <div class="w-20 h-3.5 bg-slate-900 rounded-full"></div>
+              <div class="flex items-center gap-1.5 text-slate-500">
+                <i data-lucide="wifi" class="w-3 h-3"></i>
+                <i data-lucide="battery" class="w-3.5 h-3.5"></i>
+              </div>
+            </div>
+
+            <!-- Mobile App Bar -->
+            <div class="px-4 py-2.5 bg-white/90 backdrop-blur border-b border-slate-200/70 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg bg-emerald-800 flex items-center justify-center text-white">
+                  <i data-lucide="home" class="w-4 h-4"></i>
+                </div>
+                <div>
+                  <h4 class="font-brand font-bold text-sm text-slate-900">Island Planner</h4>
+                  <p class="text-[10px] text-slate-400">5 homes configured</p>
+                </div>
+              </div>
+              <button onclick="simulateAction('Add Home')" class="p-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+
+            <!-- Mobile Filter Chip Bar -->
+            <div class="px-3 py-2 bg-slate-50/80 border-b border-slate-100 flex items-center gap-1.5 overflow-x-auto no-scrollbar text-[11px]">
+              <span class="px-2.5 py-1 rounded-full bg-emerald-800 text-white font-bold">All (5)</span>
+              <span class="px-2.5 py-1 rounded-full bg-white text-slate-600 border border-slate-200">Area 1</span>
+              <span class="px-2.5 py-1 rounded-full bg-white text-slate-600 border border-slate-200">Cave</span>
+              <span class="px-2.5 py-1 rounded-full bg-white text-slate-600 border border-slate-200">Cliff</span>
+            </div>
+
+            <!-- Mobile Scrollable Cards -->
+            <div id="mobile-cards-list" class="flex-1 overflow-y-auto p-3 space-y-3.5 max-h-[510px]">
+              <!-- Injected dynamically by JS -->
+            </div>
+
+            <!-- Mobile Bottom Safe Dock -->
+            <div class="p-3 bg-white/95 backdrop-blur border-t border-slate-200 flex items-center justify-between">
+              <div>
+                <span class="text-[10px] text-slate-400 font-medium">Placement Progress</span>
+                <p id="mb-global-status" class="text-xs font-bold text-emerald-800">0 of 18 placed</p>
+              </div>
+              <button onclick="simulateAction('Save Island Plan')" class="px-3.5 py-1.5 bg-emerald-800 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-emerald-900 transition-all flex items-center gap-1">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+                <span>Save All</span>
+              </button>
+            </div>
+
+            <!-- Bottom Indicator -->
+            <div class="h-3.5 flex items-center justify-center pb-1">
+              <div class="w-24 h-1 bg-slate-300 rounded-full"></div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <section class="bg-white rounded-3xl border border-slate-200/80 p-6 shadow-xs space-y-5">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-amber-800">
+          <i data-lucide="lightbulb" class="w-4 h-4"></i>
+        </div>
+        <h3 class="font-brand font-bold text-slate-900 text-base">Key Architectural Fixes for Multi-Card Screens</h3>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+          <span class="font-bold text-slate-900 text-sm flex items-center gap-1">
+            <i data-lucide="minimize-2" class="w-3.5 h-3.5 text-emerald-700"></i> Bottom Action Bar
+          </span>
+          <p class="text-slate-600 leading-relaxed">
+            Replaced the two full-width stacked buttons (which took up ~120px height per card) with a streamlined 1-row dock: compact text button for <em>Housemates</em> and icon trigger for <em>Change Home</em>.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+          <span class="font-bold text-slate-900 text-sm flex items-center gap-1">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-sky-700"></i> Avatar Strip + Tooltips
+          </span>
+          <p class="text-slate-600 leading-relaxed">
+            Eliminated the redundant paragraph of names (<span class="italic text-slate-500">"Slowbro, Slowpoke, Goomy..."</span>) under sprites. Sprites now render in a connected avatar tray with names on hover.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+          <span class="font-bold text-slate-900 text-sm flex items-center gap-1">
+            <i data-lucide="tag" class="w-3.5 h-3.5 text-amber-700"></i> Scannable Tag Chips
+          </span>
+          <p class="text-slate-600 leading-relaxed">
+            Replaced dot-delimited sentences (<code class="bg-slate-200 px-1 py-0.5 rounded text-[10px]">Cleanliness · Cute stuff</code>) with neat micro-tags. Badges preserve vertical alignment even when items have 4+ tags.
+          </p>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-1.5">
+          <span class="font-bold text-slate-900 text-sm flex items-center gap-1">
+            <i data-lucide="sliders" class="w-3.5 h-3.5 text-violet-700"></i> Density & Area Grouping
+          </span>
+          <p class="text-slate-600 leading-relaxed">
+            Players can switch to <strong>Compact Mode</strong> to collapse the long item checklists into quick progress rings, perfect when checking the entire island's capacity at once.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="fixed bottom-6 right-6 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-slate-700">
+    <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">Action triggered</span>
+  </div>
+
+  <script>
+    // Exact realistic dataset from user's full multi-card screenshot
+    const HOMES_DATA = [
+      {
+        id: "home-1",
+        area: "Area 1",
+        kitName: "Yellow hut kit",
+        weather: "Humid",
+        weatherIcon: "cloud-rain",
+        weatherColor: "sky",
+        pokemon: [
+          { name: "Slowbro", id: 80, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/80.png", type: "Water/Psychic" },
+          { name: "Slowpoke", id: 79, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/79.png", type: "Water/Psychic" },
+          { name: "Goomy", id: 704, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/704.png", type: "Dragon" },
+          { name: "Squirtle", id: 7, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/7.png", type: "Water" }
+        ],
+        sharedPreferences: ["Water-friendly", "Relaxed pace", "Damp terrain"],
+        furnishings: [
+          { name: "Bouncy blue bathtub", qty: 1, icon: "bath", tags: ["Cleanliness", "Cute stuff", "Lots of water", "Strange stuff"], checked: false },
+          { name: "Antique bed", qty: 1, icon: "bed-double", tags: ["Group activities", "Luxury", "Soft stuff"], checked: false },
+          { name: "Berry basket", qty: 1, icon: "apple", tags: ["Lots of nature"], checked: false },
+          { name: "First aid kit", qty: 1, icon: "cross", tags: ["Healing"], checked: false }
+        ]
+      },
+      {
+        id: "home-2",
+        area: "Area 1",
+        kitName: "Yellow hut kit",
+        weather: "Bright",
+        weatherIcon: "sun",
+        weatherColor: "amber",
+        pokemon: [
+          { name: "Scyther", id: 123, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/123.png", type: "Bug/Flying" },
+          { name: "Pinsir", id: 127, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/127.png", type: "Bug" },
+          { name: "Heracross", id: 214, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/214.png", type: "Bug/Fighting" },
+          { name: "Combee", id: 415, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/415.png", type: "Bug/Flying" }
+        ],
+        sharedPreferences: ["Bright sunlight", "Open breeze", "Tall foliage"],
+        furnishings: [
+          { name: "Berry wall decoration", qty: 1, icon: "image", tags: ["Gatherings", "Looks like food", "Lots of nature"], checked: false },
+          { name: "Antique sofa", qty: 1, icon: "armchair", tags: ["Group activities", "Wooden stuff"], checked: false },
+          { name: "Air conditioner", qty: 1, icon: "wind", tags: ["Nice breezes"], checked: false },
+          { name: "Beach volleyball set", qty: 1, icon: "volleyball", tags: ["Exercise"], checked: false },
+          { name: "Beautiful flower", qty: 1, icon: "flower-2", tags: ["Pretty flowers"], checked: false },
+          { name: "Excavation tools", qty: 1, icon: "pickaxe", tags: ["Sharp stuff"], checked: false }
+        ]
+      },
+      {
+        id: "home-3",
+        area: "Cave",
+        kitName: "Cave shelter kit",
+        weather: "Dim",
+        weatherIcon: "moon",
+        weatherColor: "indigo",
+        pokemon: [
+          { name: "Zubat", id: 41, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/41.png", type: "Poison/Flying" },
+          { name: "Geodude", id: 74, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/74.png", type: "Rock/Ground" },
+          { name: "Noibat", id: 714, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/714.png", type: "Flying/Dragon" }
+        ],
+        sharedPreferences: ["Dark places", "Echo acoustics", "Sturdy rock"],
+        furnishings: [
+          { name: "Stalagmite lantern", qty: 1, icon: "flame", tags: ["Dim light", "Rockcraft"], checked: false },
+          { name: "Miner campfire", qty: 1, icon: "campfire", tags: ["Warmth", "Cooking"], checked: false },
+          { name: "Cozy hammock", qty: 1, icon: "bed", tags: ["Soft stuff", "Hanging"], checked: false }
+        ]
+      },
+      {
+        id: "home-4",
+        area: "Cliff",
+        kitName: "Peak lookout kit",
+        weather: "Breezy",
+        weatherIcon: "wind",
+        weatherColor: "teal",
+        pokemon: [
+          { name: "Pidgeot", id: 18, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/18.png", type: "Normal/Flying" },
+          { name: "Gligar", id: 207, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/207.png", type: "Ground/Flying" },
+          { name: "Rowlet", id: 722, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/722.png", type: "Grass/Flying" },
+          { name: "Rufflet", id: 627, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/627.png", type: "Normal/Flying" }
+        ],
+        sharedPreferences: ["High altitude", "Panoramic view", "Clean wind"],
+        furnishings: [
+          { name: "Wind chime perch", qty: 1, icon: "bell", tags: ["Nice breezes", "Perch spot"], checked: false },
+          { name: "Telescope mount", qty: 1, icon: "eye", tags: ["High places", "Star watching"], checked: false }
+        ]
+      },
+      {
+        id: "home-5",
+        area: "Floor",
+        kitName: "Meadow cottage kit",
+        weather: "Warm",
+        weatherIcon: "sun-medium",
+        weatherColor: "orange",
+        pokemon: [
+          { name: "Oddish", id: 43, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/43.png", type: "Grass/Poison" },
+          { name: "Bellsprout", id: 69, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/69.png", type: "Grass/Poison" },
+          { name: "Budew", id: 406, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/406.png", type: "Grass/Poison" },
+          { name: "Cottonee", id: 546, sprite: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/546.png", type: "Grass/Fairy" }
+        ],
+        sharedPreferences: ["Rich loam", "Sweet pollen", "Gentle watering"],
+        furnishings: [
+          { name: "Watering spout", qty: 1, icon: "droplet", tags: ["Lots of water", "Gardening"], checked: false },
+          { name: "Wooden planter bed", qty: 1, icon: "tree-pine", tags: ["Lots of nature", "Soft dirt"], checked: false },
+          { name: "Berry feeding plate", qty: 1, icon: "apple", tags: ["Food store"], checked: false }
+        ]
+      }
+    ];
+
+    let currentArea = 'all';
+    let currentDensity = 'detailed'; // 'detailed' | 'compact'
+    let currentLayout = 'desktop';   // 'desktop' | 'split' | 'mobile'
+
+    function switchView(mode) {
+      currentLayout = mode;
+      const deskWrap = document.getElementById('desktop-grid-wrapper');
+      const mobWrap = document.getElementById('mobile-shell-wrapper');
+      
+      const btnDesk = document.getElementById('view-desktop');
+      const btnSplit = document.getElementById('view-split');
+      const btnMob = document.getElementById('view-mobile');
+
+      // Reset styles
+      [btnDesk, btnSplit, btnMob].forEach(b => {
+        b.className = "px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition-all flex items-center gap-1.5";
+      });
+
+      if (mode === 'desktop') {
+        btnDesk.className = "px-3 py-1.5 rounded-lg bg-white text-emerald-900 font-bold shadow-xs transition-all flex items-center gap-1.5";
+        deskWrap.className = "xl:col-span-12 block space-y-6 transition-all duration-300";
+        mobWrap.className = "hidden";
+      } else if (mode === 'split') {
+        btnSplit.className = "px-3 py-1.5 rounded-lg bg-white text-emerald-900 font-bold shadow-xs transition-all flex items-center gap-1.5";
+        deskWrap.className = "xl:col-span-8 block space-y-6 transition-all duration-300";
+        mobWrap.className = "xl:col-span-4 block transition-all duration-300";
+      } else if (mode === 'mobile') {
+        btnMob.className = "px-3 py-1.5 rounded-lg bg-white text-emerald-900 font-bold shadow-xs transition-all flex items-center gap-1.5";
+        deskWrap.className = "hidden";
+        mobWrap.className = "xl:col-span-12 block max-w-md mx-auto transition-all duration-300";
+      }
+      renderAll();
+    }
+
+    function filterArea(area) {
+      currentArea = area;
+      document.querySelectorAll('.area-pill').forEach(btn => {
+        if (btn.dataset.area === area) {
+          btn.className = "area-pill px-3 py-1 rounded-xl text-xs font-bold bg-emerald-800 text-white shadow-xs transition-all";
+        } else {
+          btn.className = "area-pill px-3 py-1 rounded-xl text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all";
+        }
+      });
+      renderAll();
+    }
+
+    function setDensity(density) {
+      currentDensity = density;
+      const bDet = document.getElementById('density-detailed');
+      const bComp = document.getElementById('density-compact');
+      if (density === 'detailed') {
+        bDet.className = "px-2.5 py-1 rounded-lg bg-white font-bold text-slate-800 shadow-2xs transition-all";
+        bComp.className = "px-2.5 py-1 rounded-lg text-slate-500 font-semibold hover:text-slate-800 transition-all";
+      } else {
+        bComp.className = "px-2.5 py-1 rounded-lg bg-white font-bold text-slate-800 shadow-2xs transition-all";
+        bDet.className = "px-2.5 py-1 rounded-lg text-slate-500 font-semibold hover:text-slate-800 transition-all";
+      }
+      renderAll();
+    }
+
+    function toggleItem(homeId, itemIndex) {
+      const home = HOMES_DATA.find(h => h.id === homeId);
+      if (home && home.furnishings[itemIndex]) {
+        home.furnishings[itemIndex].checked = !home.furnishings[itemIndex].checked;
+        renderAll();
+      }
+    }
+
+    function toggleCheckAll() {
+      const allItems = HOMES_DATA.flatMap(h => h.furnishings);
+      const allDone = allItems.every(i => i.checked);
+      allItems.forEach(i => i.checked = !allDone);
+      renderAll();
+      showToast(allDone ? "Reset item checklist" : "Marked all items as placed!");
+    }
+
+    function renderDesktopCards() {
+      const container = document.getElementById('desktop-areas-container');
+      const filtered = currentArea === 'all' 
+        ? HOMES_DATA 
+        : HOMES_DATA.filter(h => h.area === currentArea);
+
+      // Group by Area
+      const groups = {};
+      filtered.forEach(h => {
+        if (!groups[h.area]) groups[h.area] = [];
+        groups[h.area].push(h);
+      });
+
+      let html = '';
+
+      for (const [areaName, homes] of Object.entries(groups)) {
+        html += `
+          <div class="space-y-3">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+              <h4 class="font-brand font-bold text-slate-700 text-sm tracking-wide uppercase">${areaName} (${homes.length})</h4>
+              <div class="flex-1 h-px bg-slate-200/80"></div>
+            </div>
+
+            <div class="grid grid-cols-1 ${currentLayout === 'split' ? 'md:grid-cols-1' : 'md:grid-cols-2'} gap-5">
+              ${homes.map(home => renderSingleDesktopCard(home)).join('')}
+            </div>
+          </div>
+        `;
+      }
+
+      container.innerHTML = html;
+    }
+
+    function renderSingleDesktopCard(home) {
+      const placedCount = home.furnishings.filter(f => f.checked).length;
+      const totalCount = home.furnishings.length;
+      const pct = Math.round((placedCount / totalCount) * 100);
+      const isComplete = placedCount === totalCount;
+
+      return `
+        <div class="bg-white rounded-3xl border ${isComplete ? 'border-emerald-300 ring-1 ring-emerald-400/20' : 'border-slate-200/80'} shadow-2xs card-hover flex flex-col justify-between overflow-hidden">
+          
+          <!-- Card Header Section -->
+          <div class="p-4 sm:p-5 border-b border-slate-100 bg-gradient-to-r from-slate-50/60 to-white flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="relative w-11 h-11 rounded-2xl bg-amber-100/70 border border-amber-200 p-1 flex items-center justify-center shrink-0">
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" alt="home" class="w-8 h-8 object-contain" />
+                <span class="absolute -bottom-1 -right-1 text-[9px] font-extrabold bg-emerald-800 text-white px-1.5 py-0.2 rounded-full">
+                  Lv.2
+                </span>
+              </div>
+              <div>
+                <div class="flex items-center gap-2 flex-wrap">
+                  <h4 class="font-brand font-bold text-slate-900 text-base leading-tight">${home.kitName}</h4>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-${home.weatherColor}-50 text-${home.weatherColor}-800 border border-${home.weatherColor}-200">
+                    <i data-lucide="${home.weatherIcon}" class="w-3 h-3"></i>
+                    ${home.weather}
+                  </span>
+                </div>
+                <!-- Mini Progress indicator -->
+                <p class="text-[11px] text-slate-500 mt-0.5 flex items-center gap-1.5">
+                  <span>${home.pokemon.length} Pokémon</span>
+                  <span>•</span>
+                  <span class="${isComplete ? 'text-emerald-700 font-bold' : 'text-slate-600'}">${placedCount}/${totalCount} placed</span>
+                </p>
+              </div>
+            </div>
+
+            <!-- Header Quick Icon Menu -->
+            <div class="flex items-center gap-1">
+              <button onclick="simulateAction('Edit Home')" title="Change Home" class="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors">
+                <i data-lucide="edit-3" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Pokemon Avatars Tray (Eliminated redundant text line!) -->
+          <div class="px-5 pt-3 pb-2 bg-emerald-50/20 flex items-center justify-between border-b border-slate-100/80">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Housemates</span>
+            <div class="flex items-center gap-1.5">
+              ${home.pokemon.map(p => `
+                <div class="group relative flex items-center justify-center w-9 h-9 rounded-xl bg-white border border-slate-200/90 hover:border-emerald-500 hover:scale-110 transition-all cursor-pointer shadow-2xs">
+                  <img src="${p.sprite}" alt="${p.name}" class="w-8 h-8 object-contain" />
+                  <!-- Tooltip -->
+                  <div class="absolute bottom-full mb-1 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center bg-slate-900 text-white text-[10px] font-semibold py-1 px-2 rounded-lg whitespace-nowrap z-30 shadow-md">
+                    <span>${p.name}</span>
+                    <span class="text-[8px] text-slate-400 font-normal">${p.type}</span>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+
+          <!-- Preferences Pill Strip -->
+          <div class="px-5 py-2.5 flex items-center gap-1.5 flex-wrap border-b border-slate-100 text-[11px]">
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tight mr-1">Shared:</span>
+            ${home.sharedPreferences.map(t => `
+              <span class="px-2 py-0.5 rounded-md bg-slate-100/90 text-slate-600 font-medium text-[10px]">
+                ${t}
+              </span>
+            `).join('')}
+          </div>
+
+          ${currentDensity === 'detailed' ? `
+            <!-- Furnishing Items Checklist -->
+            <div class="p-4 sm:p-5 space-y-2 flex-1">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Furnishings Needed (${home.furnishings.length})</span>
+                <span class="text-[10px] text-emerald-800 font-semibold">${pct}% Done</span>
+              </div>
+
+              <div class="space-y-1.5">
+                ${home.furnishings.map((item, idx) => `
+                  <div onclick="toggleItem('${home.id}', ${idx})" class="group p-2 rounded-xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    item.checked 
+                      ? 'bg-emerald-50/50 border-emerald-200 text-emerald-900' 
+                      : 'bg-white border-slate-200/70 hover:border-slate-300 text-slate-800'
+                  }">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <!-- Badge overlay thumbnail -->
+                      <div class="relative w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0">
+                        <i data-lucide="${item.icon}" class="w-4 h-4 text-slate-600"></i>
+                        <span class="absolute -top-1.5 -left-1.5 px-1 py-0.2 rounded bg-slate-800 text-white text-[8px] font-bold">
+                          ${item.qty}×
+                        </span>
+                      </div>
+                      <div class="min-w-0">
+                        <span class="text-xs font-bold truncate block ${item.checked ? 'line-through text-slate-400' : 'text-slate-800'}">
+                          ${item.name}
+                        </span>
+                        <!-- Chips -->
+                        <div class="flex flex-wrap gap-1 mt-0.5">
+                          ${item.tags.map(tag => `
+                            <span class="px-1.5 py-0.2 text-[9px] rounded bg-slate-100 text-slate-600 font-medium">
+                              ${tag}
+                            </span>
+                          `).join('')}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Check Circle -->
+                    <div class="w-5 h-5 rounded-full shrink-0 flex items-center justify-center ${
+                      item.checked ? 'bg-emerald-700 text-white' : 'border border-slate-300 group-hover:border-slate-400'
+                    }">
+                      ${item.checked ? '<i data-lucide="check" class="w-3 h-3 stroke-[3]"></i>' : ''}
+                    </div>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          ` : `
+            <!-- Compact Summary Strip for Fast Overview -->
+            <div class="p-4 flex items-center justify-between">
+              <div>
+                <p class="text-xs font-bold text-slate-700">${home.furnishings.length} Furnishings Assigned</p>
+                <p class="text-[11px] text-slate-400">${home.furnishings.map(f => f.name).slice(0, 2).join(', ')}...</p>
+              </div>
+              <div class="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                <div class="h-full bg-emerald-600 rounded-full transition-all" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `}
+
+          <div class="p-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2 mt-auto">
+            <button onclick="simulateAction('Change Home: ${home.kitName}')" class="px-3 py-1.5 rounded-xl border border-slate-200/90 text-slate-600 hover:text-slate-900 bg-white text-xs font-bold hover:border-slate-300 transition-colors flex items-center gap-1.5 shadow-2xs">
+              <i data-lucide="building" class="w-3.5 h-3.5 text-slate-400"></i>
+              <span>Change Home</span>
+            </button>
+            <button onclick="simulateAction('Change Housemates for ${home.kitName}')" class="px-3 py-1.5 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5">
+              <i data-lucide="users" class="w-3.5 h-3.5"></i>
+              <span>Housemates</span>
+            </button>
+          </div>
+
+        </div>
+      `;
+    }
+
+    function renderMobileCards() {
+      const container = document.getElementById('mobile-cards-list');
+      const filtered = currentArea === 'all' 
+        ? HOMES_DATA 
+        : HOMES_DATA.filter(h => h.area === currentArea);
+
+      container.innerHTML = filtered.map(home => {
+        const placedCount = home.furnishings.filter(f => f.checked).length;
+        const totalCount = home.furnishings.length;
+        const isComplete = placedCount === totalCount;
+
+        return `
+          <div class="bg-white rounded-2xl border ${isComplete ? 'border-emerald-300' : 'border-slate-200/80'} shadow-2xs p-3 space-y-2.5">
+            
+            <!-- Mobile Card Header with compact layout -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center shrink-0">
+                  <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" class="w-5 h-5 object-contain" />
+                </div>
+                <div>
+                  <div class="flex items-center gap-1.5">
+                    <h5 class="text-xs font-bold text-slate-900">${home.kitName}</h5>
+                    <span class="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-${home.weatherColor}-50 text-${home.weatherColor}-700 border border-${home.weatherColor}-200">
+                      ${home.weather}
+                    </span>
+                  </div>
+                  <p class="text-[10px] text-slate-400">${home.area} • ${placedCount}/${totalCount} placed</p>
+                </div>
+              </div>
+
+              <!-- Top right actions -->
+              <button onclick="simulateAction('Change Housemates')" class="p-1 rounded-lg bg-emerald-50 text-emerald-800">
+                <i data-lucide="users" class="w-3.5 h-3.5"></i>
+              </button>
+            </div>
+
+            <!-- Horizontal Sprite Row -->
+            <div class="flex items-center justify-between gap-1 p-1.5 bg-slate-50 rounded-xl border border-slate-100">
+              ${home.pokemon.map(p => `
+                <div class="flex flex-col items-center">
+                  <img src="${p.sprite}" alt="${p.name}" class="w-7 h-7 object-contain" />
+                  <span class="text-[8px] font-semibold text-slate-600 truncate max-w-[50px]">${p.name}</span>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Compact Furnishings List -->
+            <div class="space-y-1">
+              ${home.furnishings.slice(0, 3).map((item, idx) => `
+                <div onclick="toggleItem('${home.id}', ${idx})" class="flex items-center justify-between p-1.5 rounded-lg border text-xs cursor-pointer ${
+                  item.checked ? 'bg-emerald-50 border-emerald-200' : 'bg-white border-slate-200/60'
+                }">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-[9px] font-bold bg-slate-100 px-1 py-0.2 rounded text-slate-700">${item.qty}×</span>
+                    <span class="text-[11px] truncate ${item.checked ? 'line-through text-slate-400' : 'font-medium text-slate-800'}">
+                      ${item.name}
+                    </span>
+                  </div>
+                  <div class="w-4 h-4 rounded-full flex items-center justify-center shrink-0 ${
+                    item.checked ? 'bg-emerald-700 text-white' : 'border border-slate-300'
+                  }">
+                    ${item.checked ? '<i data-lucide="check" class="w-2.5 h-2.5 stroke-[3]"></i>' : ''}
+                  </div>
+                </div>
+              `).join('')}
+              ${home.furnishings.length > 3 ? `
+                <p class="text-[10px] text-center text-slate-400 pt-0.5">+ ${home.furnishings.length - 3} more items...</p>
+              ` : ''}
+            </div>
+
+            <!-- Single compact footer bar for mobile -->
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <button onclick="simulateAction('Change Home')" class="text-slate-500 font-bold hover:text-slate-800">Change Home</button>
+              <button onclick="simulateAction('Manage')" class="text-emerald-800 font-bold">Manage (4) →</button>
+            </div>
+
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateGlobalStats() {
+      const totalHomes = HOMES_DATA.length;
+      const totalPokemon = HOMES_DATA.reduce((acc, h) => acc + h.pokemon.length, 0);
+      const allFurnishings = HOMES_DATA.flatMap(h => h.furnishings);
+      const totalFurnishings = allFurnishings.length;
+      const placedFurnishings = allFurnishings.filter(f => f.checked).length;
+      const pct = totalFurnishings > 0 ? Math.round((placedFurnishings / totalFurnishings) * 100) : 0;
+
+      document.getElementById('stat-homes').textContent = totalHomes;
+      document.getElementById('stat-pokemon').textContent = totalPokemon;
+      document.getElementById('stat-furnishings').textContent = totalFurnishings;
+      document.getElementById('stat-progress').textContent = `${pct}%`;
+
+      const mbStatus = document.getElementById('mb-global-status');
+      if (mbStatus) {
+        mbStatus.textContent = `${placedFurnishings} of ${totalFurnishings} placed`;
+      }
+    }
+
+    function renderAll() {
+      renderDesktopCards();
+      renderMobileCards();
+      updateGlobalStats();
+      lucide.createIcons();
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-message');
+      text.textContent = msg;
+      toast.classList.remove('translate-y-20', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.add('translate-y-20', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 2200);
+    }
+
+    function simulateAction(name) {
+      showToast(`Action: ${name}`);
+    }
+
+    // Initialize application on window load
+    window.onload = () => {
+      renderAll();
+    };
+  </script>
+</body>
+</html>

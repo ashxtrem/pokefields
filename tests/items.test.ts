@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { Catalog } from "../src/catalog/types";
+import { recipesForOutputItem } from "../src/crafting/catalog";
 import { recipeHref } from "../src/crafting/types";
 import { locationTargetId } from "../src/items/locations";
 import { kitForItem, requiredByItem } from "../src/items/requiredBy";
@@ -178,6 +179,51 @@ describe("item directory routes", () => {
 });
 
 describe("item detail facts", () => {
+  it("gives every cooking output a documented ingredient list", () => {
+    const cookingItems = catalog.items.filter((item) =>
+      item.locations?.some((line) => /cook with ingredients/i.test(line)),
+    );
+
+    expect(cookingItems.length).toBeGreaterThan(0);
+    for (const item of cookingItems) {
+      const recipes = recipesForOutputItem(catalog, item.id);
+      expect(recipes).toHaveLength(1);
+      expect(recipes[0].kind).toBe("cook");
+      expect(recipes[0].ingredients.length).toBeGreaterThan(0);
+      expect(recipes[0].ingredients.every((ingredient) => ingredient.quantity > 0)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("keeps the documented count for Carrot bread's ingredients", () => {
+    const recipe = recipesForOutputItem(catalog, "carrotbread")[0]!;
+    expect(recipe.ingredients.map((ingredient) => ingredient.quantity)).toEqual([1, 1]);
+  });
+
+  it("keeps each cooking boost attached to its cooking-table source", () => {
+    const cookingItems = catalog.items.filter((item) =>
+      item.locations?.some((line) => /cook with ingredients/i.test(line)),
+    );
+
+    for (const item of cookingItems) {
+      expect(item.cookingEffect?.description).toMatch(/power(?:s)? up/i);
+      expect(item.cookingEffect?.measure).not.toBe("");
+      expect(item.cookingEffect?.source).toBe(
+        "https://www.serebii.net/pokemonpokopia/cooking.shtml",
+      );
+    }
+    expect(catalog.items.find((item) => item.id === "carrotbread")?.cookingEffect)
+      .toMatchObject({
+        description: expect.stringMatching(/Powers up Cut/i),
+        measure: "90",
+      });
+    expect(
+      catalog.items.find((item) => item.id === "potatohamburgersteak")
+        ?.cookingEffect?.description,
+    ).toMatch(/powers up Rock Smash a lot/i);
+  });
+
   it("links kit-sourced locations to the kit item", () => {
     expect(locationTargetId("Relaxing park kit (Build Kit)", catalog.items)).toBe(
       "relaxingparkkit",

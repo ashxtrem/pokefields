@@ -121,7 +121,9 @@ export function suggestHomeKit(
   occupants: number,
   catalog: Catalog,
 ): PlannableKit | null {
-  const fit = plannableKits(catalog.kits).filter((k) => k.capacity >= occupants);
+  const fit = plannableKits(catalog.kits).filter(
+    (k) => k.capacity >= occupants,
+  );
   if (!fit.length) return null;
   return [...fit].sort(
     (a, b) =>
@@ -208,10 +210,7 @@ function packEnvironment(
         candidate.id,
         remaining
           .filter((other) => other.id !== candidate.id)
-          .reduce(
-            (sum, other) => sum + favoriteOverlap([candidate], other),
-            0,
-          ),
+          .reduce((sum, other) => sum + favoriteOverlap([candidate], other), 0),
       ]),
     );
     remaining.sort(
@@ -310,7 +309,10 @@ export function recommendHousemates(
     };
   const pmap = pokemonMap(catalog);
   const maxCapacity = Math.max(0, ...usableKits.map((k) => k.capacity));
-  const effectiveCap = Math.max(0, Math.min(settings.maxResidents, maxCapacity));
+  const effectiveCap = Math.max(
+    0,
+    Math.min(settings.maxResidents, maxCapacity),
+  );
   if (effectiveCap < 1) {
     return {
       version: HOUSEMATE_PLAN_VERSION,
@@ -437,6 +439,21 @@ function assertKitCapacity(
   return kit;
 }
 
+export function setHomeCompleted(
+  plan: HousematePlan,
+  homeId: string,
+  completed: boolean,
+): HousematePlan {
+  const home = plan.homes.find((h) => h.id === homeId);
+  if (!home) throw Error("Choose a valid home.");
+  if (completed && !home.residents.length)
+    throw Error("Add residents before marking this home done.");
+  return touch({
+    ...plan,
+    homes: plan.homes.map((h) => (h.id === homeId ? { ...h, completed } : h)),
+  });
+}
+
 export function changeHomeKit(
   plan: HousematePlan,
   homeId: string,
@@ -448,7 +465,11 @@ export function changeHomeKit(
   assertKitCapacity(kitId, home.residents, catalog);
   return touch({
     ...plan,
-    homes: plan.homes.map((h) => (h.id === homeId ? { ...h, kitId } : h)),
+    homes: plan.homes.map((h) =>
+      h.id === homeId
+        ? { ...h, kitId, completed: h.kitId === kitId ? h.completed : false }
+        : h,
+    ),
   });
 }
 
@@ -470,7 +491,7 @@ export function splitResident(
   const homes = plan.homes
     .map((h) =>
       h.id === homeId
-        ? { ...h, residents: remaining }
+        ? { ...h, residents: remaining, completed: false }
         : { ...h, residents: [...h.residents] },
     )
     .filter((h) => h.residents.length);
@@ -497,6 +518,7 @@ export function moveResident(
   if (fromHome) {
     if (!fromHome.residents.includes(residentId))
       throw Error("Choose a valid resident.");
+    fromHome.completed = false;
     fromHome.residents = fromHome.residents.filter((id) => id !== residentId);
   } else if (!inUnresolved) throw Error("Choose a valid resident.");
   if (toId === "new") {
@@ -512,6 +534,7 @@ export function moveResident(
     if (!toHome) throw Error("Choose a valid destination.");
     if (toHome.residents.includes(residentId))
       throw Error("That Pokémon is already in this home.");
+    toHome.completed = false;
     toHome.residents.push(residentId);
     assertKitCapacity(toHome.kitId, toHome.residents, catalog);
   }
@@ -543,6 +566,8 @@ export function swapHousemates(
     throw Error("Choose a valid resident and destination.");
   a.residents = a.residents.filter((id) => id !== residentId);
   b.residents = b.residents.filter((id) => id !== otherId);
+  a.completed = false;
+  b.completed = false;
   a.residents.push(otherId);
   b.residents.push(residentId);
   assertKitCapacity(a.kitId, a.residents, catalog);
@@ -568,16 +593,18 @@ export function combinedSupplies(
     const residents = home.residents
       .map((id) => catalog.pokemon.find((p) => p.id === id))
       .filter((p): p is Pokemon => !!p);
-    furnishings(residents, catalog.items, envLevels).selected.forEach(({ item }) => {
-      const current = furnishingCounts.get(item.id) || {
-        name: item.name,
-        quantity: 0,
-        homeIds: [],
-      };
-      current.quantity += 1;
-      current.homeIds.push(home.id);
-      furnishingCounts.set(item.id, current);
-    });
+    furnishings(residents, catalog.items, envLevels).selected.forEach(
+      ({ item }) => {
+        const current = furnishingCounts.get(item.id) || {
+          name: item.name,
+          quantity: 0,
+          homeIds: [],
+        };
+        current.quantity += 1;
+        current.homeIds.push(home.id);
+        furnishingCounts.set(item.id, current);
+      },
+    );
   }
   return {
     construction: [...construction]
@@ -684,6 +711,9 @@ export function addHome(
   if (!kit) throw Error("Choose a supported home.");
   return touch({
     ...plan,
-    homes: [...plan.homes, { id: nextHomeId(plan.homes), kitId, residents: [] }],
+    homes: [
+      ...plan.homes,
+      { id: nextHomeId(plan.homes), kitId, residents: [] },
+    ],
   });
 }

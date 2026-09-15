@@ -403,6 +403,10 @@ function validateHousematePlan(
   )
     throw Error("Duplicated or unknown housemate.");
   for (const h of plan.homes) {
+    if (h.completed !== undefined && typeof h.completed !== "boolean")
+      throw Error("Invalid home completion mark.");
+    if (h.completed && !h.residents.length)
+      throw Error("An empty home cannot be marked done.");
     const k = plannableKitMap(catalog.kits).get(h.kitId);
     if (!k || !Array.isArray(h.residents) || h.residents.length > k.capacity)
       throw Error("A suggested home is missing or over capacity.");

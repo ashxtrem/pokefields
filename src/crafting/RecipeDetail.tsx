@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { ItemThumb } from "../ui/components";
 import { itemHref, itemsListHref } from "../items/tabs";
 import { ingredientCountLabel, summarizeLocations } from "./locations";
@@ -33,8 +34,25 @@ export function RecipeDetail({
       </a>
       <div className="crafting-detail-head">
         <ItemThumb id={recipe.outputItemId} name={recipe.outputName} large />
-        <div>
-          <h2>{recipe.outputName}</h2>
+        <div className="crafting-detail-copy">
+          <div className="crafting-detail-title-row">
+            <h2>{recipe.outputName}</h2>
+            <button
+              type="button"
+              className="detail-status-toggle"
+              aria-pressed={learned}
+              aria-label={
+                learned
+                  ? `Mark ${recipe.outputName} as not learned`
+                  : `Mark ${recipe.outputName} as learned`
+              }
+              title={learned ? "Marked learned" : "Mark as learned"}
+              disabled={!ready}
+              onClick={onToggleLearned}
+            >
+              {learned ? <Eye size={19} /> : <EyeOff size={19} />}
+            </button>
+          </div>
           <p className="crafting-cats">
             {recipe.categories.join(" · ") || "Uncategorized"}
           </p>
@@ -65,24 +83,6 @@ export function RecipeDetail({
         </div>
       ))}
 
-      <label className="crafting-learned-row">
-        <input
-          type="checkbox"
-          checked={learned}
-          disabled={!ready}
-          onChange={onToggleLearned}
-          aria-label={`${learned ? "Unmark" : "Mark"} ${recipe.outputName} learned`}
-        />
-        <span>I have learned this recipe</span>
-      </label>
-
-      {recipe.source ? (
-        <p className="crafting-source">
-          <a href={recipe.source} target="_blank" rel="noreferrer">
-            Source
-          </a>
-        </p>
-      ) : null}
     </article>
   );
 }
