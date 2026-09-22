@@ -1633,6 +1633,11 @@ input[type="checkbox"] {
   margin: 20px 0;
   font-size: 13px;
 }
+@media (max-width: 600px) {
+  .notebook-actions { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  .notebook-actions .button,
+  .notebook-actions .button.secondary { width: 100%; min-height: 44px; }
+}
 hr {
   border: 0;
   border-top: 1px solid #e4e8db;

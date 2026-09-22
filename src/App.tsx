@@ -415,7 +415,7 @@ export default function App() {
               {storageLocalItems.length} local item{storageLocalItems.length === 1 ? "" : "s"}
             </strong>
           </div>
-          <div className="button-row">
+          <div className="button-row notebook-actions">
             <button
               className="button secondary"
               onClick={() => setEditingEnvLevels(true)}
@@ -436,7 +436,7 @@ export default function App() {
               included in exports.
             </p>
           ) : null}
-          <div className="button-row">
+          <div className="button-row notebook-actions">
             <button className="button" onClick={exportFile}>
               <Download size={17} />
               Export backup
