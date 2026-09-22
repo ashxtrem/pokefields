@@ -1628,7 +1628,8 @@ input[type="checkbox"] {
 }
 .backup-stats {
   display: flex;
-  gap: 25px;
+  flex-wrap: wrap;
+  gap: 14px 25px;
   margin: 20px 0;
   font-size: 13px;
 }
