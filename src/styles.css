@@ -4372,3 +4372,43 @@ a.cooking-ingredient-row:hover {
   .storage-location-hero { max-width: 100%; width: 100%; }
   .storage-toolbar { flex-direction: column; align-items: stretch; }
 }
+.storage-hero-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.storage-guide-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid #d7ddcc;
+  border-radius: 8px;
+  background: #fffefa;
+  color: #52644b;
+  font-size: 12px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.storage-guide-button:hover { background: #edf1e6; }
+.storage-guide-image {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  object-position: top;
+  border: 1px solid #e1e5d9;
+  border-radius: 12px;
+  background: #f4f7ee;
+}
+.storage-guide h3 { margin-top: 16px; }
+.storage-guide-body p { margin: 8px 0; }
+.storage-guide-body ul { margin: 8px 0; padding-left: 20px; }
+.storage-guide-body li { margin: 4px 0; }
+.storage-guide-dots { display: flex; justify-content: center; gap: 7px; margin: 16px 0; }
+.storage-guide-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #dbe3d0;
+  padding: 0;
+}
+.storage-guide-dot.active { background: #35583f; width: 20px; border-radius: 5px; }
+@media (max-width: 600px) {
+  .storage-guide-image { max-height: 200px; }
+}

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { Package, Plus, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { HelpCircle, Package, Plus, Search } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { Empty, ItemThumb } from "../ui/components";
 import { CatalogReconciliationBanner } from "./CatalogReconciliationBanner";
 import { useStorage } from "./context";
 import { StorageImageThumb } from "./StorageImageThumb";
+import { hasSeenStorageGuide, markStorageGuideSeen, StorageGuide } from "./StorageGuide";
 import { chestsForItemRef, searchStorageItems, storageChestHref, storageNewHref } from "./search";
 import type { StorageChest, StorageItemRef } from "./types";
 
@@ -13,6 +14,14 @@ export function StoragePage({ route }: { route: { query: string } }) {
   const { chests, localItems, ready, unreadableChests, unreadableLocalItems } = useStorage();
   const [query, setQuery] = useState(() => new URLSearchParams(route.query).get("q") || "");
   const [regionFilter, setRegionFilter] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
+
+  useEffect(() => {
+    if (!hasSeenStorageGuide()) {
+      setShowGuide(true);
+      markStorageGuideSeen();
+    }
+  }, []);
 
   const results = useMemo(
     () => searchStorageItems(query, catalog, localItems),
@@ -28,12 +37,19 @@ export function StoragePage({ route }: { route: { query: string } }) {
   return (
     <div className="storage-page">
       <header className="storage-hero">
-        <h1>Storage</h1>
+        <div className="storage-hero-row">
+          <h1>Storage</h1>
+          <button type="button" className="storage-guide-button" onClick={() => setShowGuide(true)}>
+            <HelpCircle size={15} aria-hidden="true" />
+            Guide
+          </button>
+        </div>
         <p className="muted">
           Pokopia Fieldnotes remembers where you last recorded an item — search for it, or browse
           your chests below.
         </p>
       </header>
+      {showGuide ? <StorageGuide onClose={() => setShowGuide(false)} /> : null}
       <CatalogReconciliationBanner />
       <div className="search-row">
         <div className="search-box">
