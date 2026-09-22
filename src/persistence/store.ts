@@ -67,12 +67,23 @@ export const emptyState = (): SaveState => ({
 });
 class Database extends Dexie {
   state!: Table<{ id: string; value: SaveState }>;
+  /** Storage Locator tables — see src/storage/. Kept out of the `state` blob deliberately: large
+   * image blobs would otherwise make every small notebook update rewrite all of them. */
+  storageChests!: Table<Record<string, unknown>, string>;
+  storageLocalItems!: Table<Record<string, unknown>, string>;
+  storageImages!: Table<Record<string, unknown>, string>;
   constructor() {
     super("pokopia-fieldnotes");
     this.version(1).stores({ state: "id" });
+    this.version(2).stores({
+      state: "id",
+      storageChests: "id, regionId",
+      storageLocalItems: "id, normalizedName",
+      storageImages: "id, ownerId, kind",
+    });
   }
 }
-const db = new Database();
+export const db = new Database();
 export async function readState() {
   return (await db.state.get("main"))?.value || emptyState();
 }

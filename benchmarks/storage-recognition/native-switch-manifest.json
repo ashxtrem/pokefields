@@ -1,0 +1,78 @@
+{
+  "name": "Native Switch storage recognition MVP",
+  "description": "Two Big storage boxes captured directly on Switch 2. The benchmark searches the complete bundled item-image catalog. Truth labels were assigned by visual comparison before the final run.",
+  "input": {
+    "width": 1920,
+    "height": 1080,
+    "grid": {
+      "columns": 10,
+      "rows": 2,
+      "firstCenterX": 485,
+      "firstCenterY": 242,
+      "stepX": 106,
+      "stepY": 105,
+      "cropWidth": 92,
+      "cropHeight": 92
+    }
+  },
+  "pages": [
+    { "file": "159489.jpg", "chest": "A", "page": 1, "occupiedSlots": 20 },
+    { "file": "159481.jpg", "chest": "A", "page": 2, "occupiedSlots": 20 },
+    { "file": "159480.jpg", "chest": "A", "page": 3, "occupiedSlots": 20 },
+    { "file": "159483.jpg", "chest": "B", "page": 1, "occupiedSlots": 20 },
+    { "file": "159484.jpg", "chest": "B", "page": 2, "occupiedSlots": 20 },
+    { "file": "159485.jpg", "chest": "B", "page": 3, "occupiedSlots": 6 }
+  ],
+  "duplicates": [
+    { "file": "159487.jpg", "sameAs": "159485.jpg" },
+    { "file": "159488.jpg", "sameAs": "159484.jpg" },
+    { "file": "159490.jpg", "sameAs": "159489.jpg" },
+    { "file": "159491.jpg", "sameAs": "159481.jpg" }
+  ],
+  "annotations": [
+    {
+      "file": "159481.jpg",
+      "slot": 3,
+      "truthId": "castformweathercharm(rain)"
+    },
+    { "file": "159481.jpg", "slot": 4, "truthId": "eeveedoll" },
+    { "file": "159481.jpg", "slot": 5, "truthId": "pikachudoll" },
+    { "file": "159481.jpg", "slot": 6, "truthId": "dragonitedoll" },
+    { "file": "159481.jpg", "slot": 7, "truthId": "dittodoll" },
+    { "file": "159481.jpg", "slot": 8, "truthId": "substitutedoll" },
+    { "file": "159481.jpg", "slot": 10, "truthId": "slendercandle" },
+    { "file": "159481.jpg", "slot": 11, "truthId": "walltorch" },
+    { "file": "159481.jpg", "slot": 12, "truthId": "firepit" },
+    { "file": "159481.jpg", "slot": 15, "truthId": "concretepipe" },
+    { "file": "159483.jpg", "slot": 1, "truthId": "leafhutkit" },
+    { "file": "159483.jpg", "slot": 2, "truthId": "leafcottagekit" },
+    { "file": "159483.jpg", "slot": 3, "truthId": "sanddenkit" },
+    { "file": "159483.jpg", "slot": 5, "truthId": "stonehutkit" },
+    { "file": "159483.jpg", "slot": 6, "truthId": "cityhutkit" },
+    { "file": "159483.jpg", "slot": 10, "truthId": "pinkhutkit" },
+    { "file": "159483.jpg", "slot": 11, "truthId": "grayhutkit" },
+    { "file": "159483.jpg", "slot": 12, "truthId": "altarofflamekit" },
+    { "file": "159485.jpg", "slot": 2, "truthId": "rainbowfeather" },
+    { "file": "159485.jpg", "slot": 3, "truthId": "silverfeather" },
+    { "file": "159485.jpg", "slot": 4, "truthId": "beachposter" },
+    { "file": "159485.jpg", "slot": 5, "truthId": "securityposter" },
+    { "file": "159485.jpg", "slot": 6, "truthId": "oceanposter" },
+    { "file": "159489.jpg", "slot": 3, "truthId": "pencilholder" },
+    { "file": "159489.jpg", "slot": 7, "truthId": "bookcase" },
+    { "file": "159489.jpg", "slot": 9, "truthId": "laptop" },
+    { "file": "159489.jpg", "slot": 14, "truthId": "tabletopmic" },
+    { "file": "159489.jpg", "slot": 15, "truthId": "decorativepokeball" },
+    { "file": "159489.jpg", "slot": 16, "truthId": "whiteboard" },
+    { "file": "159489.jpg", "slot": 17, "truthId": "controlunit" }
+  ],
+  "retrieval": {
+    "histogramCandidates": 100,
+    "orbCandidates": 400,
+    "histogramWeight": 20
+  },
+  "gate": {
+    "minimumLabeledSlots": 30,
+    "minimumTop1Rate": 0.9,
+    "minimumTop3Rate": 0.98
+  }
+}

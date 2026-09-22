@@ -31,7 +31,7 @@ export function routeKey(route: string) {
   return tab ? `${path}?tab=${tab}` : path;
 }
 
-export type NavSection = "dex" | "habitats" | "planner" | "items";
+export type NavSection = "dex" | "habitats" | "planner" | "items" | "storage";
 
 export type ParsedRoute =
   | { page: "habitat-detail"; habitatId: string; query: string }
@@ -40,6 +40,9 @@ export type ParsedRoute =
   | { page: "items-recipe"; recipeId: string; query: string }
   | { page: "item-detail"; itemId: string; query: string }
   | { page: "items"; query: string }
+  | { page: "storage-chest"; chestId: string; query: string }
+  | { page: "storage-new"; query: string }
+  | { page: "storage"; query: string }
   | { page: "pokemon"; id: string; query: string }
   | { page: "dex"; query: string };
 
@@ -48,6 +51,7 @@ export const SECTION_LIST_HREF: Record<NavSection, string> = {
   habitats: "#/habitats",
   planner: "#/planner",
   items: "#/items",
+  storage: "#/storage",
 };
 
 const SECTION_ROUTES_KEY = "pkm.nav.sections";
@@ -102,6 +106,19 @@ export function parseRoute(hash: string): ParsedRoute {
   if (path === "crafting" || path.startsWith("crafting")) {
     return { page: "items" as const, query: withCraftingTab(query) };
   }
+  if (path.startsWith("storage/new")) {
+    return { page: "storage-new" as const, query };
+  }
+  if (path.startsWith("storage/") && path !== "storage/") {
+    return {
+      page: "storage-chest" as const,
+      chestId: decodeURIComponent(path.slice("storage/".length)),
+      query,
+    };
+  }
+  if (path === "storage" || path.startsWith("storage")) {
+    return { page: "storage" as const, query };
+  }
   if (path.startsWith("items/") && path !== "items") {
     return {
       page: "item-detail" as const,
@@ -143,12 +160,14 @@ export function navSection(route: string): NavSection {
   if (page === "planner") return "planner";
   if (page === "items" || page === "items-recipe" || page === "item-detail")
     return "items";
+  if (page === "storage" || page === "storage-new" || page === "storage-chest")
+    return "storage";
   return "dex";
 }
 
 function asNavSection(value: string): NavSection | null {
   if (value === "crafting" || value === "items") return "items";
-  if (value === "dex" || value === "habitats" || value === "planner")
+  if (value === "dex" || value === "habitats" || value === "planner" || value === "storage")
     return value;
   return null;
 }
@@ -204,6 +223,7 @@ export function isRememberedRouteAvailable(
     hasHabitat: (id: string) => boolean;
     hasRecipe?: (id: string) => boolean;
     hasItem?: (id: string) => boolean;
+    hasChest?: (id: string) => boolean;
   },
 ) {
   const parsed = parseRoute(route);
@@ -215,6 +235,8 @@ export function isRememberedRouteAvailable(
     return Boolean(parsed.recipeId) && (options.hasRecipe?.(parsed.recipeId) ?? true);
   if (parsed.page === "item-detail")
     return Boolean(parsed.itemId) && (options.hasItem?.(parsed.itemId) ?? true);
+  if (parsed.page === "storage-chest")
+    return Boolean(parsed.chestId) && (options.hasChest?.(parsed.chestId) ?? true);
   return true;
 }
 

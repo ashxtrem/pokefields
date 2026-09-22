@@ -35,7 +35,7 @@ self.addEventListener('fetch',event=>{
  if(request.method!=='GET')return;
  const url=new URL(request.url);
  if(url.origin===self.location.origin){
-  if(url.pathname.startsWith('/images/')){
+  if(url.pathname.startsWith('/images/')||url.pathname.startsWith('/data/storage-reference-index')){
    event.respondWith((async()=>{
     const cache=await caches.open(IMAGES);
     const cached=await cache.match(request);

@@ -19,6 +19,7 @@ import {
 } from "../crafting/catalog";
 import { NOT_YET_DOCUMENTED, recipeHref } from "../crafting/types";
 import { habitatDetailHref } from "../habitats/search";
+import { storageSearchHref } from "../storage/search";
 import { locationTargetId } from "./locations";
 import { kitForItem, requiredByItem } from "./requiredBy";
 import {
@@ -198,6 +199,10 @@ export function ItemDetail({
         </p>
       )}
 
+      <h3>Find in storage</h3>
+      <p>
+        <a href={storageSearchHref(item.name)}>See which chests hold {item.name}</a>
+      </p>
     </article>
   );
 }

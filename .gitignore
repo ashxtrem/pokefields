@@ -6,6 +6,7 @@ public/images/habitats/
 public/images/items/
 public/images/specialties/
 public/images/manifest.json
+public/data/storage-reference-index*.json
 .wrangler/
 .env
 .env.local
@@ -13,3 +14,4 @@ graphify-out/
 *.tsbuildinfo
 .cursor/
 .impeccable/
+.artifacts/

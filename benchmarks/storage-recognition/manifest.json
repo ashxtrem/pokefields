@@ -1,0 +1,47 @@
+{
+  "name": "Camera-photo storage recognition MVP",
+  "description": "Three photos of one Big storage box. Only the selected item in each photo has an independent text label, so recognition accuracy is scored on those three slots.",
+  "rotationDegrees": -90,
+  "recognitionCropSize": 260,
+  "gridCropSize": 230,
+  "cases": [
+    {
+      "file": "20260915_221428.jpg",
+      "truthId": "fluff",
+      "expectedOccupiedSlots": 20,
+      "grid": {
+        "firstCenterX": 780,
+        "firstCenterY": 950,
+        "stepX": 280,
+        "stepY": 290
+      }
+    },
+    {
+      "file": "20260915_221436.jpg",
+      "truthId": "metaldrum",
+      "expectedOccupiedSlots": 20,
+      "grid": {
+        "firstCenterX": 940,
+        "firstCenterY": 900,
+        "stepX": 280,
+        "stepY": 285
+      }
+    },
+    {
+      "file": "20260915_221441.jpg",
+      "truthId": "asphaltroad",
+      "expectedOccupiedSlots": 14,
+      "grid": {
+        "firstCenterX": 870,
+        "firstCenterY": 900,
+        "stepX": 267,
+        "stepY": 280
+      }
+    }
+  ],
+  "gate": {
+    "minimumLabeledSlots": 30,
+    "minimumTop1Rate": 0.9,
+    "minimumTop3Rate": 0.98
+  }
+}

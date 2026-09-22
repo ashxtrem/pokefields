@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "node scripts/bake-images.mjs && vite --host 0.0.0.0",
     "images:bake": "node scripts/bake-images.mjs",
-    "build": "tsc -b && node scripts/bake-images.mjs && vite build && node scripts/build-offline.mjs",
+    "build": "tsc -b && node scripts/bake-images.mjs && node scripts/build-storage-references.mjs && vite build && node scripts/build-offline.mjs",
+    "storage:build-references": "node scripts/build-storage-references.mjs",
     "preview": "vite preview --host 0.0.0.0",
     "test": "vitest run",
+    "benchmark:storage-recognition": "node scripts/benchmark-storage-recognition.mjs",
+    "benchmark:storage-native": "node scripts/benchmark-native-storage-recognition.mjs",
+    "benchmark:storage-unknown-item": "node scripts/benchmark-storage-unknown-item.mjs",
     "data:import": "node scripts/import-data.mjs",
     "data:audit-crafting": "node scripts/audit-crafting-data.mjs",
     "data:tag": "node scripts/tag-items.mjs",
@@ -17,10 +21,12 @@
     "format:check": "prettier --check src scripts tests *.ts *.json *.jsonc"
   },
   "dependencies": {
+    "@techstark/opencv-js": "5.0.0-release.1",
     "dexie": "^4.0.11",
     "lucide-react": "^0.468.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "tesseract.js": "^5.1.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.0",
@@ -31,6 +37,7 @@
     "cheerio": "^1.0.0",
     "fake-indexeddb": "^6.0.0",
     "prettier": "^3.9.6",
+    "sharp": "^0.35.2",
     "tailwindcss": "^4.1.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.0",

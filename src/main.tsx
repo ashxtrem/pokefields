@@ -4,6 +4,7 @@ import App from "./App";
 import { CatalogContext } from "./catalog/context";
 import type { Catalog } from "./catalog/types";
 import { ProgressProvider } from "./progress/context";
+import { StorageProvider } from "./storage/context";
 import "./styles.css";
 function Root() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -29,7 +30,9 @@ function Root() {
   return (
     <CatalogContext.Provider value={catalog}>
       <ProgressProvider>
-        <App />
+        <StorageProvider>
+          <App />
+        </StorageProvider>
       </ProgressProvider>
     </CatalogContext.Provider>
   );

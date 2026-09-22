@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
+  Archive,
   BookOpen,
   Package,
   House,
@@ -21,7 +22,14 @@ import { unavailableLearned, visibleLearnedCount } from "./crafting/learned";
 import { unavailableCollected, visibleCollectedCount } from "./items/collected";
 import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
 import { EnvLevelsModal, Modal } from "./ui/components";
-import { validateBackup, type SaveState } from "./persistence/store";
+import type { SaveState } from "./persistence/store";
+import { ChestDetail, MissingChest } from "./storage/ChestDetail";
+import { ChestForm } from "./storage/ChestForm";
+import { StoragePage } from "./storage/StoragePage";
+import { useStorage } from "./storage/context";
+import { allImageRows } from "./storage/db";
+import { buildBackupEnvelope, validateBackupEnvelope, type ParsedBackup } from "./storage/backup";
+import { MAX_BACKUP_IMPORT_BYTES } from "./storage/constants";
 
 import {
   canonicalItemsHref,
@@ -47,10 +55,12 @@ export default function App() {
   const [route, setRoute] = useState(liveHash);
   const [backup, setBackup] = useState(false);
   const [editingEnvLevels, setEditingEnvLevels] = useState(false);
-  const [pending, setPending] = useState<SaveState | null>(null);
+  const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [error, setError] = useState("");
   const catalog = useCatalog();
   const { state, status, error: saveError, ready, replaceNotebook, pendingUndo, undo, undoError } = useProgress();
+  const storageCtx = useStorage();
+  const { chests: storageChests, localItems: storageLocalItems, ready: storageReady } = storageCtx;
   const file = useRef<HTMLInputElement>(null);
   const parsed = parseRoute(route);
   const habitatCount = listCanonicalHabitats(catalog).length;
@@ -73,12 +83,14 @@ export default function App() {
       hasHabitat: (id) => Boolean(getCanonicalHabitat(catalog, id)),
       hasRecipe: (id) => recipeIds.has(id),
       hasItem: (id) => catalog.items.some((item) => item.id === id),
+      hasChest: (id) => storageChests.some((chest) => chest.id === id),
     });
   const [resumeHrefs, setResumeHrefs] = useState(() => ({
     dex: sectionHref("dex"),
     habitats: sectionHref("habitats"),
     planner: sectionHref("planner"),
     items: sectionHref("items"),
+    storage: sectionHref("storage"),
   }));
 
   useLayoutEffect(() => {
@@ -88,8 +100,9 @@ export default function App() {
       habitats: sectionHref("habitats", availableRoute),
       planner: sectionHref("planner", availableRoute),
       items: sectionHref("items", availableRoute),
+      storage: sectionHref("storage", availableRoute),
     });
-  }, [route, catalog]);
+  }, [route, catalog, storageChests]);
 
   useLayoutEffect(() => {
     if (!ready) return;
@@ -165,6 +178,8 @@ export default function App() {
     parsed.page === "items" ||
     parsed.page === "items-recipe" ||
     parsed.page === "item-detail";
+  const storageActive =
+    parsed.page === "storage" || parsed.page === "storage-new" || parsed.page === "storage-chest";
   const resumeSection = (
     event: {
       button: number;
@@ -179,9 +194,11 @@ export default function App() {
     if (sectionActive && isUnmodifiedLeftClick(event)) event.preventDefault();
   };
 
-  const exportFile = () => {
+  const exportFile = async () => {
+    const images = await allImageRows();
+    const envelope = await buildBackupEnvelope(state, storageChests, storageLocalItems, images);
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify(state, null, 2)], { type: "application/json" }),
+      new Blob([JSON.stringify(envelope)], { type: "application/json" }),
     );
     const a = document.createElement("a");
     a.href = url;
@@ -233,6 +250,16 @@ export default function App() {
             <span className="nav-count">{catalog.items.length}</span>
           </a>
           <a
+            href={resumeHrefs.storage}
+            className={storageActive ? "active" : ""}
+            aria-current={storageActive ? "page" : undefined}
+            onClick={(event) => resumeSection(event, storageActive)}
+          >
+            <Archive size={16} />
+            <span className="nav-label">Storage</span>
+            <span className="nav-count">{storageChests.length}</span>
+          </a>
+          <a
             href={resumeHrefs.planner}
             className={plannerActive ? "active" : ""}
             aria-current={plannerActive ? "page" : undefined}
@@ -282,6 +309,18 @@ export default function App() {
             parsed.page === "items-recipe" ||
             parsed.page === "item-detail" ? (
             <ItemsPage route={parsed} />
+          ) : parsed.page === "storage" ? (
+            <StoragePage route={parsed} />
+          ) : parsed.page === "storage-new" ? (
+            <ChestForm mode="create" />
+          ) : parsed.page === "storage-chest" ? (
+            !storageReady ? (
+              <div className="loading">Opening this chest…</div>
+            ) : storageChests.some((chest) => chest.id === parsed.chestId) ? (
+              <ChestDetail key={parsed.chestId} chestId={parsed.chestId} />
+            ) : (
+              <MissingChest />
+            )
           ) : parsed.page === "habitats" ? (
             <HabitatsPage />
           ) : parsed.page === "habitat-detail" ? (
@@ -369,6 +408,12 @@ export default function App() {
                 : "records"}
             </strong>
             <strong>{Object.keys(state.plans).length} area layouts</strong>
+            <strong>
+              {storageChests.length} storage chest{storageChests.length === 1 ? "" : "s"}
+            </strong>
+            <strong>
+              {storageLocalItems.length} local item{storageLocalItems.length === 1 ? "" : "s"}
+            </strong>
           </div>
           <div className="button-row">
             <button
@@ -414,8 +459,11 @@ export default function App() {
               e.target.value = "";
               if (!f) return;
               try {
-                if (f.size > 5e6) throw Error("Backup exceeds the 5 MB limit.");
-                setPending(validateBackup(JSON.parse(await f.text()), catalog));
+                if (f.size > MAX_BACKUP_IMPORT_BYTES)
+                  throw Error(
+                    `Backup exceeds the ${(MAX_BACKUP_IMPORT_BYTES / (1024 * 1024)).toFixed(0)} MB limit.`,
+                  );
+                setPending(validateBackupEnvelope(JSON.parse(await f.text()), catalog));
                 setError("");
               } catch (err) {
                 setPending(null);
@@ -435,35 +483,44 @@ export default function App() {
               <strong>Replace this device's notebook?</strong>
               <p>
                 This backup contains{" "}
-                {Object.values(pending.found).filter((a) => a.length).length}{" "}
-                found Pokémon, {Object.keys(pending.habitatBuilds || {}).length}{" "}
-                habitat builds, {pending.housematePlan ? 1 : 0} housemate plan,{" "}
+                {Object.values(pending.state.found).filter((a) => a.length).length}{" "}
+                found Pokémon, {Object.keys(pending.state.habitatBuilds || {}).length}{" "}
+                habitat builds, {pending.state.housematePlan ? 1 : 0} housemate plan,{" "}
                 {visibleLearnedCount(
-                  pending.crafting?.learnedRecipeIds || [],
+                  pending.state.crafting?.learnedRecipeIds || [],
                   recipeIds,
                 )}{" "}
                 learned recipes,{" "}
                 {unavailableLearned(
-                  pending.crafting?.learnedRecipeIds || [],
+                  pending.state.crafting?.learnedRecipeIds || [],
                   recipeIds,
                 ).length}{" "}
                 unavailable crafting records,{" "}
-                {visibleCollectedCount(pending.collected, itemIds)} collected
+                {visibleCollectedCount(pending.state.collected, itemIds)} collected
                 items,{" "}
-                {unavailableCollected(pending.collected, itemIds).length}{" "}
+                {unavailableCollected(pending.state.collected, itemIds).length}{" "}
                 unavailable collected records
-                {pending.craftingQuarantine
+                {pending.state.craftingQuarantine
                   ? ", plus unreadable crafting data kept aside"
                   : ""}{" "}
-                and {Object.keys(pending.plans).length} area layouts. It will
-                replace your current discoveries, plans, crafting marks and
+                and {Object.keys(pending.state.plans).length} area layouts.{" "}
+                {pending.storage
+                  ? `It also contains ${pending.storage.chests.length} storage chest${pending.storage.chests.length === 1 ? "" : "s"}, ${pending.storage.localItems.length} local item${pending.storage.localItems.length === 1 ? "" : "s"} and ${pending.storage.images.length} image${pending.storage.images.length === 1 ? "" : "s"}, which will replace your current Storage data.`
+                  : "This backup has no Storage data — your current chests and local items will be kept as they are."}{" "}
+                It will replace your current discoveries, plans, crafting marks and
                 collected marks.
               </p>
               <div className="button-row">
                 <button
                   className="button"
-                  onClick={() => {
-                    replaceNotebook(pending);
+                  onClick={async () => {
+                    replaceNotebook(pending.state);
+                    if (pending.storage)
+                      await storageCtx.replaceAllData(
+                        pending.storage.chests,
+                        pending.storage.localItems,
+                        pending.storage.images,
+                      );
                     setPending(null);
                     setBackup(false);
                   }}
