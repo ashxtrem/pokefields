@@ -77,23 +77,84 @@ export function editChestDetails(
   return touch({ ...chest, ...fields });
 }
 
-/** Adds presence once each, even if a ref is selected repeatedly. Marks a manual scan touch. */
+/**
+ * Adds presence once each, even if a ref is selected repeatedly. If a ref is already present and
+ * the new pick carries an explicit quantity, the existing row's quantity is summed onto it instead
+ * of the pick being silently dropped — otherwise "set a quantity" would feel broken the moment the
+ * item is already recorded. Presence-only identity is unaffected either way. Marks a manual touch.
+ */
 export function withItemRefsAdded(chest: StorageChest, refs: StorageItemRef[]): StorageChest {
-  const seen = new Set(chest.itemRefs.map(itemRefKey));
+  const indexByKey = new Map(chest.itemRefs.map((ref, index) => [itemRefKey(ref), index]));
   const next = [...chest.itemRefs];
+  let changed = false;
   for (const ref of refs) {
     const key = itemRefKey(ref);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    next.push(ref);
+    const existingIndex = indexByKey.get(key);
+    if (existingIndex === undefined) {
+      indexByKey.set(key, next.length);
+      next.push(ref);
+      changed = true;
+    } else if (ref.quantity !== undefined) {
+      const existing = next[existingIndex]!;
+      next[existingIndex] = { ...existing, quantity: (existing.quantity ?? 0) + ref.quantity };
+      changed = true;
+    }
   }
-  if (next.length === chest.itemRefs.length) return chest;
+  if (!changed) return chest;
   return touch({ ...chest, itemRefs: next, lastScanKind: "manual" as ScanKind });
 }
 
 export function withItemRefRemoved(chest: StorageChest, ref: StorageItemRef): StorageChest {
   const next = chest.itemRefs.filter((candidate) => !sameItemRef(candidate, ref));
   if (next.length === chest.itemRefs.length) return chest;
+  return touch({ ...chest, itemRefs: next });
+}
+
+/** Sets (or clears, with `undefined`) the player's own tracking quantity for one item reference. */
+export function withItemRefQuantity(
+  chest: StorageChest,
+  ref: StorageItemRef,
+  quantity: number | undefined,
+): StorageChest {
+  if (quantity !== undefined && (!Number.isInteger(quantity) || quantity < 1))
+    throw new Error("Quantity must be a whole number of 1 or more.");
+  const next = chest.itemRefs.map((candidate) =>
+    sameItemRef(candidate, ref) ? { ...candidate, quantity } : candidate,
+  );
+  return touch({ ...chest, itemRefs: next });
+}
+
+/**
+ * Swaps one item reference for another in place, preserving quantity and list position. If the
+ * new ref already exists elsewhere in the chest, the old row is removed instead (presence-only —
+ * no duplicate rows) and the two quantities are summed onto the surviving row.
+ */
+export function withItemRefReplaced(
+  chest: StorageChest,
+  oldRef: StorageItemRef,
+  newRef: StorageItemRef,
+): StorageChest {
+  const oldIndex = chest.itemRefs.findIndex((candidate) => sameItemRef(candidate, oldRef));
+  if (oldIndex === -1) return chest;
+  const oldEntry = chest.itemRefs[oldIndex]!;
+  const existingNewIndex = chest.itemRefs.findIndex(
+    (candidate, index) => index !== oldIndex && sameItemRef(candidate, newRef),
+  );
+  let next: StorageItemRef[];
+  if (existingNewIndex === -1) {
+    next = chest.itemRefs.map((candidate, index) =>
+      index === oldIndex ? { ...newRef, quantity: oldEntry.quantity } : candidate,
+    );
+  } else {
+    const existingNewEntry = chest.itemRefs[existingNewIndex]!;
+    const mergedQuantity =
+      oldEntry.quantity !== undefined || existingNewEntry.quantity !== undefined
+        ? (oldEntry.quantity ?? 0) + (existingNewEntry.quantity ?? 0)
+        : undefined;
+    next = chest.itemRefs
+      .filter((candidate) => !sameItemRef(candidate, oldRef))
+      .map((candidate) => (sameItemRef(candidate, newRef) ? { ...candidate, quantity: mergedQuantity } : candidate));
+  }
   return touch({ ...chest, itemRefs: next });
 }
 

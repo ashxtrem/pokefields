@@ -65,6 +65,18 @@ describe("StorageChest / LocalStorageItem readers", () => {
     expect(() => readStorageChest(chest, catalog)).toThrow(/duplicate/);
   });
 
+  it("round-trips an item reference's optional quantity", () => {
+    const chest = { ...testChest(), itemRefs: [{ kind: "catalog", itemId: "nugget", quantity: 3 }] };
+    expect(readStorageChest(chest, catalog).itemRefs).toEqual([{ kind: "catalog", itemId: "nugget", quantity: 3 }]);
+  });
+
+  it("rejects a non-whole or non-positive quantity", () => {
+    const zero = { ...testChest(), itemRefs: [{ kind: "catalog", itemId: "nugget", quantity: 0 }] };
+    expect(() => readStorageChest(zero, catalog)).toThrow(/quantity/);
+    const fractional = { ...testChest(), itemRefs: [{ kind: "catalog", itemId: "nugget", quantity: 1.5 }] };
+    expect(() => readStorageChest(fractional, catalog)).toThrow(/quantity/);
+  });
+
   it("round-trips a valid local item", () => {
     const item = buildLocalItem({ name: "Mystery gadget" });
     expect(readLocalStorageItem(JSON.parse(JSON.stringify(item)))).toEqual(item);
@@ -74,7 +86,7 @@ describe("StorageChest / LocalStorageItem readers", () => {
 describe("backup envelope v2", () => {
   it("round-trips chests, local items, and images through export/import", async () => {
     const local = buildLocalItem({ name: "Future DLC item" });
-    const chest = { ...testChest(), itemRefs: [{ kind: "local" as const, localItemId: local.id }] };
+    const chest = { ...testChest(), itemRefs: [{ kind: "local" as const, localItemId: local.id, quantity: 7 }] };
     const image = testImage("image:1", chest.id);
     const envelope = await buildBackupEnvelope(emptyState(), [chest], [local], [image]);
     expect(envelope.envelopeVersion).toBe(2);
@@ -82,6 +94,7 @@ describe("backup envelope v2", () => {
     const raw = JSON.parse(JSON.stringify(envelope));
     const parsed = validateBackupEnvelope(raw, catalog);
     expect(parsed.storage?.chests).toEqual([chest]);
+    expect(parsed.storage?.chests[0]?.itemRefs[0]).toEqual({ kind: "local", localItemId: local.id, quantity: 7 });
     expect(parsed.storage?.localItems).toEqual([local]);
     expect(parsed.storage?.images[0]?.id).toBe("image:1");
   });

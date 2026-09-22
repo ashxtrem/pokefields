@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Plus, ScanLine, X } from "lucide-react";
+import { Plus, ScanLine, Search, X } from "lucide-react";
 import { useCatalog } from "../catalog/context";
-import { Empty, ItemThumb, Modal } from "../ui/components";
+import { Empty, ExplainDialog, ItemButton, ItemThumb, Modal } from "../ui/components";
+import type { TermRef } from "../dex/glossary";
 import { CHEST_TYPE_LABEL } from "./ChestForm";
 import { ChestForm } from "./ChestForm";
 import { useStorage } from "./context";
@@ -10,18 +11,30 @@ import { LocalItemEditor } from "./LocalItemEditor";
 import { ScanFlow } from "./ScanFlow";
 import { StorageImageThumb } from "./StorageImageThumb";
 import { resolveItemRefName, storageListHref } from "./search";
-import { itemRefKey, type StorageItemRef } from "./types";
+import { itemRefKey, normalizeItemName, type StorageItemRef } from "./types";
 
 export function ChestDetail({ chestId }: { chestId: string }) {
   const catalog = useCatalog();
-  const { chests, localItems, removeItemRef, addItemRefs, deleteChest, resolveUnresolvedSlot, ready } =
-    useStorage();
+  const {
+    chests,
+    localItems,
+    removeItemRef,
+    addItemRefs,
+    replaceItemRef,
+    setItemQuantity,
+    deleteChest,
+    resolveUnresolvedSlot,
+    ready,
+  } = useStorage();
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [resolvingSlotId, setResolvingSlotId] = useState<string | null>(null);
+  const [replacingRefKey, setReplacingRefKey] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [editingLocalItemId, setEditingLocalItemId] = useState<string | null>(null);
+  const [explainTerm, setExplainTerm] = useState<TermRef | null>(null);
+  const [contentsQuery, setContentsQuery] = useState("");
 
   const chest = chests.find((c) => c.id === chestId);
 
@@ -40,6 +53,9 @@ export function ChestDetail({ chestId }: { chestId: string }) {
   }
 
   const nameFor = (ref: StorageItemRef) => resolveItemRefName(ref, catalog, localItems);
+  const visibleItemRefs = contentsQuery.trim()
+    ? chest.itemRefs.filter((ref) => normalizeItemName(nameFor(ref)).includes(normalizeItemName(contentsQuery)))
+    : chest.itemRefs;
 
   return (
     <div className="storage-chest-detail">
@@ -48,7 +64,12 @@ export function ChestDetail({ chestId }: { chestId: string }) {
       </a>
       <header className="storage-chest-header">
         {chest.locationImageId ? (
-          <StorageImageThumb imageId={chest.locationImageId} alt="" className="storage-location-hero" />
+          <StorageImageThumb
+            imageId={chest.locationImageId}
+            alt={`${chest.name} location`}
+            className="storage-location-hero"
+            zoomable
+          />
         ) : null}
         <div>
           <h1>{chest.name}</h1>
@@ -59,7 +80,7 @@ export function ChestDetail({ chestId }: { chestId: string }) {
           <p className="muted">Updated {new Date(chest.updatedAt).toLocaleString()}</p>
         </div>
       </header>
-      <div className="button-row">
+      <div className="button-row storage-chest-actions">
         <button type="button" className="button secondary" onClick={() => setEditing(true)}>
           Edit chest
         </button>
@@ -79,37 +100,105 @@ export function ChestDetail({ chestId }: { chestId: string }) {
         {chest.itemRefs.length === 0 ? (
           <p className="muted">No items recorded yet. Add them manually or import a screenshot.</p>
         ) : (
-          <ul className="storage-item-list">
-            {chest.itemRefs.map((ref) => (
-              <li key={itemRefKey(ref)}>
-                {ref.kind === "catalog" ? (
-                  <ItemThumb id={ref.itemId} name={nameFor(ref)} />
-                ) : (
-                  <span className="item-thumb" aria-hidden="true">
-                    {nameFor(ref).slice(0, 1)}
-                  </span>
-                )}
-                <span>{nameFor(ref)}</span>
-                {ref.kind === "local" ? (
-                  <button
-                    type="button"
-                    className="storage-source-badge local"
-                    onClick={() => setEditingLocalItemId(ref.localItemId)}
-                  >
-                    Saved by me
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="icon-button"
-                  aria-label={`Remove ${nameFor(ref)}`}
-                  onClick={() => removeItemRef(chest.id, ref)}
-                >
-                  <X size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <>
+            {chest.itemRefs.length > 6 ? (
+              <div className="search-box storage-contents-search">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  value={contentsQuery}
+                  onChange={(event) => setContentsQuery(event.target.value)}
+                  placeholder="Find an item in this chest…"
+                  aria-label="Search this chest's recorded items"
+                />
+              </div>
+            ) : null}
+            {visibleItemRefs.length === 0 ? (
+              <p className="muted">No recorded item matches "{contentsQuery}".</p>
+            ) : (
+              <ul className="storage-item-list">
+                {visibleItemRefs.map((ref) => {
+                  const key = itemRefKey(ref);
+                  const name = nameFor(ref);
+                  return (
+                    <li key={key}>
+                      <div className="storage-item-row-main">
+                        {ref.kind === "catalog" ? (
+                          <ItemThumb id={ref.itemId} name={name} />
+                        ) : (
+                          <span className="item-thumb" aria-hidden="true">
+                            {name.slice(0, 1)}
+                          </span>
+                        )}
+                        {ref.kind === "catalog" ? (
+                          <ItemButton name={name} id={ref.itemId} onOpen={setExplainTerm} />
+                        ) : (
+                          <button
+                            type="button"
+                            className="item-button"
+                            onClick={() => setEditingLocalItemId(ref.localItemId)}
+                          >
+                            {name}
+                          </button>
+                        )}
+                        {ref.kind === "local" ? (
+                          <span className="storage-source-badge local">Saved by me</span>
+                        ) : null}
+                      </div>
+                      {replacingRefKey === key ? (
+                        <ItemPicker
+                          onPick={async (newRef) => {
+                            await replaceItemRef(chest.id, ref, newRef);
+                            setReplacingRefKey(null);
+                          }}
+                          onCancel={() => setReplacingRefKey(null)}
+                        />
+                      ) : (
+                        <div className="storage-item-row-actions">
+                          <label className="storage-review-quantity">
+                            <span className="muted">Qty</span>
+                            <input
+                              type="number"
+                              min={1}
+                              step={1}
+                              inputMode="numeric"
+                              className="storage-item-quantity"
+                              defaultValue={ref.quantity ?? ""}
+                              placeholder="—"
+                              aria-label={`Quantity for ${name} (optional, for your own tracking)`}
+                              onBlur={(event) => {
+                                const raw = event.target.value.trim();
+                                const parsed = Number(raw);
+                                setItemQuantity(
+                                  chest.id,
+                                  ref,
+                                  raw && Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined,
+                                );
+                              }}
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => setReplacingRefKey(key)}
+                          >
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            className="icon-button"
+                            aria-label={`Remove ${name}`}
+                            onClick={() => removeItemRef(chest.id, ref)}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </>
         )}
         {adding ? (
           <ItemPicker
@@ -205,6 +294,8 @@ export function ChestDetail({ chestId }: { chestId: string }) {
           ) : null;
         })()
       ) : null}
+
+      {explainTerm ? <ExplainDialog term={explainTerm} onClose={() => setExplainTerm(null)} /> : null}
     </div>
   );
 }

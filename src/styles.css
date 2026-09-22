@@ -4336,12 +4336,16 @@ a.cooking-ingredient-row:hover {
 .storage-item-list li {
   display: flex;
   align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
   padding: 8px 10px;
   border: 1px solid #eceee5;
   border-radius: 10px;
 }
-.storage-item-list li > span:nth-child(2) { flex: 1; }
+.storage-item-row-main { display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 140px; }
+.storage-item-row-actions { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; flex-wrap: wrap; }
+.storage-item-list li > .storage-item-picker { flex-basis: 100%; }
+.storage-contents-search { margin: 10px 0; }
 .storage-unresolved-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px; border: 1px solid #eceee5; border-radius: 10px; }
 .storage-unresolved-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; flex: 0 0 64px; }
 .storage-picker-results { list-style: none; padding: 0; margin: 0; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
@@ -4358,6 +4362,16 @@ a.cooking-ingredient-row:hover {
 .storage-picker-row:hover { background: #f4f7ee; }
 .storage-picker-row > span:nth-child(2) { flex: 1; }
 .storage-picker-create { margin-top: 6px; }
+.storage-picker-quantity {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #69766e;
+  margin: 8px 0;
+}
+.storage-picker-quantity input { width: 90px; border: 1px solid #d7ddcc; border-radius: 8px; padding: 6px 8px; }
+.storage-item-quantity { width: 56px; border: 1px solid #d7ddcc; border-radius: 6px; padding: 4px 6px; font-size: 12px; }
 .storage-scan-page { border: 1px solid #e1e5d9; border-radius: 10px; padding: 12px 14px; }
 .storage-scan-page h3 { font-size: 13px; margin-bottom: 8px; }
 .storage-scan-progress { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
@@ -4366,12 +4380,18 @@ a.cooking-ingredient-row:hover {
 .storage-review-thumb { width: 72px; height: 72px; border-radius: 8px; object-fit: cover; flex: 0 0 72px; }
 .storage-review-body { flex: 1; display: flex; flex-direction: column; gap: 8px; }
 .storage-review-proposed { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.storage-review-quantity { display: flex; align-items: center; gap: 5px; font-size: 11px; }
 .storage-reconciliation ul { margin: 8px 0; padding-left: 18px; }
 @media (max-width: 600px) {
   .storage-chest-header { flex-direction: column; }
   .storage-location-hero { max-width: 100%; width: 100%; }
   .storage-toolbar { flex-direction: column; align-items: stretch; }
+  .storage-chest-actions { flex-direction: column; align-items: stretch; flex-wrap: nowrap; }
+  .storage-chest-actions .button,
+  .storage-chest-actions .button.secondary { min-height: 44px; }
 }
+.storage-image-zoom-trigger { display: inline-block; padding: 0; border: 0; background: none; cursor: zoom-in; }
+.storage-image-lightbox { width: 100%; max-height: 80vh; object-fit: contain; border-radius: 10px; background: #eef1e8; }
 .storage-hero-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .storage-guide-button {
   display: inline-flex;

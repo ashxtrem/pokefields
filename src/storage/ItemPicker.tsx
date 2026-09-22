@@ -21,6 +21,7 @@ export function ItemPicker({
   const catalog = useCatalog();
   const { localItems, createLocalItem } = useStorage();
   const [query, setQuery] = useState("");
+  const [quantity, setQuantity] = useState("");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
 
@@ -30,12 +31,20 @@ export function ItemPicker({
   );
   const collision = query.trim() ? findNameCollision(query, catalog, localItems) : null;
 
+  // Quantity is the player's own optional tracking number, attached to whichever ref gets picked
+  // next — never required, never computed by the app (see StorageItemRef.quantity in types.ts).
+  const withQuantity = (ref: StorageItemRef): StorageItemRef => {
+    const parsed = Number(quantity.trim());
+    if (!quantity.trim() || !Number.isInteger(parsed) || parsed < 1) return ref;
+    return { ...ref, quantity: parsed };
+  };
+
   const createNew = async () => {
     setCreating(true);
     setError("");
     try {
       const item = await createLocalItem({ name: query.trim() });
-      onPick({ kind: "local", localItemId: item.id });
+      onPick(withQuantity({ kind: "local", localItemId: item.id }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create this item.");
     } finally {
@@ -53,6 +62,18 @@ export function ItemPicker({
         placeholder="Search catalog and saved items…"
         aria-label="Search for an item to add"
       />
+      <label className="storage-picker-quantity">
+        <span>Quantity (optional, for your own tracking)</span>
+        <input
+          type="number"
+          min={1}
+          step={1}
+          inputMode="numeric"
+          value={quantity}
+          onChange={(event) => setQuantity(event.target.value)}
+          placeholder="Not tracked"
+        />
+      </label>
       {error && (
         <p className="notice error" role="alert">
           {error}
@@ -62,7 +83,7 @@ export function ItemPicker({
         <ul className="storage-picker-results">
           {results.map((result) => (
             <li key={result.ref.kind === "catalog" ? `c:${result.ref.itemId}` : `l:${result.ref.localItemId}`}>
-              <button type="button" className="storage-picker-row" onClick={() => onPick(result.ref)}>
+              <button type="button" className="storage-picker-row" onClick={() => onPick(withQuantity(result.ref))}>
                 {result.ref.kind === "catalog" ? (
                   <ItemThumb id={result.ref.itemId} name={result.name} />
                 ) : (
@@ -90,9 +111,11 @@ export function ItemPicker({
                 className="text-button"
                 onClick={() =>
                   onPick(
-                    collision.kind === "catalog"
-                      ? { kind: "catalog", itemId: collision.itemId }
-                      : { kind: "local", localItemId: collision.localItemId },
+                    withQuantity(
+                      collision.kind === "catalog"
+                        ? { kind: "catalog", itemId: collision.itemId }
+                        : { kind: "local", localItemId: collision.localItemId },
+                    ),
                   )
                 }
               >

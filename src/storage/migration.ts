@@ -26,17 +26,25 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
+function readQuantity(raw: unknown, index: number): number | undefined {
+  if (raw === undefined) return undefined;
+  if (!Number.isInteger(raw) || (raw as number) < 1)
+    fail(`Chest item reference ${index} has an invalid quantity.`);
+  return raw as number;
+}
+
 function readItemRef(raw: unknown, index: number): StorageItemRef {
   if (!isObject(raw)) fail(`Chest item reference ${index} is invalid.`);
+  const quantity = readQuantity(raw.quantity, index);
   if (raw.kind === "catalog") {
     if (typeof raw.itemId !== "string" || !raw.itemId)
       fail(`Chest item reference ${index} has an invalid catalog item id.`);
-    return { kind: "catalog", itemId: raw.itemId };
+    return { kind: "catalog", itemId: raw.itemId, quantity };
   }
   if (raw.kind === "local") {
     if (typeof raw.localItemId !== "string" || !raw.localItemId)
       fail(`Chest item reference ${index} has an invalid local item id.`);
-    return { kind: "local", localItemId: raw.localItemId };
+    return { kind: "local", localItemId: raw.localItemId, quantity };
   }
   fail(`Chest item reference ${index} has an unknown kind.`);
 }

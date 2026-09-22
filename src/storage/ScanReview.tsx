@@ -73,6 +73,18 @@ export function ScanReview({
   const setDecision = (key: string, decision: Decision) =>
     setRows((current) => current.map((row) => (row.key === key ? { ...row, decision } : row)));
 
+  /** Quantity is the player's own optional tracking number — see StorageItemRef.quantity. */
+  const setAcceptedQuantity = (key: string, raw: string) => {
+    setRows((current) =>
+      current.map((row) => {
+        if (row.key !== key || row.decision.kind !== "accept") return row;
+        const parsed = Number(raw.trim());
+        const quantity = raw.trim() && Number.isInteger(parsed) && parsed >= 1 ? parsed : undefined;
+        return { ...row, decision: { kind: "accept", ref: { ...row.decision.ref, quantity } } };
+      }),
+    );
+  };
+
   const unresolvedCount = rows.filter((row) => row.decision.kind === "unresolved").length;
 
   const save = async (asComplete: boolean) => {
@@ -149,6 +161,20 @@ export function ScanReview({
                       score {row.outcome.score.toFixed(2)} · margin {row.outcome.margin.toFixed(2)}
                     </span>
                   ) : null}
+                  <label className="storage-review-quantity">
+                    <span className="muted">Qty</span>
+                    <input
+                      type="number"
+                      min={1}
+                      step={1}
+                      inputMode="numeric"
+                      className="storage-item-quantity"
+                      value={row.decision.ref.quantity ?? ""}
+                      onChange={(event) => setAcceptedQuantity(row.key, event.target.value)}
+                      aria-label={`Quantity for ${nameFor(row.decision.ref)} (optional)`}
+                      placeholder="—"
+                    />
+                  </label>
                 </div>
               ) : row.decision.kind === "ignored" ? (
                 <p className="muted">Ignored — will not be recorded.</p>

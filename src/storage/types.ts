@@ -1,8 +1,14 @@
 export type ChestType = "storage-box" | "big-storage-box";
 
+/**
+ * `quantity` is the player's own optional annotation, never computed or asserted by the app —
+ * Storage is presence-only (see docs/storage-locator-feature-master-prompt.md's "Presence-only
+ * tracking"). It plays no part in identity/dedup (see sameItemRef/itemRefKey below, which ignore
+ * it), search, or matching; it's the numeric sibling of a chest's free-text locationNote.
+ */
 export type StorageItemRef =
-  | { kind: "catalog"; itemId: string }
-  | { kind: "local"; localItemId: string };
+  | { kind: "catalog"; itemId: string; quantity?: number }
+  | { kind: "local"; localItemId: string; quantity?: number };
 
 export function sameItemRef(a: StorageItemRef, b: StorageItemRef): boolean {
   if (a.kind !== b.kind) return false;

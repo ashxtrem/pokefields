@@ -36,7 +36,9 @@ import {
   editChestDetails,
   renameChest as renameChestFn,
   withCompleteScanReplaced,
+  withItemRefQuantity,
   withItemRefRemoved,
+  withItemRefReplaced,
   withItemRefsAdded,
   withPartialScanMerged,
   withUnresolvedSlotResolved,
@@ -63,6 +65,9 @@ interface StorageContextValue {
   deleteChest: (chestId: string) => Promise<void>;
   addItemRefs: (chestId: string, refs: StorageItemRef[]) => Promise<void>;
   removeItemRef: (chestId: string, ref: StorageItemRef) => Promise<void>;
+  /** Player's own tracking number for one item reference — never computed/used by the app itself. */
+  setItemQuantity: (chestId: string, ref: StorageItemRef, quantity: number | undefined) => Promise<void>;
+  replaceItemRef: (chestId: string, oldRef: StorageItemRef, newRef: StorageItemRef) => Promise<void>;
   acceptPartialScan: (
     chestId: string,
     refs: StorageItemRef[],
@@ -241,6 +246,21 @@ export function StorageProvider({ children }: { children: ReactNode }) {
     [getChest, persistChest, pushUndo],
   );
 
+  const setItemQuantity = useCallback(
+    async (chestId: string, ref: StorageItemRef, quantity: number | undefined) => {
+      await persistChest(withItemRefQuantity(getChest(chestId), ref, quantity));
+    },
+    [getChest, persistChest],
+  );
+
+  const replaceItemRef = useCallback(
+    async (chestId: string, oldRef: StorageItemRef, newRef: StorageItemRef) => {
+      pushUndo("replacing an item");
+      await persistChest(withItemRefReplaced(getChest(chestId), oldRef, newRef));
+    },
+    [getChest, persistChest, pushUndo],
+  );
+
   const acceptPartialScan = useCallback(
     async (chestId: string, refs: StorageItemRef[], unresolvedSlots: UnresolvedSlot[]) => {
       pushUndo("a partial rescan");
@@ -402,6 +422,8 @@ export function StorageProvider({ children }: { children: ReactNode }) {
         deleteChest,
         addItemRefs,
         removeItemRef,
+        setItemQuantity,
+        replaceItemRef,
         acceptPartialScan,
         acceptCompleteScan,
         resolveUnresolvedSlot,

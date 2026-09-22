@@ -6,7 +6,9 @@ import {
   defaultChestName,
   dedupeItemRefs,
   withCompleteScanReplaced,
+  withItemRefQuantity,
   withItemRefRemoved,
+  withItemRefReplaced,
   withItemRefsAdded,
   withPartialScanMerged,
 } from "../src/storage/repository";
@@ -75,10 +77,70 @@ describe("presence-only item references", () => {
     expect(refs).toEqual([catalogRef("a"), catalogRef("b")]);
   });
 
-  it("never tracks quantity — repeated adds do not change array length beyond one entry", () => {
+  it("presence stays a single entry regardless of quantity — repeated adds do not grow the array", () => {
     let c = chest();
     for (let i = 0; i < 5; i += 1) c = withItemRefsAdded(c, [catalogRef("nugget")]);
     expect(c.itemRefs).toHaveLength(1);
+  });
+});
+
+describe("optional per-item quantity (player tracking only)", () => {
+  const catalogRef = (id: string, quantity?: number): StorageItemRef => ({
+    kind: "catalog",
+    itemId: id,
+    quantity,
+  });
+
+  it("re-adding an already-present ref with an explicit quantity sums onto the existing quantity", () => {
+    let c = withItemRefsAdded(chest(), [catalogRef("nugget", 2)]);
+    c = withItemRefsAdded(c, [catalogRef("nugget", 3)]);
+    expect(c.itemRefs).toEqual([catalogRef("nugget", 5)]);
+  });
+
+  it("re-adding with no quantity leaves the existing quantity untouched", () => {
+    let c = withItemRefsAdded(chest(), [catalogRef("nugget", 2)]);
+    c = withItemRefsAdded(c, [catalogRef("nugget")]);
+    expect(c.itemRefs).toEqual([catalogRef("nugget", 2)]);
+  });
+
+  it("withItemRefQuantity sets, updates, and clears a quantity without affecting identity", () => {
+    let c = withItemRefsAdded(chest(), [catalogRef("nugget")]);
+    c = withItemRefQuantity(c, catalogRef("nugget"), 4);
+    expect(c.itemRefs).toEqual([catalogRef("nugget", 4)]);
+    c = withItemRefQuantity(c, catalogRef("nugget"), undefined);
+    expect(c.itemRefs).toEqual([catalogRef("nugget")]);
+  });
+
+  it("withItemRefQuantity rejects non-whole or non-positive quantities", () => {
+    const c = withItemRefsAdded(chest(), [catalogRef("nugget")]);
+    expect(() => withItemRefQuantity(c, catalogRef("nugget"), 0)).toThrow();
+    expect(() => withItemRefQuantity(c, catalogRef("nugget"), -1)).toThrow();
+    expect(() => withItemRefQuantity(c, catalogRef("nugget"), 1.5)).toThrow();
+  });
+});
+
+describe("replacing an item reference", () => {
+  const catalogRef = (id: string, quantity?: number): StorageItemRef => ({
+    kind: "catalog",
+    itemId: id,
+    quantity,
+  });
+
+  it("swaps one ref for another in place, preserving quantity and position", () => {
+    let c = withItemRefsAdded(chest(), [catalogRef("a"), catalogRef("nugget", 3), catalogRef("b")]);
+    c = withItemRefReplaced(c, catalogRef("nugget"), catalogRef("big-nugget"));
+    expect(c.itemRefs).toEqual([catalogRef("a"), catalogRef("big-nugget", 3), catalogRef("b")]);
+  });
+
+  it("merges into an existing row (summing quantities) rather than creating a duplicate", () => {
+    let c = withItemRefsAdded(chest(), [catalogRef("nugget", 2), catalogRef("big-nugget", 5)]);
+    c = withItemRefReplaced(c, catalogRef("nugget"), catalogRef("big-nugget"));
+    expect(c.itemRefs).toEqual([catalogRef("big-nugget", 7)]);
+  });
+
+  it("is a no-op when the old ref is not present", () => {
+    const c = withItemRefsAdded(chest(), [catalogRef("a")]);
+    expect(withItemRefReplaced(c, catalogRef("missing"), catalogRef("b"))).toBe(c);
   });
 });
 
