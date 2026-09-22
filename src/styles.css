@@ -139,6 +139,11 @@ ul {
   gap: 2px;
   min-width: 0;
   flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.app-nav::-webkit-scrollbar {
+  display: none;
 }
 .app-nav a {
   display: flex;
@@ -2769,13 +2774,6 @@ hr {
     gap: 8px;
   }
   .brand-copy {
-    display: none;
-  }
-  .app-nav {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-  .app-nav::-webkit-scrollbar {
     display: none;
   }
   .app-nav a {
