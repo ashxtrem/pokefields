@@ -60,6 +60,7 @@ export function Modal({
   onClose,
   wide = false,
   sheet = false,
+  closable = true,
 }: {
   title: string;
   titleHref?: string;
@@ -68,6 +69,10 @@ export function Modal({
   onClose: () => void;
   wide?: boolean;
   sheet?: boolean;
+  /** When false, Escape, a backdrop click, and the header close button are all disabled — the
+   * caller must offer its own way out (e.g. a confirmed "Cancel scan" action). Used for work in
+   * progress that shouldn't be dismissed by an accidental click. */
+  closable?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -82,8 +87,15 @@ export function Modal({
     <dialog
       ref={ref}
       className={`modal${wide ? " wide" : ""}${sheet ? " sheet" : ""}`}
-      onCancel={onClose}
+      onCancel={(e) => {
+        if (!closable) {
+          e.preventDefault();
+          return;
+        }
+        onClose();
+      }}
       onClick={(e) => {
+        if (!closable) return;
         if (e.target === e.currentTarget) onClose();
       }}
     >
@@ -97,13 +109,15 @@ export function Modal({
             title
           )}
         </h2>
-        <button
-          className="icon-button"
-          aria-label="Close dialog"
-          onClick={onClose}
-        >
-          <X size={20} />
-        </button>
+        {closable && (
+          <button
+            className="icon-button"
+            aria-label="Close dialog"
+            onClick={onClose}
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
       {children}
     </dialog>

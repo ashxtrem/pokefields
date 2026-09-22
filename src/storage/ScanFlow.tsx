@@ -29,6 +29,7 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [error, setError] = useState("");
   const [results, setResults] = useState<Array<{ page: number; slots: SlotResult[] }> | null>(null);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
   const workerRef = useRef<Worker | null>(null);
   const scanIdRef = useRef("");
 
@@ -113,9 +114,13 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
     worker.postMessage(request, bitmaps);
   };
 
-  const cancelScan = () => {
-    const request: ScanWorkerRequest = { type: "cancel", scanId: scanIdRef.current };
-    workerRef.current?.postMessage(request);
+  const confirmCancelScan = () => {
+    setConfirmingCancel(false);
+    // Terminate outright rather than waiting for the worker's graceful "cancelled" acknowledgment
+    // — the player has already confirmed they want out, so don't make them wait on it.
+    workerRef.current?.terminate();
+    workerRef.current = null;
+    onClose();
   };
 
   if (stage === "review" && results) {
@@ -134,14 +139,30 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
   }
 
   return (
-    <Modal title="Import screenshot" onClose={onClose} sheet wide>
+    <Modal title="Import screenshot" onClose={onClose} sheet wide closable={stage !== "scanning"}>
       {stage === "scanning" ? (
         <div className="storage-scan-progress" role="status" aria-live="polite">
           <p>Scanning… {progress.total ? `${progress.done} of ${progress.total} slots` : ""}</p>
           <progress value={progress.done} max={progress.total || 1} />
-          <button type="button" className="button secondary" onClick={cancelScan}>
+          <button type="button" className="button secondary" onClick={() => setConfirmingCancel(true)}>
             Cancel scan
           </button>
+          {confirmingCancel ? (
+            <Modal title="Cancel this scan?" onClose={() => setConfirmingCancel(false)}>
+              <p>
+                Recognition progress so far will be lost and this window will close. Nothing has
+                been saved to this chest yet.
+              </p>
+              <div className="button-row">
+                <button type="button" className="button" onClick={confirmCancelScan}>
+                  Cancel scan
+                </button>
+                <button type="button" className="button secondary" onClick={() => setConfirmingCancel(false)}>
+                  Keep scanning
+                </button>
+              </div>
+            </Modal>
+          ) : null}
         </div>
       ) : (
         <>
