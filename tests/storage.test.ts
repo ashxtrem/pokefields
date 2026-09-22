@@ -10,7 +10,7 @@ import {
   withItemRefsAdded,
   withPartialScanMerged,
 } from "../src/storage/repository";
-import { emptyChest, type StorageChest, type StorageItemRef } from "../src/storage/types";
+import { emptyChest, newUid, type StorageChest, type StorageItemRef } from "../src/storage/types";
 import { MAX_CHESTS } from "../src/storage/constants";
 
 function chest(overrides: Partial<StorageChest> = {}): StorageChest {
@@ -104,5 +104,34 @@ describe("rescan rules", () => {
     const existing = withItemRefsAdded(chest(), [catalogRef("a")]);
     const partial = withPartialScanMerged(existing, [], []);
     expect(partial.itemRefs).toEqual([catalogRef("a")]);
+  });
+});
+
+describe("newUid", () => {
+  it("produces unique, non-empty ids even when crypto.randomUUID is unavailable", () => {
+    // crypto.randomUUID() throws/is undefined outside a secure context (plain HTTP on a LAN
+    // address, e.g. `vite --host` for phone testing) — this is the exact bug report this guards.
+    const original = crypto.randomUUID;
+    // @ts-expect-error simulating an insecure context where randomUUID does not exist
+    delete crypto.randomUUID;
+    try {
+      const a = newUid();
+      const b = newUid();
+      expect(a).toBeTruthy();
+      expect(b).toBeTruthy();
+      expect(a).not.toBe(b);
+    } finally {
+      crypto.randomUUID = original;
+    }
+  });
+
+  it("uses crypto.randomUUID directly when it is available", () => {
+    const original = crypto.randomUUID;
+    crypto.randomUUID = () => "fixed-uuid-value" as ReturnType<typeof crypto.randomUUID>;
+    try {
+      expect(newUid()).toBe("fixed-uuid-value");
+    } finally {
+      crypto.randomUUID = original;
+    }
   });
 });

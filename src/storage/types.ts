@@ -94,16 +94,28 @@ export type RecognitionOutcome =
       reason: "low-score" | "ambiguous" | "missing-reference" | "poor-image" | "no-item";
     };
 
+/**
+ * crypto.randomUUID() requires a secure context (HTTPS or localhost) — it's undefined when the
+ * app is opened over plain HTTP on a LAN address (e.g. `vite --host` for testing on a phone).
+ * crypto.getRandomValues() has no such restriction, so it's the fallback. Mirrors
+ * src/habitats/builds.ts's newBuildId().
+ */
+export function newUid(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export function makeLocalItemId(): string {
-  return `local:${crypto.randomUUID()}`;
+  return `local:${newUid()}`;
 }
 
 export function makeChestId(): string {
-  return `chest:${crypto.randomUUID()}`;
+  return `chest:${newUid()}`;
 }
 
 export function makeImageId(): string {
-  return `image:${crypto.randomUUID()}`;
+  return `image:${newUid()}`;
 }
 
 export function normalizeItemName(value: string): string {

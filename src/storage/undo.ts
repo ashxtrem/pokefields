@@ -1,5 +1,5 @@
 import { UNDO_EXPIRY_MS, UNDO_STACK_LIMIT } from "./constants";
-import type { LocalStorageItem, StorageChest } from "./types";
+import { newUid, type LocalStorageItem, type StorageChest } from "./types";
 
 /**
  * Feature-scoped undo for Storage: separate from src/progress/context.tsx's global undo, which
@@ -25,7 +25,7 @@ export class StorageUndoStack {
 
   push(label: string, before: UndoSnapshot): UndoEntry {
     const entry: UndoEntry = {
-      id: crypto.randomUUID(),
+      id: newUid(),
       label,
       before: { chests: [...before.chests], localItems: [...before.localItems] },
       createdAt: Date.now(),

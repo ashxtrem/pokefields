@@ -6,7 +6,7 @@ import { ItemPicker } from "./ItemPicker";
 import type { SlotResult } from "./recognition/matcher";
 import { storePreparedImage } from "./images";
 import { resolveItemRefName } from "./search";
-import type { LocalStorageItem, StorageChest, StorageItemRef, UnresolvedSlot } from "./types";
+import { newUid, type LocalStorageItem, type StorageChest, type StorageItemRef, type UnresolvedSlot } from "./types";
 
 type Decision =
   | { kind: "accept"; ref: StorageItemRef }
@@ -92,7 +92,7 @@ export function ScanReview({
             92,
             92,
           );
-          unresolvedSlots.push({ id: crypto.randomUUID(), imageId: image.id, page: row.page, slot: row.slot });
+          unresolvedSlots.push({ id: newUid(), imageId: image.id, page: row.page, slot: row.slot });
         }
       }
       if (asComplete) await acceptCompleteScan(chest.id, acceptedRefs, unresolvedSlots);

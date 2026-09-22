@@ -6,7 +6,7 @@ import { terminateOcrWorker } from "./recognition/ocr";
 import type { SlotResult } from "./recognition/matcher";
 import type { ScanWorkerRequest, ScanWorkerResponse } from "./recognition/protocol";
 import { ScanReview } from "./ScanReview";
-import type { StorageChest } from "./types";
+import { newUid, type StorageChest } from "./types";
 
 interface PageSlot {
   page: number;
@@ -75,7 +75,7 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
     setError("");
     setStage("scanning");
     setProgress({ done: 0, total: scannedSlots.length * 20 });
-    const scanId = crypto.randomUUID();
+    const scanId = newUid();
     scanIdRef.current = scanId;
     if (!workerRef.current)
       workerRef.current = new Worker(new URL("./recognition/worker.ts", import.meta.url), { type: "module" });
