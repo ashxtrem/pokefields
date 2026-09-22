@@ -31,8 +31,31 @@ export async function decodeImage(file: Blob): Promise<ImageBitmap> {
   }
 }
 
+/**
+ * Used only to flag likely-duplicate uploaded pages (a soft warning, not a security check), so a
+ * non-cryptographic fallback is an adequate substitute. crypto.subtle requires a secure context
+ * (HTTPS or localhost) and is undefined on plain HTTP — e.g. a LAN address from `vite --host` for
+ * phone testing — where crypto.subtle.digest(...) would otherwise throw inside this function and
+ * silently abort the caller (see src/storage/types.ts's newUid() for the same class of issue).
+ */
 export async function sha256Hex(file: Blob): Promise<string> {
   const buffer = await file.arrayBuffer();
-  const digest = await crypto.subtle.digest("SHA-256", buffer);
-  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  if (typeof crypto.subtle !== "undefined") {
+    const digest = await crypto.subtle.digest("SHA-256", buffer);
+    return bytesToHex(new Uint8Array(digest));
+  }
+  return fnv1aHex(new Uint8Array(buffer));
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function fnv1aHex(bytes: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < bytes.length; index += 1) {
+    hash ^= bytes[index]!;
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }

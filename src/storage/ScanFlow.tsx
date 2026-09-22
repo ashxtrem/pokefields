@@ -56,17 +56,25 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
   }, [slots]);
 
   const onFileChosen = async (pageIndex: number, file: File) => {
-    const bitmap = await decodeImage(file).catch(() => null);
-    const shapeCheck = bitmap
-      ? checkNativeScreenshotShape(bitmap.width, bitmap.height)
-      : { supported: false as const, reason: "This image could not be read." };
-    const hash = await sha256Hex(file);
-    bitmap?.close();
+    // Never let an unexpected failure here leave the page slot silently stuck (file shown by the
+    // native input, but no "ready"/error state and Scan disabled with no explanation) — always
+    // land on a shapeError the player can see, even for a bug this didn't anticipate.
+    let shapeError = "This image could not be read.";
+    let hash: string | null = null;
+    try {
+      const bitmap = await decodeImage(file).catch(() => null);
+      const shapeCheck = bitmap
+        ? checkNativeScreenshotShape(bitmap.width, bitmap.height)
+        : { supported: false as const, reason: "This image could not be read." };
+      bitmap?.close();
+      hash = await sha256Hex(file);
+      shapeError = shapeCheck.supported ? "" : shapeCheck.reason;
+    } catch (error) {
+      shapeError = error instanceof Error ? error.message : shapeError;
+    }
     setSlots((current) =>
       current.map((slot, index) =>
-        index === pageIndex
-          ? { ...slot, file, hash, shapeError: shapeCheck.supported ? null : shapeCheck.reason }
-          : slot,
+        index === pageIndex ? { ...slot, file, hash, shapeError: shapeError || null } : slot,
       ),
     );
   };

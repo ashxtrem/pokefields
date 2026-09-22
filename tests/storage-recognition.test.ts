@@ -7,6 +7,7 @@ import { descriptorSimilarity } from "../src/storage/recognition/core/descriptor
 import { classifyOutcome } from "../src/storage/recognition/core/confidence.mjs";
 import { slotBounds } from "../src/storage/recognition/core/grid.mjs";
 import { RECOGNITION_INDEX_VERSION } from "../src/storage/constants";
+import { sha256Hex } from "../src/storage/recognition/normalize";
 
 const ROOT = resolve(import.meta.dirname, "..");
 
@@ -113,5 +114,39 @@ describe("classifyOutcome (confidence policy)", () => {
       candidates: [],
       reason: "no-item",
     });
+  });
+});
+
+describe("sha256Hex duplicate-page detection", () => {
+  it("hashes identical content the same way and different content differently", async () => {
+    const a = new Blob([new Uint8Array([1, 2, 3, 4, 5])]);
+    const b = new Blob([new Uint8Array([1, 2, 3, 4, 5])]);
+    const c = new Blob([new Uint8Array([9, 9, 9, 9, 9])]);
+    expect(await sha256Hex(a)).toBe(await sha256Hex(b));
+    expect(await sha256Hex(a)).not.toBe(await sha256Hex(c));
+  });
+
+  it("falls back to a working hash when crypto.subtle is unavailable", async () => {
+    // crypto.subtle requires a secure context (HTTPS or localhost) and is undefined on plain
+    // HTTP — e.g. testing over a LAN address with `vite --host`. Without this fallback,
+    // sha256Hex throws, which previously aborted ScanFlow's onFileChosen before it ever updated
+    // React state, leaving "Scan pages" permanently disabled with no visible error.
+    //
+    // `subtle` is an inherited accessor (getter-only, no setter) on Crypto.prototype, so neither
+    // `delete crypto.subtle` nor `crypto.subtle = x` touches it — defineProperty is required to
+    // shadow it with an own, configurable data property that can be removed again afterward.
+    Object.defineProperty(crypto, "subtle", { value: undefined, configurable: true });
+    try {
+      expect(crypto.subtle).toBeUndefined();
+      const a = new Blob([new Uint8Array([1, 2, 3, 4, 5])]);
+      const c = new Blob([new Uint8Array([9, 9, 9, 9, 9])]);
+      const hashA = await sha256Hex(a);
+      const hashC = await sha256Hex(c);
+      expect(hashA).toBeTruthy();
+      expect(hashA).not.toBe(hashC);
+    } finally {
+      delete (crypto as { subtle?: SubtleCrypto }).subtle;
+    }
+    expect(crypto.subtle).toBeDefined();
   });
 });
