@@ -7,6 +7,7 @@ import {
   Leaf,
   Download,
   Upload,
+  Settings,
   TreePine,
 } from "lucide-react";
 import { useCatalog } from "./catalog/context";
@@ -276,8 +277,7 @@ export default function App() {
           aria-label={`My notebook · ${status}`}
         >
           <span className="saved-dot" />
-          <span>My notebook</span>
-          <span className="avatar">YOU</span>
+          <Settings size={18} aria-hidden="true" />
         </button>
       </header>
       <main>

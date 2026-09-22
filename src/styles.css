@@ -196,18 +196,6 @@ ul {
 .notebook-button:hover {
   color: #2e583e;
 }
-.avatar {
-  display: grid;
-  place-items: center;
-  font-size: 8px;
-  font-weight: 700;
-  color: #557047;
-  width: 30px;
-  height: 30px;
-  background: #e7eadc;
-  border-radius: 50%;
-  margin-left: 4px;
-}
 main {
   max-width: 1550px;
   margin: auto;
@@ -2785,15 +2773,6 @@ hr {
   .app-nav a svg,
   .app-nav a > .nav-count {
     display: none;
-  }
-  .notebook-button > span:not(.avatar) {
-    display: none;
-  }
-  .notebook-button .saved-dot {
-    display: none;
-  }
-  .avatar {
-    margin: 0;
   }
   main {
     padding: 23px 18px 0;
