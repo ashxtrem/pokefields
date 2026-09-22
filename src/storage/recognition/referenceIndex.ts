@@ -2,10 +2,14 @@ import { createLshBuckets, insertIntoLshBuckets } from "./core/lsh.mjs";
 import type { Descriptor } from "./core/descriptor.mjs";
 
 /**
- * The JSON file scripts/build-storage-references.mjs bakes at build time from
+ * The JSON files scripts/build-storage-references.mjs bakes at build time from
  * public/images/items/*.png, fetched once per scan session (src/storage/constants.ts's
  * RECOGNITION_INDEX_URL) and reused across all 1 or 3 pages of a scan — see the master prompt's
  * "Precompute and version catalog descriptors... Load the precomputed index once per scan session."
+ *
+ * The full descriptor set is 40+ MiB base64-encoded, over Cloudflare Pages' 25 MiB per-file limit,
+ * so RECOGNITION_INDEX_URL now points at a small manifest listing one or more "part" files that
+ * together hold every item — see the build script's header comment for the packaging rationale.
  */
 export interface ReferenceIndexItem {
   id: string;
@@ -16,13 +20,18 @@ export interface ReferenceIndexItem {
   orbDataB64: string;
 }
 
-export interface ReferenceIndexFile {
+export interface ReferenceIndexManifest {
   version: number;
   catalogVersion: string;
   builtAt: string;
-  items: ReferenceIndexItem[];
+  /** Filenames, relative to the manifest's own URL, each resolving to a ReferenceIndexPart. */
+  parts: string[];
   /** Catalog ids with no usable baked artwork — excluded from matching, still selectable manually. */
   missingReferenceIds: string[];
+}
+
+interface ReferenceIndexPart {
+  items: ReferenceIndexItem[];
 }
 
 export interface LoadedReference {
@@ -48,11 +57,19 @@ function base64ToUint8Array(base64: string): Uint8Array {
 /** `cv` must already be loaded — ORB descriptors are reconstructed as real cv.Mat objects so the
  * shared core/retrieval.mjs's exact-ORB reranking (matchOrb) works identically to the Node build. */
 export async function loadReferenceIndex(cv: any, url: string): Promise<LoadedReferenceIndex> {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error("Recognition reference data could not be loaded.");
-  const file = (await response.json()) as ReferenceIndexFile;
+  const manifestResponse = await fetch(url);
+  if (!manifestResponse.ok) throw new Error("Recognition reference data could not be loaded.");
+  const manifest = (await manifestResponse.json()) as ReferenceIndexManifest;
 
-  const references: LoadedReference[] = file.items.map((item) => {
+  const partResponses = await Promise.all(
+    manifest.parts.map((part) => fetch(new URL(part, manifestResponse.url))),
+  );
+  if (partResponses.some((partResponse) => !partResponse.ok))
+    throw new Error("Recognition reference data could not be loaded.");
+  const parts = (await Promise.all(partResponses.map((partResponse) => partResponse.json()))) as ReferenceIndexPart[];
+  const items = parts.flatMap((part) => part.items);
+
+  const references: LoadedReference[] = items.map((item) => {
     const histogramBytes = base64ToUint8Array(item.histogramB64);
     const histogram = new Float32Array(
       histogramBytes.buffer,
@@ -73,7 +90,7 @@ export async function loadReferenceIndex(cv: any, url: string): Promise<LoadedRe
   return {
     references,
     lshBuckets,
-    catalogVersion: file.catalogVersion,
-    missingReferenceIds: file.missingReferenceIds,
+    catalogVersion: manifest.catalogVersion,
+    missingReferenceIds: manifest.missingReferenceIds,
   };
 }
