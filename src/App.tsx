@@ -28,6 +28,7 @@ import { ChestDetail, MissingChest } from "./storage/ChestDetail";
 import { ChestForm } from "./storage/ChestForm";
 import { StoragePage } from "./storage/StoragePage";
 import { useStorage } from "./storage/context";
+import { useScanSession } from "./storage/scanSession";
 import { allImageRows } from "./storage/db";
 import { buildBackupEnvelope, validateBackupEnvelope, type ParsedBackup } from "./storage/backup";
 import { MAX_BACKUP_IMPORT_BYTES } from "./storage/constants";
@@ -64,10 +65,18 @@ export default function App() {
   const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [error, setError] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [confirmingScanStop, setConfirmingScanStop] = useState(false);
   const catalog = useCatalog();
   const androidBuild = import.meta.env.VITE_DISTRIBUTION === "android";
   const { state, status, error: saveError, ready, replaceNotebook, pendingUndo, undo, undoError } = useProgress();
   const storageCtx = useStorage();
+  const {
+    session: scanSession,
+    toast: scanToast,
+    stopScan,
+    dismissToast,
+    requestReview,
+  } = useScanSession();
   const { chests: storageChests, localItems: storageLocalItems, ready: storageReady } = storageCtx;
   const file = useRef<HTMLInputElement>(null);
   const parsed = parseRoute(route);
@@ -324,6 +333,63 @@ export default function App() {
             ) : null}
           </div>
         )}
+        {scanSession &&
+        (scanSession.phase === "preparing" || scanSession.phase === "matching") ? (
+          <div className="storage-scan-shell-status" role="status" aria-live="polite">
+            <button
+              type="button"
+              className="storage-scan-shell-open"
+              onClick={() => {
+                requestReview(scanSession.chestId);
+                location.hash = `#/storage/${encodeURIComponent(scanSession.chestId)}`;
+              }}
+            >
+              <strong>Scanning {scanSession.chestName}…</strong>
+              <span>
+                {scanSession.phase === "preparing"
+                  ? "Reading the page"
+                  : `${scanSession.progress.done} of ${scanSession.progress.total} slots`}
+              </span>
+            </button>
+            <div
+              className={`storage-scan-bar ${scanSession.phase === "preparing" ? "indeterminate" : ""}`}
+              aria-hidden="true"
+            >
+              <span
+                style={{
+                  transform:
+                    scanSession.phase === "preparing"
+                      ? undefined
+                      : `scaleX(${scanSession.progress.total ? scanSession.progress.done / scanSession.progress.total : 0})`,
+                }}
+              />
+            </div>
+            <button type="button" className="text-button" onClick={() => setConfirmingScanStop(true)}>
+              Cancel
+            </button>
+          </div>
+        ) : null}
+        {scanToast ? (
+          <div className="storage-scan-toast" role="status">
+            {scanToast.chestId ? (
+              <button
+                type="button"
+                className="storage-scan-toast-open"
+                onClick={() => {
+                  requestReview(scanToast.chestId!);
+                  location.hash = `#/storage/${encodeURIComponent(scanToast.chestId!)}`;
+                }}
+              >
+                {scanToast.message}
+              </button>
+            ) : (
+              <span>{scanToast.message}</span>
+            )}
+            <button type="button" className="text-button" onClick={dismissToast}>
+              Dismiss
+            </button>
+          </div>
+        ) : null}
         <div ref={contentRef} className="route-content">
           {!ready ? (
             <div className="loading">Opening your notebook…</div>
@@ -620,6 +686,29 @@ export default function App() {
       {editingEnvLevels && (
         <EnvLevelsModal onClose={() => setEditingEnvLevels(false)} />
       )}
+      {confirmingScanStop ? (
+        <Modal title="Stop this scan?" onClose={() => setConfirmingScanStop(false)}>
+          <p>
+            Stopping keeps the slots already identified in this review. Slots still loading will be
+            dropped. Nothing is saved to this chest until you accept.
+          </p>
+          <div className="button-row">
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                setConfirmingScanStop(false);
+                stopScan();
+              }}
+            >
+              Stop scan
+            </button>
+            <button type="button" className="button secondary" onClick={() => setConfirmingScanStop(false)}>
+              Keep scanning
+            </button>
+          </div>
+        </Modal>
+      ) : null}
     </div>
   );
 }

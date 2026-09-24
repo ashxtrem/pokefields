@@ -5,6 +5,7 @@ import { CatalogContext } from "./catalog/context";
 import type { Catalog } from "./catalog/types";
 import { ProgressProvider } from "./progress/context";
 import { StorageProvider } from "./storage/context";
+import { ScanSessionProvider } from "./storage/scanSession";
 import "./styles.css";
 function Root() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -31,7 +32,9 @@ function Root() {
     <CatalogContext.Provider value={catalog}>
       <ProgressProvider>
         <StorageProvider>
-          <App />
+          <ScanSessionProvider>
+            <App />
+          </ScanSessionProvider>
         </StorageProvider>
       </ProgressProvider>
     </CatalogContext.Provider>

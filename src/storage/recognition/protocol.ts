@@ -20,5 +20,6 @@ export type ScanWorkerRequest =
 export type ScanWorkerResponse =
   | { type: "error"; scanId?: string; message: string }
   | { type: "progress"; scanId: string; done: number; total: number }
+  | { type: "slot"; scanId: string; result: MatchTaskResult }
   | { type: "result"; scanId: string; results: MatchTaskResult[] }
   | { type: "cancelled"; scanId: string };

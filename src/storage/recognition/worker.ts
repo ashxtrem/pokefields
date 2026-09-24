@@ -18,6 +18,7 @@ declare const self: DedicatedWorkerGlobalScope;
 let cvPromise: Promise<unknown> | null = null;
 let referenceIndexPromise: Promise<LoadedReferenceIndex> | null = null;
 const cancelledScanIds = new Set<string>();
+const activeScanIds = new Set<string>();
 
 function post(message: ScanWorkerResponse, transfer: Transferable[] = []) {
   self.postMessage(message, transfer);
@@ -35,12 +36,13 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
   const message = event.data;
 
   if (message.type === "cancel") {
-    cancelledScanIds.add(message.scanId);
+    if (activeScanIds.has(message.scanId)) cancelledScanIds.add(message.scanId);
     return;
   }
 
   if (message.type === "matchSlots") {
     const { scanId, tasks } = message;
+    activeScanIds.add(scanId);
     try {
       const { cv, referenceIndex } = await ensureReady();
       const results: MatchTaskResult[] = [];
@@ -54,13 +56,17 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
           descriptor: { histogram: task.histogram, shape: task.shape, aspect: task.aspect },
           grey: task.grey,
         });
-        results.push({ id: task.id, outcome });
+        const result = { id: task.id, outcome };
+        results.push(result);
+        post({ type: "slot", scanId, result });
         done += 1;
         post({ type: "progress", scanId, done, total: tasks.length });
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
       }
 
       if (cancelledScanIds.has(scanId)) {
         cancelledScanIds.delete(scanId);
+        post({ type: "result", scanId, results });
         post({ type: "cancelled", scanId });
       } else {
         post({ type: "result", scanId, results });
@@ -71,6 +77,9 @@ self.onmessage = async (event: MessageEvent<ScanWorkerRequest>) => {
         scanId,
         message: error instanceof Error ? error.message : "Recognition failed on this page.",
       });
+    } finally {
+      activeScanIds.delete(scanId);
+      cancelledScanIds.delete(scanId);
     }
   }
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, ScanLine, Search, X } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { Empty, ExplainDialog, ItemButton, ItemThumb, Modal } from "../ui/components";
@@ -9,12 +9,14 @@ import { useStorage } from "./context";
 import { ItemPicker } from "./ItemPicker";
 import { LocalItemEditor } from "./LocalItemEditor";
 import { ScanFlow } from "./ScanFlow";
+import { useScanSession } from "./scanSession";
 import { StorageImageThumb } from "./StorageImageThumb";
 import { resolveItemRefName, storageListHref } from "./search";
 import { itemRefKey, normalizeItemName, type StorageItemRef } from "./types";
 
 export function ChestDetail({ chestId }: { chestId: string }) {
   const catalog = useCatalog();
+  const { session, reviewRequest } = useScanSession();
   const {
     chests,
     localItems,
@@ -30,13 +32,21 @@ export function ChestDetail({ chestId }: { chestId: string }) {
   const [adding, setAdding] = useState(false);
   const [resolvingSlotId, setResolvingSlotId] = useState<string | null>(null);
   const [replacingRefKey, setReplacingRefKey] = useState<string | null>(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(() => session?.chestId === chestId);
+  const [scanNotice, setScanNotice] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [confirmingIgnoreAll, setConfirmingIgnoreAll] = useState(false);
+  const [ignoringAll, setIgnoringAll] = useState(false);
+  const [bulkIgnoreError, setBulkIgnoreError] = useState("");
   const [editingLocalItemId, setEditingLocalItemId] = useState<string | null>(null);
   const [explainTerm, setExplainTerm] = useState<TermRef | null>(null);
   const [contentsQuery, setContentsQuery] = useState("");
 
   const chest = chests.find((c) => c.id === chestId);
+
+  useEffect(() => {
+    if (session?.chestId === chestId) setScanning(true);
+  }, [chestId, reviewRequest, session?.chestId]);
 
   if (!ready) return <div className="loading">Opening this chest…</div>;
   if (!chest) return <MissingChest />;
@@ -84,7 +94,18 @@ export function ChestDetail({ chestId }: { chestId: string }) {
         <button type="button" className="button secondary" onClick={() => setEditing(true)}>
           Edit chest
         </button>
-        <button type="button" className="button" onClick={() => setScanning(true)}>
+        <button
+          type="button"
+          className="button"
+          onClick={() => {
+            if (session && session.chestId !== chest.id) {
+              setScanNotice(`A scan for ${session.chestName} is already waiting. Open that review before starting another.`);
+              return;
+            }
+            setScanNotice("");
+            setScanning(true);
+          }}
+        >
           <ScanLine size={16} />
           Import screenshot
         </button>
@@ -92,6 +113,7 @@ export function ChestDetail({ chestId }: { chestId: string }) {
           Delete chest
         </button>
       </div>
+      {scanNotice ? <p className="notice">{scanNotice}</p> : null}
 
       <section>
         <h2>
@@ -223,6 +245,21 @@ export function ChestDetail({ chestId }: { chestId: string }) {
             These slots could not be confidently matched during a screenshot scan. Assign them
             manually or ignore them.
           </p>
+          <button
+            type="button"
+            className="button secondary"
+            onClick={() => {
+              setBulkIgnoreError("");
+              setConfirmingIgnoreAll(true);
+            }}
+          >
+            Ignore all {chest.unresolvedSlots.length}
+          </button>
+          {bulkIgnoreError ? (
+            <p className="notice error" role="alert">
+              {bulkIgnoreError}
+            </p>
+          ) : null}
           <ul className="storage-unresolved-list">
             {chest.unresolvedSlots.map((slot) => (
               <li key={slot.id}>
@@ -281,6 +318,53 @@ export function ChestDetail({ chestId }: { chestId: string }) {
             </button>
             <button type="button" className="button secondary" onClick={() => setConfirmingDelete(false)}>
               Cancel
+            </button>
+          </div>
+        </Modal>
+      ) : null}
+
+      {confirmingIgnoreAll ? (
+        <Modal
+          title="Ignore all unidentified items?"
+          onClose={() => {
+            if (!ignoringAll) setConfirmingIgnoreAll(false);
+          }}
+        >
+          <p>
+            This removes all {chest.unresolvedSlots?.length ?? 0} unidentified slots from this
+            chest. Use this when the scan has mistaken empty cells for items.
+          </p>
+          <div className="button-row">
+            <button
+              type="button"
+              className="button"
+              disabled={ignoringAll}
+              onClick={async () => {
+                const slotIds = chest.unresolvedSlots?.map((slot) => slot.id) ?? [];
+                setIgnoringAll(true);
+                setBulkIgnoreError("");
+                try {
+                  for (const slotId of slotIds) {
+                    await resolveUnresolvedSlot(chest.id, slotId);
+                  }
+                  setConfirmingIgnoreAll(false);
+                } catch {
+                  setBulkIgnoreError("Some unidentified items could not be ignored. Try again.");
+                  setConfirmingIgnoreAll(false);
+                } finally {
+                  setIgnoringAll(false);
+                }
+              }}
+            >
+              {ignoringAll ? "Ignoring…" : "Ignore all"}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              disabled={ignoringAll}
+              onClick={() => setConfirmingIgnoreAll(false)}
+            >
+              Keep items
             </button>
           </div>
         </Modal>

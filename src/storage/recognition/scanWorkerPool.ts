@@ -22,6 +22,12 @@ function defaultPoolSize(): number {
 }
 
 let workers: Worker[] | null = null;
+const cancelledScanIds = new Set<string>();
+
+export interface MatchRunResult {
+  status: "completed" | "cancelled";
+  results: Map<string, RecognitionOutcome | null>;
+}
 
 function ensurePool(): Worker[] {
   if (!workers) {
@@ -42,20 +48,24 @@ function chunk<T>(items: T[], parts: number): T[][] {
 
 /**
  * Runs `tasks` (one per occupied slot) across the persistent pool, distributing them evenly and
- * aggregating progress and results by `scanId`. Resolves "cancelled" if `cancelScan(scanId)` was
- * called before every chunk finished; rejects if any worker reports an error.
+ * aggregating progress and results by `scanId`. A cancelled run resolves with every result that
+ * streamed before cancellation; rejects if any worker reports an error.
  */
 export function runMatchTasks(
   scanId: string,
   tasks: MatchTask[],
   onProgress: (done: number, total: number) => void,
-): Promise<Map<string, RecognitionOutcome | null> | "cancelled"> {
-  if (tasks.length === 0) return Promise.resolve(new Map());
+  onSlot?: (id: string, outcome: RecognitionOutcome | null) => void,
+): Promise<MatchRunResult> {
+  if (tasks.length === 0)
+    return Promise.resolve({ status: "completed", results: new Map() });
 
+  cancelledScanIds.delete(scanId);
   const pool = ensurePool();
   const chunks = chunk(tasks, pool.length);
   const total = tasks.length;
   const doneByChunk = new Array(chunks.length).fill(0);
+  const settledByChunk = new Array(chunks.length).fill(false);
 
   return new Promise((resolve, reject) => {
     const results = new Map<string, RecognitionOutcome | null>();
@@ -66,6 +76,19 @@ export function runMatchTasks(
 
     const cleanupAll = () => {
       for (const { worker, handler } of listeners) worker.removeEventListener("message", handler);
+      cancelledScanIds.delete(scanId);
+    };
+    const settleChunk = (chunkIndex: number) => {
+      if (settledByChunk[chunkIndex]) return;
+      settledByChunk[chunkIndex] = true;
+      settledCount += 1;
+      if (settledCount === chunks.length) {
+        settledOverall = true;
+        const status =
+          cancelledAny || cancelledScanIds.has(scanId) ? "cancelled" : "completed";
+        cleanupAll();
+        resolve({ status, results });
+      }
     };
 
     chunks.forEach((chunkTasks, chunkIndex) => {
@@ -78,22 +101,15 @@ export function runMatchTasks(
         if (message.type === "progress") {
           doneByChunk[chunkIndex] = message.done;
           onProgress(doneByChunk.reduce((sum, value) => sum + value, 0), total);
+        } else if (message.type === "slot") {
+          results.set(message.result.id, message.result.outcome);
+          onSlot?.(message.result.id, message.result.outcome);
         } else if (message.type === "result") {
           for (const { id, outcome } of message.results) results.set(id, outcome);
-          settledCount += 1;
-          if (settledCount === chunks.length) {
-            settledOverall = true;
-            cleanupAll();
-            resolve(cancelledAny ? "cancelled" : results);
-          }
+          settleChunk(chunkIndex);
         } else if (message.type === "cancelled") {
           cancelledAny = true;
-          settledCount += 1;
-          if (settledCount === chunks.length) {
-            settledOverall = true;
-            cleanupAll();
-            resolve("cancelled");
-          }
+          settleChunk(chunkIndex);
         } else if (message.type === "error") {
           settledOverall = true;
           cleanupAll();
@@ -114,5 +130,6 @@ export function runMatchTasks(
 
 /** Soft-cancels an in-flight scan on every pool worker without destroying the warmed-up pool. */
 export function cancelScan(scanId: string) {
+  cancelledScanIds.add(scanId);
   workers?.forEach((worker) => worker.postMessage({ type: "cancel", scanId } satisfies ScanWorkerRequest));
 }
