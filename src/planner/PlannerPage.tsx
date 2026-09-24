@@ -53,7 +53,6 @@ import {
   Portrait,
   TermChip,
 } from "../ui/components";
-import { reconcileHouseQuantityList } from "../shopping/checklists";
 
 const PRESETS: {
   id: string;
@@ -185,16 +184,7 @@ export function PlannerPage() {
     availableKitIds,
   );
   const save = (next: HousematePlan) =>
-    update((s) => ({
-      ...s,
-      housematePlan: next,
-      houseShopping: reconcileHouseQuantityList(
-        s.houseShopping,
-        next,
-        catalog,
-        s.envLevels,
-      ),
-    }));
+    update((s) => ({ ...s, housematePlan: next }));
   const persistView = (next: HousematePlan) => {
     if (draft) setDraft(next);
     else save(next);
@@ -234,15 +224,6 @@ export function PlannerPage() {
   const environmentGuidanceRows = view
     ? environmentSupplies(view, catalog, envLevels)
     : [];
-  const houseShopping =
-    saved && !draft
-      ? reconcileHouseQuantityList(
-          state.houseShopping,
-          saved,
-          catalog,
-          envLevels,
-        )
-      : null;
   const changing = view?.homes.find((h) => h.id === changeHomeId);
   const housedCount = view
     ? view.homes.reduce((s, h) => s + h.residents.length, 0)
@@ -740,7 +721,7 @@ export function PlannerPage() {
                 {supplies && (
                   <details className="supplies">
                     <summary>
-                      House shopping checklist{" "}
+                      What these homes need{" "}
                       <span>
                         {supplies.construction.length +
                           supplies.furnishings.length +
@@ -749,15 +730,14 @@ export function PlannerPage() {
                       </span>
                     </summary>
                     <p className="muted">
-                      Use the House list button to track gathered quantities.
-                      Construction totals, furnishing suggestions and
-                      environment guidance remain separate. Food and care are
-                      not shopping progress.
+                      Reference only. Construction totals, furnishing
+                      suggestions and environment guidance remain separate.
+                      Food and care are not shopping progress.
                     </p>
                     <h3>Required materials</h3>
                     {supplies.construction.length ? (
                       <HouseQuantityPreview
-                        rows={houseShopping?.construction || []}
+                        rows={supplies.construction}
                         onExplain={setTerm}
                         context="home"
                       />
@@ -770,7 +750,7 @@ export function PlannerPage() {
                     <h3>Suggested furnishings</h3>
                     {supplies.furnishings.length ? (
                       <HouseQuantityPreview
-                        rows={houseShopping?.furnishings || []}
+                        rows={supplies.furnishings}
                         onExplain={setTerm}
                       />
                     ) : (
@@ -785,7 +765,7 @@ export function PlannerPage() {
                     </p>
                     {environmentGuidanceRows.length ? (
                       <HouseQuantityPreview
-                        rows={houseShopping?.environment || []}
+                        rows={environmentGuidanceRows}
                         onExplain={setTerm}
                       />
                     ) : (
@@ -877,7 +857,7 @@ function HouseQuantityPreview({
   onExplain,
   context,
 }: {
-  rows: { label: string; quantity: number; gathered: number }[];
+  rows: { name: string; quantity: number }[];
   onExplain: (term: TermRef) => void;
   /** Set for build materials so the popup explains what the total is for. */
   context?: TermRef["context"];
@@ -888,26 +868,21 @@ function HouseQuantityPreview({
   return (
     <ul className="supply-list checklist-rows">
       {rows.map((row) => {
-        const item = catalog.items.find((entry) => entry.name === row.label);
+        const item = catalog.items.find((entry) => entry.name === row.name);
         const lock =
           context === "home" ? null : itemEnvLock(item || {}, envLevels);
         return (
-          <li
-            key={row.label + row.quantity}
-            className={row.gathered >= row.quantity ? "ready" : ""}
-          >
+          <li key={row.name + row.quantity}>
             <span className="supply-item-copy">
               <ItemButton
-                name={row.label}
+                name={row.name}
                 quantity={context ? row.quantity : undefined}
                 context={context}
                 onOpen={onExplain}
               />
               {lock && <EnvLockNote requirement={lock} />}
             </span>
-            <strong>
-              {row.gathered} / {row.quantity}
-            </strong>
+            <strong>× {row.quantity}</strong>
           </li>
         );
       })}

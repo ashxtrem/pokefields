@@ -1,19 +1,14 @@
 import type { Catalog } from "../catalog/types";
 import { listCanonicalHabitats } from "./catalog";
-import { buildBadges, recordsForHabitat } from "./builds";
-import type { HabitatCatalogFilters } from "./types";
-import type { CanonicalHabitat, HabitatBuildRecord } from "./types";
+import { locationsForHabitat } from "./locations";
+import type { HabitatCatalogFilters, HabitatLocationRecord } from "./types";
+import type { CanonicalHabitat } from "./types";
 
 export function habitatDexNumber(image: string | null): number | null {
   if (!image) return null;
-  try {
-    const name =
-      new URL(image, "https://www.serebii.net").pathname.split("/").pop() || "";
-    const match = name.match(/^(\d+)\.png$/i);
-    return match ? Number(match[1]) : null;
-  } catch {
-    return null;
-  }
+  const name = image.split(/[/?#]/).filter(Boolean).pop() || "";
+  const match = name.match(/^(\d+)\.png$/i);
+  return match ? Number(match[1]) : null;
 }
 
 function compareByHabitatId(a: CanonicalHabitat, b: CanonicalHabitat) {
@@ -42,17 +37,6 @@ function matchesSearch(
   });
 }
 
-function matchesStatus(
-  badge: ReturnType<typeof buildBadges>,
-  status: HabitatCatalogFilters["status"],
-) {
-  if (status === "all") return true;
-  if (status === "none") return badge.planned === 0 && badge.built === 0;
-  if (status === "planned") return badge.planned > 0;
-  if (status === "built") return badge.built > 0;
-  return true;
-}
-
 function unfoundCount(
   catalog: Catalog,
   habitatId: string,
@@ -71,73 +55,54 @@ function unfoundCount(
   return pokemonIds.filter((id) => !(found[id]?.length > 0)).length;
 }
 
+/**
+ * Available here: catalog discovery-region membership. Saved here: the
+ * player's own habitat location records. `Region not recorded` keeps a
+ * meaning in both — a catalog gap under Available here, a migrated
+ * regionless location under Saved here (§3.1).
+ */
 export function filterHabitats(
   catalog: Catalog,
-  builds: Record<string, HabitatBuildRecord>,
+  locations: Record<string, HabitatLocationRecord>,
   found: Record<string, string[]>,
   filters: HabitatCatalogFilters,
 ) {
   const all = listCanonicalHabitats(catalog);
   let results = all.filter((habitat) => {
-    const records = recordsForHabitat(builds, habitat.id);
-    const badge = buildBadges(records);
     if (!matchesSearch(catalog, habitat.id, habitat.name, filters.search))
       return false;
-    if (!matchesStatus(badge, filters.status)) return false;
 
     if (filters.region) {
-      if (filters.regionMode === "available") {
-        if (
-          filters.region !== "__none__" &&
-          !habitat.discoveryRegions.includes(filters.region) &&
-          !(filters.region === "all" && habitat.regionNotRecorded)
-        ) {
-          if (
-            filters.region !== "all" &&
-            !habitat.discoveryRegions.includes(filters.region)
-          )
-            return false;
-        }
-        if (
-          filters.region !== "all" &&
-          filters.region !== "__none__" &&
-          !habitat.discoveryRegions.includes(filters.region) &&
-          !habitat.regionNotRecorded
-        )
+      if (filters.scope === "available") {
+        if (filters.region === "__none__") {
+          if (!habitat.regionNotRecorded) return false;
+        } else if (!habitat.discoveryRegions.includes(filters.region)) {
           return false;
+        }
       } else {
-        const inRegion = records.some(
-          (r) => r.region === filters.region || (!r.region && filters.region === "__none__"),
-        );
-        if (!inRegion) return false;
+        const rows = locationsForHabitat(locations, habitat.id);
+        if (filters.region === "__none__") {
+          if (!rows.some((r) => r.region === null)) return false;
+        } else if (!rows.some((r) => r.region === filters.region)) {
+          return false;
+        }
       }
+    } else if (filters.scope === "saved") {
+      if (!locationsForHabitat(locations, habitat.id).length) return false;
     }
 
     if (filters.unfoundOnly) {
-      const region = filters.region && filters.region !== "all" ? filters.region : "";
+      const region =
+        filters.region && filters.region !== "__none__" ? filters.region : "";
       if (unfoundCount(catalog, habitat.id, found, region) === 0) return false;
     }
     return true;
   });
 
-  if (filters.region === "__none__") {
-    results = results.filter((h) => h.regionNotRecorded);
-  } else if (filters.region && filters.region !== "all") {
-    if (filters.regionMode === "available") {
-      results = results.filter(
-        (h) =>
-          h.discoveryRegions.includes(filters.region) ||
-          (h.regionNotRecorded && filters.region === "all"),
-      );
-    }
-  }
-
   results = [...results].sort((a, b) => {
     if (filters.sort === "unfound") {
       const region =
-        filters.region && filters.region !== "all" && filters.region !== "__none__"
-          ? filters.region
-          : "";
+        filters.region && filters.region !== "__none__" ? filters.region : "";
       const ua = unfoundCount(catalog, a.id, found, region);
       const ub = unfoundCount(catalog, b.id, found, region);
       if (ub !== ua) return ub - ua;
@@ -154,9 +119,8 @@ export function filtersToQuery(filters: HabitatCatalogFilters) {
   const params = new URLSearchParams();
   if (filters.search) params.set("q", filters.search);
   if (filters.region) params.set("region", filters.region);
-  if (filters.status !== "all") params.set("status", filters.status);
   if (filters.unfoundOnly) params.set("unfound", "1");
-  if (filters.regionMode !== "available") params.set("regionMode", filters.regionMode);
+  if (filters.scope !== "available") params.set("scope", filters.scope);
   if (filters.sort !== "id") params.set("sort", filters.sort);
   return params.toString();
 }
@@ -166,15 +130,22 @@ function sortFromQuery(value: string | null): HabitatCatalogFilters["sort"] {
   return "id";
 }
 
+/** Accepts the current `scope` param and the old `regionMode=builds` URLs as Saved here. */
+function scopeFromQuery(
+  params: URLSearchParams,
+): HabitatCatalogFilters["scope"] {
+  if (params.get("scope") === "saved") return "saved";
+  if (params.get("regionMode") === "builds") return "saved";
+  return "available";
+}
+
 export function filtersFromQuery(search: string): HabitatCatalogFilters {
   const params = new URLSearchParams(search);
   return {
     search: params.get("q") || "",
     region: params.get("region") || "",
-    status: (params.get("status") as HabitatCatalogFilters["status"]) || "all",
     unfoundOnly: params.get("unfound") === "1",
-    regionMode:
-      params.get("regionMode") === "builds" ? "builds" : "available",
+    scope: scopeFromQuery(params),
     sort: sortFromQuery(params.get("sort")),
   };
 }

@@ -4,18 +4,22 @@ import { createHash } from "node:crypto";
 // Do not precache /index.html: Cloudflare Pages 308s it to /, and browsers
 // refuse to replay a redirected response for navigations (ERR_FAILED).
 const assets = (await readdir("dist/assets")).map((name) => "/assets/" + name);
-const files = ["/", "/data/catalog.json", ...assets];
+const legalRoutes = ["/privacy/", "/support/"];
+const files = ["/", ...legalRoutes, "/data/catalog.json", ...assets];
 const hash = createHash("sha256");
 hash.update("v2-no-redirected-index");
 hash.update(await readFile("dist/index.html"));
 for (const path of files.filter((p) => p !== "/"))
-  hash.update(await readFile("dist" + path));
+  hash.update(
+    await readFile("dist" + (path.endsWith("/") ? path + "index.html" : path)),
+  );
 const version = "fieldnotes-" + hash.digest("hex").slice(0, 12);
 await writeFile(
   "dist/sw.js",
   `
 const CACHE=${JSON.stringify(version)};
 const FILES=${JSON.stringify(files)};
+const LEGAL=${JSON.stringify(Object.fromEntries(legalRoutes.flatMap((path) => [[path, path], [path.slice(0, -1), path]])))};
 function copy(response){
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers:response.headers});
 }
@@ -35,6 +39,16 @@ self.addEventListener('fetch',event=>{
  if(request.method!=='GET')return;
  const url=new URL(request.url);
  if(url.origin===self.location.origin){
+  const legalPath=LEGAL[url.pathname];
+  if(request.mode==='navigate'&&legalPath){
+   event.respondWith((async()=>{
+    const cache=await caches.open(CACHE);
+    const cached=await cache.match(legalPath);
+    if(cached) return cached.redirected?copy(cached):cached;
+    return fetch(request);
+   })());
+   return;
+  }
   if(url.pathname.startsWith('/images/')||url.pathname.startsWith('/data/storage-reference-index')){
    event.respondWith((async()=>{
     const cache=await caches.open(IMAGES);

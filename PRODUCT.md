@@ -14,7 +14,7 @@ The primary user is the person who keeps this notebook: one Pokopia player using
 
 Pokopia Fieldnotes is a local field guide for Pokémon Pokopia. It exists so the player can record what they have found and look up a species without leaving the game for long.
 
-Success is a fast, trustworthy lookup-and-record loop during a play session. Habitat planning, item unlock lookup, and housemate grouping exist in the product, but they lose when they conflict with that loop.
+Success is a fast, trustworthy lookup-and-record loop during a play session. Habitat location saving, item unlock lookup, and housemate grouping exist in the product, but they lose when they conflict with that loop.
 
 ## Positioning
 
@@ -24,14 +24,14 @@ A personal, device-local Pokopia notebook that treats discovery recording and sp
 
 Used beside the game, typically on a phone or laptop browser, to check a fact and mark a find, then return to play. Progress lives in this browser's IndexedDB ("My notebook") with optional JSON export/import to move or back up the record. There is no account, server, or live game API. The production app shell, catalog, and baked artwork work offline after a successful first visit.
 
-Shipped destinations: Pokédex, Habitats, Items, Housemates. A house/habitat shopping checklist is available from those flows. Cloudflare Pages deployment is prepared (`pokopia-companion`) and has not been completed.
+Shipped destinations: Pokédex, Habitats, Items, Housemates. Habitat and Housemates requirements stay as read-only reference knowledge, with a `Find in Storage` handoff to the Storage locator from any catalog item. The web app is deployed at `https://pokefields.pages.dev/`; its public privacy/support pages use the dedicated `https://pokefields-privacy.pages.dev/` origin.
 
 ## Capabilities and Constraints
 
 Shipped:
 
 - Per-area found marks, search, and filters across main, event, and basin dexes.
-- Habitat catalog with planned/built copies and gathering lists.
+- Habitat catalog with read-only requirement reference and lightweight saved-location records (where an already-built habitat exists).
 - Items directory covering crafting unlocks, cooking, buildings, and collectibles. Learned and collected marks are player-declared filters, not inventory.
 - Housemate grouping from found Pokémon, with construction, furnishing, and environment guidance. Suggestions are application heuristics, not a friendship simulation or proof of an in-game requirement.
 - Versioned `public/data/catalog.json` imported at build time from pinned PokopiaAPI records and independently extracted Serebii facts. Unknown details stay unfilled.
@@ -61,7 +61,7 @@ Pokémon names and artwork remain the property of their respective owners.
 - PokopiaAPI BSD-3-Clause notice: `public/data/POKOPIAPI-LICENSE.txt`.
 - Research and coverage notes under `docs/` and `docs/research/`.
 
-Do not fabricate testimonials, player counts, completeness of the in-game catalog, or a live production URL. Deployment has not shipped.
+Do not fabricate testimonials, player counts, or completeness of the in-game catalog. The verified production URL is `https://pokefields.pages.dev/`.
 
 ## Product Principles
 

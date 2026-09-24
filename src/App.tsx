@@ -9,6 +9,7 @@ import {
   Upload,
   Settings,
   TreePine,
+  ExternalLink,
 } from "lucide-react";
 import { useCatalog } from "./catalog/context";
 import { useProgress } from "./progress/context";
@@ -21,7 +22,6 @@ import { ItemsPage } from "./items/ItemsPage";
 import { listRecipes } from "./crafting/catalog";
 import { unavailableLearned, visibleLearnedCount } from "./crafting/learned";
 import { unavailableCollected, visibleCollectedCount } from "./items/collected";
-import { ChecklistFab, checklistScope } from "./shopping/ChecklistFab";
 import { EnvLevelsModal, Modal } from "./ui/components";
 import type { SaveState } from "./persistence/store";
 import { ChestDetail, MissingChest } from "./storage/ChestDetail";
@@ -31,6 +31,11 @@ import { useStorage } from "./storage/context";
 import { allImageRows } from "./storage/db";
 import { buildBackupEnvelope, validateBackupEnvelope, type ParsedBackup } from "./storage/backup";
 import { MAX_BACKUP_IMPORT_BYTES } from "./storage/constants";
+import {
+  openPrivacyPolicy,
+  PRIVACY_POLICY_URL,
+} from "./platform/externalLinks";
+import { exportNotebookBackup } from "./platform/backupExport";
 
 import {
   canonicalItemsHref,
@@ -58,7 +63,9 @@ export default function App() {
   const [editingEnvLevels, setEditingEnvLevels] = useState(false);
   const [pending, setPending] = useState<ParsedBackup | null>(null);
   const [error, setError] = useState("");
+  const [exporting, setExporting] = useState(false);
   const catalog = useCatalog();
+  const androidBuild = import.meta.env.VITE_DISTRIBUTION === "android";
   const { state, status, error: saveError, ready, replaceNotebook, pendingUndo, undo, undoError } = useProgress();
   const storageCtx = useStorage();
   const { chests: storageChests, localItems: storageLocalItems, ready: storageReady } = storageCtx;
@@ -196,16 +203,27 @@ export default function App() {
   };
 
   const exportFile = async () => {
-    const images = await allImageRows();
-    const envelope = await buildBackupEnvelope(state, storageChests, storageLocalItems, images);
-    const url = URL.createObjectURL(
-      new Blob([JSON.stringify(envelope)], { type: "application/json" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `pokopia-fieldnotes-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    if (exporting) return;
+    setExporting(true);
+    setError("");
+    try {
+      const images = await allImageRows();
+      const envelope = await buildBackupEnvelope(
+        state,
+        storageChests,
+        storageLocalItems,
+        images,
+      );
+      await exportNotebookBackup(JSON.stringify(envelope));
+    } catch {
+      setError(
+        androidBuild
+          ? "Could not export the backup. Try again or check that a sharing app is available."
+          : "Could not export the backup. Try again.",
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -216,7 +234,13 @@ export default function App() {
             <Leaf size={20} />
           </span>
           <span className="brand-copy">
-            pokopia<small>FIELDNOTES</small>
+            {androidBuild ? (
+              "pokefields"
+            ) : (
+              <>
+                pokopia<small>FIELDNOTES</small>
+              </>
+            )}
           </span>
         </a>
         <nav className="app-nav" aria-label="Primary">
@@ -339,10 +363,11 @@ export default function App() {
             <Leaf size={13} /> Every discovery makes this place a little more
             yours.
           </span>
-          <span>Pokopia Fieldnotes · {catalog.version}</span>
+          <span>
+            {`${androidBuild ? "pokefields" : "Pokopia Fieldnotes"} · ${catalog.version}`}
+          </span>
         </footer>
       </main>
-      <ChecklistFab scope={checklistScope(route)} />
       {backup && (
         <Modal
           title="Your notebook"
@@ -353,12 +378,12 @@ export default function App() {
           }}
         >
           <p>
-            Your discoveries, habitat builds, housemate plan, crafting marks,
-            collectible marks and any saved area layouts are stored in this
-            browser. Export a backup to move them or keep a copy. Replacing this
-            notebook includes learned recipe marks and collected items. Material
-            quantity notes from older backups are kept unused so they are not
-            dropped.
+            Your discoveries, saved habitat locations, housemate plan, crafting
+            marks, collectible marks and any saved area layouts are stored in
+            this browser. Export a backup to move them or keep a copy.
+            Replacing this notebook includes learned recipe marks and
+            collected items. Material quantity notes from older backups are
+            kept unused so they are not dropped.
           </p>
           <div className="backup-stats">
             <strong>
@@ -366,7 +391,8 @@ export default function App() {
               friends found
             </strong>
             <strong>
-              {Object.keys(state.habitatBuilds || {}).length} habitat builds
+              {Object.keys(state.habitatLocations || {}).length} saved habitat
+              locations
             </strong>
             <strong>{state.housematePlan ? 1 : 0} housemate plan</strong>
             <strong>
@@ -436,10 +462,21 @@ export default function App() {
               included in exports.
             </p>
           ) : null}
+          {state.habitatBuildLegacySnapshot || state.houseShoppingLegacySnapshot ? (
+            <p className="notice">
+              Old build-planning data is preserved in this notebook and
+              included in exports, but is no longer shown.
+            </p>
+          ) : null}
           <div className="button-row notebook-actions">
-            <button className="button" onClick={exportFile}>
+            <button
+              className="button"
+              onClick={exportFile}
+              disabled={exporting}
+              aria-busy={exporting}
+            >
               <Download size={17} />
-              Export backup
+              {exporting ? "Preparing backup…" : "Export backup"}
             </button>
             <button
               className="button secondary"
@@ -484,8 +521,10 @@ export default function App() {
               <p>
                 This backup contains{" "}
                 {Object.values(pending.state.found).filter((a) => a.length).length}{" "}
-                found Pokémon, {Object.keys(pending.state.habitatBuilds || {}).length}{" "}
-                habitat builds, {pending.state.housematePlan ? 1 : 0} housemate plan,{" "}
+                found Pokémon,{" "}
+                {Object.keys(pending.state.habitatLocations || {}).length}{" "}
+                saved habitat locations, {pending.state.housematePlan ? 1 : 0}{" "}
+                housemate plan,{" "}
                 {visibleLearnedCount(
                   pending.state.crafting?.learnedRecipeIds || [],
                   recipeIds,
@@ -537,12 +576,33 @@ export default function App() {
             </div>
           )}
           <hr />
+          <h3>About &amp; Legal</h3>
+          <p className="legal-action">
+            <a
+              className="legal-link"
+              href={PRIVACY_POLICY_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(event) => {
+                event.preventDefault();
+                void openPrivacyPolicy().catch(() =>
+                  setError("Could not open the privacy policy."),
+                );
+              }}
+            >
+              Privacy policy <ExternalLink size={14} aria-hidden="true" />
+            </a>
+          </p>
+          <p className="muted">
+            Opens the public pokefields privacy policy in your browser.
+          </p>
+          <hr />
           <h3>About the reference data</h3>
           <p className="muted">
             Unknown details remain unfilled; game updates can change
             availability and requirements.
           </p>
-          {catalog.sources
+          {import.meta.env.VITE_DISTRIBUTION === "web" && catalog.sources
             .filter((s) => !/serebii\.net/i.test(s.url))
             .map((s) => (
               <p key={s.url}>

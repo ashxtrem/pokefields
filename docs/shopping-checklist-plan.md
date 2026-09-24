@@ -1,7 +1,7 @@
 # Habitat and house shopping checklist
 
 Date: 9 September 2026
-Status: historical plan; partially implemented, then superseded by `habitats-and-shopping-implementation-plan.md` on 9 September 2026.
+Status: historical plan; partially implemented, then superseded by `habitats-and-shopping-implementation-plan.md` on 9 September 2026. The habitat build lifecycle and shopping-checklist system described here (and in that successor) were later removed entirely in favor of lightweight habitat location records; see `docs/habitat-location-and-build-tracker-removal-plan.md`. Kept as historical context only.
 
 [Certain] The replacement plan introduces a dedicated Habitats page, location-based build records and partial gathered quantities. Checkbox-only progress and habitat-list placement in Housemates below are historical decisions, not the current implementation target.
 

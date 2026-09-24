@@ -72,8 +72,8 @@ npx wrangler login
 npm run deploy
 ```
 
-The deploy script targets the Pages project `pokopia-companion`. Create that project in the desired Cloudflare account if it does not exist, or change the script to an existing project name. `wrangler.jsonc` contains only non-secret build configuration. Do not commit credentials.
+The deploy script targets the Pages project `pokefields`, served at `https://pokefields.pages.dev/`. `wrangler.jsonc` contains only non-secret build configuration. Do not commit credentials.
 
-Deployment has **not** been completed: the host's previous Wrangler login expired and could not refresh. The production build can be reviewed locally while that login is renewed.
+The production web deployment is live at `https://pokefields.pages.dev/`. Privacy and support pages are deployed separately at `https://pokefields-privacy.pages.dev/`.
 
 See `docs/pokopia-companion-plan.md` for scope and research decisions. Crafting coverage, licensing, and remaining data gaps are in `docs/research/crafting-audit.json` and `docs/research/crafting-licensing.md`. Navigation continuity notes are in `docs/navigation-ux.md`.

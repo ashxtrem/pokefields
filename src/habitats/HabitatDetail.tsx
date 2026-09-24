@@ -1,9 +1,8 @@
-import { BuildModal } from "./BuildModal";
 import { HabitatPokemonChips } from "./HabitatPokemon";
-import { CopyStepper, parseCopyCount, RegionChips } from "./BuildForm";
-import { SupplyIcon } from "../shopping/SupplyIcon";
-import { useMemo, useState } from "react";
-import { MapPin } from "lucide-react";
+import { CopyStepper, parseCopyCount, RegionChips } from "./LocationForm";
+import { SupplyIcon } from "../ui/SupplyIcon";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { MapPin, Pencil } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import {
   habitatImageUrl,
@@ -12,54 +11,56 @@ import {
 } from "../dex/glossary";
 import { useProgress } from "../progress/context";
 import {
-  buildBadges,
-  markBuilt,
-  recordsForHabitat,
-  setAllocationGathered,
-  splitPartialBuilt,
-  suppliesReady,
-  updateBuildCopies,
-  updateBuildLocation,
-} from "../habitats/builds";
-import { getCanonicalHabitat, listCanonicalHabitats } from "../habitats/catalog";
+  createLocation,
+  locationsForHabitat,
+  updateLocation,
+} from "./locations";
+import { getCanonicalHabitat, listCanonicalHabitats } from "./catalog";
 import {
   filtersFromQuery,
   habitatCatalogHref,
   habitatDetailHref,
-} from "../habitats/search";
-import { Empty, ExplainDialog, Modal } from "../ui/components";
-import { QuantityControls } from "../shopping/QuantityControls";
-import { HABITAT_HOUSE_GATHERED_DISCLOSURE } from "../crafting/types";
-import type { HabitatBuildRecord } from "./types";
+} from "./search";
+import { Empty, ExplainDialog } from "../ui/components";
+import type { HabitatLocationRecord } from "./types";
+
+function readQuery() {
+  return location.hash.includes("?")
+    ? location.hash.slice(location.hash.indexOf("?") + 1)
+    : "";
+}
 
 export function HabitatDetail({ habitatId }: { habitatId: string }) {
   const catalog = useCatalog();
   const { state, update, updateWithUndo, ready } = useProgress();
   const habitat = getCanonicalHabitat(catalog, habitatId);
-  const filters = useMemo(
-    () =>
-      filtersFromQuery(
-        location.hash.includes("?")
-          ? location.hash.slice(location.hash.indexOf("?") + 1)
-          : "",
-      ),
-    [location.hash],
-  );
+  const query = readQuery();
+  const filters = useMemo(() => filtersFromQuery(query), [query]);
+  const params = useMemo(() => new URLSearchParams(query), [query]);
   const [term, setTerm] = useState<TermRef | null>(null);
-  const [buildMode, setBuildMode] = useState<"planned" | "built">("planned");
-  const [planOpen, setPlanOpen] = useState(false);
-  const builds = state.habitatBuilds || {};
-  const records = habitat ? recordsForHabitat(builds, habitat.id) : [];
-  const badge = buildBadges(records);
+  const [editingId, setEditingId] = useState<string | null>(
+    params.get("edit"),
+  );
+  const [addingNew, setAddingNew] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+  const locations = state.habitatLocations || {};
+  const records = habitat ? locationsForHabitat(locations, habitat.id) : [];
+
+  useEffect(() => {
+    if (params.get("focus") === "my-locations" || params.get("edit")) {
+      sectionRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    // Only run once, when this page mounts for this habitat + query.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!habitat)
     return (
-      <Empty title="That habitat isn’t in this catalog">
+      <Empty title="That habitat isn't in this catalog">
         <a href="#/habitats">Return to Habitats</a>
       </Empty>
     );
   const src = habitatImageUrl(habitat.image);
-  const region = records.find((r) => r.region)?.region || filters.region || "";
-  const planned = records.filter((r) => r.status === "planned");
   const orderedHabitats = listCanonicalHabitats(catalog);
   const habitatIndex = orderedHabitats.findIndex((h) => h.id === habitat.id);
   const prevHabitat =
@@ -68,6 +69,59 @@ export function HabitatDetail({ habitatId }: { habitatId: string }) {
     habitatIndex >= 0 && habitatIndex < orderedHabitats.length - 1
       ? orderedHabitats[habitatIndex + 1]
       : null;
+
+  const saveEdit = (
+    record: HabitatLocationRecord,
+    fields: { region: string; note: string; copies: number },
+  ) => {
+    update((saved) => ({
+      ...saved,
+      habitatLocations: {
+        ...(saved.habitatLocations || {}),
+        [record.id]: updateLocation(record, fields),
+      },
+    }));
+    setEditingId(null);
+  };
+
+  const removeLocation = (record: HabitatLocationRecord) => {
+    updateWithUndo(
+      "Removed location",
+      (saved) => {
+        const next = { ...(saved.habitatLocations || {}) };
+        delete next[record.id];
+        return { ...saved, habitatLocations: next };
+      },
+      ["habitatLocations"],
+    );
+    setEditingId(null);
+  };
+
+  const addLocation = (fields: {
+    region: string;
+    note: string;
+    copies: number;
+  }) => {
+    const record = createLocation(
+      habitat,
+      fields.region,
+      fields.copies,
+      fields.note,
+    );
+    updateWithUndo(
+      `Saved ${habitat.name} in ${fields.region}`,
+      (saved) => ({
+        ...saved,
+        habitatLocations: {
+          ...(saved.habitatLocations || {}),
+          [record.id]: record,
+        },
+      }),
+      ["habitatLocations"],
+    );
+    setAddingNew(false);
+  };
+
   return (
     <div className="detail-page habitat-detail-page">
       <div className="detail-page-header">
@@ -121,7 +175,11 @@ export function HabitatDetail({ habitatId }: { habitatId: string }) {
           {!!habitat.conflicts.length && (
             <p className="notice">{habitat.conflicts.join(" · ")}</p>
           )}
-          <HabitatPokemonChips habitat={habitat} region={region} showNames />
+          <HabitatPokemonChips
+            habitat={habitat}
+            region={filters.region}
+            showNames
+          />
         </div>
       </div>
       <section>
@@ -151,274 +209,208 @@ export function HabitatDetail({ habitatId }: { habitatId: string }) {
           })}
         </div>
       </section>
-      <section className="habitat-build-actions">
-        <div>
-          <strong>
-            {badge.built ? `${badge.built} built` : ""}
-            {badge.built && badge.planned ? " · " : ""}
-            {badge.planned ? `${badge.planned} planned` : ""}
-            {!badge.built && !badge.planned ? "Not started" : ""}
-          </strong>
+      <section id="my-locations" ref={sectionRef}>
+        <div className="my-locations-heading">
+          <div>
+            <h2>My locations</h2>
+            <p className="muted">Places where you built this habitat.</p>
+          </div>
+          {!!records.length && (
+            <span className="count-pill">
+              {records.length} saved
+            </span>
+          )}
         </div>
-        <div className="button-row">
-          {planned.length ? (
-            <button
-              className="button secondary"
-              onClick={() =>
-                document
-                  .getElementById("habitat-builds")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
-            >
-              Open planned build
-            </button>
-          ) : null}
-          <button
-            className="button"
-            disabled={!ready}
-            onClick={() => {
-              setBuildMode("planned");
-              setPlanOpen(true);
-            }}
-          >
-            Plan build
-          </button>
-          <button
-            className="button secondary"
-            disabled={!ready}
-            onClick={() => {
-              setBuildMode("built");
-              setPlanOpen(true);
-            }}
-          >
-            Record built
-          </button>
-        </div>
-      </section>
-      <section id="habitat-builds">
-        <h2>Your builds</h2>
-        {!records.length ? (
-          <p className="muted">No builds recorded yet.</p>
+        {!records.length && !addingNew ? (
+          <p className="muted">
+            No saved locations yet. Choose a region above or add one here.
+          </p>
         ) : (
           records.map((record) => (
-            <BuildRecordCard
+            <LocationRow
               key={record.id}
               record={record}
               areas={catalog.areas}
+              editing={editingId === record.id}
               disabled={!ready}
-              onUpdate={(next) =>
-                update((saved) => ({
-                  ...saved,
-                  habitatBuilds: {
-                    ...(saved.habitatBuilds || {}),
-                    [next.id]: next,
-                  },
-                }))
-              }
-              onRemove={() =>
-                updateWithUndo("Removed build", (saved) => {
-                  const next = { ...(saved.habitatBuilds || {}) };
-                  delete next[record.id];
-                  return { ...saved, habitatBuilds: next };
-                })
-              }
-              onMarkBuilt={(n) => {
-                if (record.copies > 1 && record.status === "planned") {
-                  updateWithUndo("Marked built", (saved) => {
-                    const current = saved.habitatBuilds?.[record.id];
-                    if (!current) return saved;
-                    const { built, remaining } = splitPartialBuilt(current, n);
-                    const buildsNext = { ...(saved.habitatBuilds || {}) };
-                    delete buildsNext[record.id];
-                    buildsNext[built.id] = built;
-                    if (remaining) buildsNext[remaining.id] = remaining;
-                    return { ...saved, habitatBuilds: buildsNext };
-                  });
-                  return;
-                }
-                updateWithUndo("Marked built", (saved) => ({
-                  ...saved,
-                  habitatBuilds: {
-                    ...(saved.habitatBuilds || {}),
-                    [record.id]: markBuilt(record),
-                  },
-                }));
-              }}
+              onEdit={() => setEditingId(record.id)}
+              onCancel={() => setEditingId(null)}
+              onSave={(fields) => saveEdit(record, fields)}
+              onRemove={() => removeLocation(record)}
             />
           ))
         )}
+        {addingNew ? (
+          <NewLocationRow
+            areas={catalog.areas}
+            defaultRegion={filters.region}
+            disabled={!ready}
+            onCancel={() => setAddingNew(false)}
+            onSave={addLocation}
+          />
+        ) : (
+          <button
+            type="button"
+            className="button secondary"
+            disabled={!ready}
+            onClick={() => setAddingNew(true)}
+          >
+            Add another location
+          </button>
+        )}
       </section>
-      {planOpen && (
-        <BuildModal
-          habitatId={habitat.id}
-          habitatName={habitat.name}
-          mode={buildMode}
-          onClose={() => setPlanOpen(false)}
-        />
-      )}
       {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
     </div>
   );
 }
 
-function BuildRecordCard({
+function LocationRow({
   record,
   areas,
+  editing,
   disabled,
-  onUpdate,
+  onEdit,
+  onCancel,
+  onSave,
   onRemove,
-  onMarkBuilt,
 }: {
-  record: HabitatBuildRecord;
+  record: HabitatLocationRecord;
   areas: string[];
+  editing: boolean;
   disabled?: boolean;
-  onUpdate: (record: HabitatBuildRecord) => void;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSave: (fields: { region: string; note: string; copies: number }) => void;
   onRemove: () => void;
-  onMarkBuilt: (copies: number) => void;
 }) {
-  const [completeOpen, setCompleteOpen] = useState(false);
-  const [completedCopies, setCompletedCopies] = useState("1");
-  const [copiesDraft, setCopiesDraft] = useState(String(record.copies));
   const [region, setRegion] = useState(record.region || "");
-  const [note, setNote] = useState(record.locationNote);
-  return (
-    <article className="build-record-card">
-      <div className="build-record-head">
-        <strong>
-          {record.status === "planned" ? "Planned" : "Built"} · {record.copies}{" "}
-          {record.copies === 1 ? "copy" : "copies"}
-        </strong>
-        <span>
-          <MapPin size={14} /> {record.region || "Choose a region"}
-          {record.locationNote ? ` · ${record.locationNote}` : ""}
+  const [note, setNote] = useState(record.note);
+  const [copies, setCopies] = useState(String(record.copies));
+  const noteRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setRegion(record.region || "");
+      setNote(record.note);
+      setCopies(String(record.copies));
+      noteRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+
+  if (!editing) {
+    return (
+      <article className="location-row-view">
+        <span className="pin" aria-hidden="true">
+          <MapPin size={18} />
         </span>
-        {!!record.reviewFlags?.length && (
-          <p className="notice">{record.reviewFlags.join(" · ")}</p>
-        )}
-      </div>
-      {record.status === "planned" && (
-        <>
-          <p className="muted gathering-hint">{HABITAT_HOUSE_GATHERED_DISCLOSURE}</p>
-          {record.allocations.map((row) => (
-            <QuantityControls
-              key={row.requirementId}
-              label={row.label}
-              required={row.required}
-              gathered={row.gathered}
-              disabled={disabled}
-              onChange={(value) =>
-                onUpdate(
-                  setAllocationGathered(record, row.requirementId, value),
-                )
-              }
-              onHaveAll={() =>
-                onUpdate(
-                  setAllocationGathered(
-                    record,
-                    row.requirementId,
-                    row.required,
-                  ),
-                )
-              }
-              onReset={() =>
-                onUpdate(setAllocationGathered(record, row.requirementId, 0))
-              }
-            />
-          ))}
-          <p className="muted">
-            Supplies ready:{" "}
-            {suppliesReady(record) &&
-            !record.snapshot.requirements.some((r) => r.kind === "review")
-              ? "Yes"
-              : "Still gathering"}
-          </p>
-        </>
-      )}
-      <RegionChips
-        areas={areas}
-        value={region}
-        disabled={disabled}
-        onChange={(next) => {
-          setRegion(next);
-          onUpdate(updateBuildLocation(record, next, note));
-        }}
-      />
+        <div className="place">
+          <strong>{record.region || "Choose a region"}</strong>
+          <span>{record.note || "No landmark note"}</span>
+          {!!record.reviewFlags?.length && (
+            <p className="notice">{record.reviewFlags.join(" · ")}</p>
+          )}
+        </div>
+        <span className="copies">
+          {record.copies} here
+        </span>
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={`Edit ${record.habitatNameSnapshot} location in ${record.region || "an unrecorded region"}`}
+          disabled={disabled}
+          onClick={onEdit}
+        >
+          <Pencil size={16} />
+        </button>
+      </article>
+    );
+  }
+
+  const copyCount = parseCopyCount(copies);
+  return (
+    <article className="location-row-edit">
+      <RegionChips areas={areas} value={region} onChange={setRegion} disabled={disabled} />
       <label className="field">
-        <span>Location note</span>
+        <span>Landmark or note (optional)</span>
+        <input
+          ref={noteRef}
+          value={note}
+          disabled={disabled}
+          placeholder="e.g. beside the Pokémon Center"
+          onChange={(e) => setNote(e.target.value)}
+        />
+      </label>
+      <CopyStepper value={copies} onChange={setCopies} disabled={disabled} />
+      <div className="button-row">
+        <button
+          type="button"
+          className="button"
+          disabled={disabled || !region || !copyCount}
+          onClick={() => onSave({ region, note, copies: copyCount || 1 })}
+        >
+          Save
+        </button>
+        <button type="button" className="button secondary" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="text-button"
+          disabled={disabled}
+          onClick={onRemove}
+        >
+          Remove
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function NewLocationRow({
+  areas,
+  defaultRegion,
+  disabled,
+  onCancel,
+  onSave,
+}: {
+  areas: string[];
+  defaultRegion: string;
+  disabled?: boolean;
+  onCancel: () => void;
+  onSave: (fields: { region: string; note: string; copies: number }) => void;
+}) {
+  const validDefault = areas.includes(defaultRegion) ? defaultRegion : "";
+  const [region, setRegion] = useState(validDefault);
+  const [note, setNote] = useState("");
+  const [copies, setCopies] = useState("1");
+  const copyCount = parseCopyCount(copies);
+  return (
+    <article className="location-row-edit">
+      <RegionChips areas={areas} value={region} onChange={setRegion} disabled={disabled} />
+      <label className="field">
+        <span>Landmark or note (optional)</span>
         <input
           value={note}
           disabled={disabled}
-          onChange={(e) => {
-            setNote(e.target.value);
-            onUpdate(updateBuildLocation(record, region, e.target.value));
-          }}
+          placeholder="e.g. beside the Pokémon Center"
+          onChange={(e) => setNote(e.target.value)}
         />
       </label>
-      {record.status === "planned" && (
-        <>
-          <CopyStepper
-            value={copiesDraft}
-            disabled={disabled}
-            restoreOnBlur
-            fallback={record.copies}
-            onChange={(raw) => {
-              setCopiesDraft(raw);
-              const n = parseCopyCount(raw);
-              if (n && n !== record.copies)
-                onUpdate(updateBuildCopies(record, n));
-            }}
-          />
-          <button
-            className="button secondary"
-            disabled={disabled}
-            onClick={() => {
-              setCompletedCopies(String(record.copies));
-              setCompleteOpen(true);
-            }}
-          >
-            Mark built
-          </button>
-        </>
-      )}
-      {completeOpen && (
-        <Modal title="Mark copies built" onClose={() => setCompleteOpen(false)}>
-          <p>
-            {record.region || "Region not recorded"}
-            {record.locationNote ? ` · ${record.locationNote}` : ""}
-          </p>
-          <CopyStepper
-            label="Copies built"
-            value={completedCopies}
-            onChange={setCompletedCopies}
-          />
-          <p className="muted">
-            Any unbuilt copies stay on your gathering list.
-          </p>
-          <button
-            className="button full"
-            disabled={
-              disabled ||
-              !Number.isSafeInteger(Number(completedCopies)) ||
-              Number(completedCopies) < 1 ||
-              Number(completedCopies) > record.copies
-            }
-            onClick={() => {
-              onMarkBuilt(Number(completedCopies));
-              setCompleteOpen(false);
-            }}
-          >
-            Save built copies
-          </button>
-        </Modal>
-      )}
-      <button
-        type="button"
-        className="button secondary"
-        disabled={disabled}
-        onClick={onRemove}
-      >
-        Remove this build
-      </button>
+      <CopyStepper value={copies} onChange={setCopies} disabled={disabled} />
+      <div className="button-row">
+        <button
+          type="button"
+          className="button"
+          disabled={disabled || !region || !copyCount}
+          onClick={() => onSave({ region, note, copies: copyCount || 1 })}
+        >
+          Save
+        </button>
+        <button type="button" className="button secondary" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
     </article>
   );
 }

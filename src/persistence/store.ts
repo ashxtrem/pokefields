@@ -1,16 +1,22 @@
 import Dexie, { type Table } from "dexie";
 import { plannableKitMap, type Catalog } from "../catalog/types";
-import type { HabitatBuildRecord } from "../habitats/types";
+import type {
+  HabitatLocationFlag,
+  HabitatLocationRecord,
+} from "../habitats/types";
+import { getCanonicalHabitat } from "../habitats/catalog";
+import { migrateHabitatLocations } from "../habitats/migration";
 import type { HousematePlan, Plan } from "../planner/types";
 import { DEFAULT_HOUSEMATE_SETTINGS, HOUSEMATE_PLAN_VERSION } from "../planner/types";
 import { migrateHousematePlan } from "../planner/recommend";
 import { canPlace, validPlot } from "../planner/engine";
 import type {
   HouseQuantityList,
+  LegacyHabitatBuildRecord,
   QuantityRow,
   ShoppingChecklists,
   ShoppingRow,
-} from "../shopping/checklists";
+} from "./legacy";
 import {
   emptyCraftingState,
   type CraftingQuarantine,
@@ -35,12 +41,28 @@ export interface SaveState {
   craftingLegacySnapshot?: unknown;
   /** Legacy checkbox shopping lists — preserved in migration snapshot. */
   shoppingChecklists?: ShoppingChecklists;
-  /** Canonical habitat build records with quantity allocations. */
-  habitatBuilds?: Record<string, HabitatBuildRecord>;
-  /** Quantity-based house shopping list for the accepted plan. */
+  /**
+   * Pre-migration input only: the old habitat build planner/recorder.
+   * `migrateHabitatLocations` moves this into `habitatBuildLegacySnapshot`
+   * and deletes it; it never appears on a state returned from load or import.
+   */
+  habitatBuilds?: Record<string, LegacyHabitatBuildRecord>;
+  /**
+   * Pre-migration input only: the old quantity-based house shopping list.
+   * `migrateHabitatLocations` moves this into `houseShoppingLegacySnapshot`
+   * and deletes it; it never appears on a state returned from load or import.
+   */
   houseShopping?: HouseQuantityList;
   /** Original checkbox data kept until export verifies migration. */
   shoppingLegacySnapshot?: ShoppingChecklists;
+  /** The only active habitat-tracking field: lightweight "already built here" records. */
+  habitatLocations?: Record<string, HabitatLocationRecord>;
+  /** Set once `migrateHabitatLocations` has run so it never replays. */
+  habitatLocationMigrationVersion?: 1;
+  /** Verbatim former `habitatBuilds`; compatibility data only, never read by active UI. */
+  habitatBuildLegacySnapshot?: Record<string, LegacyHabitatBuildRecord>;
+  /** Verbatim former `houseShopping`; compatibility data only, never read by active UI. */
+  houseShoppingLegacySnapshot?: HouseQuantityList;
   plans: Record<string, Plan>;
   housematePlan?: HousematePlan | null;
   /** Kits the player has actually unlocked; null/absent means all kits. */
@@ -59,7 +81,8 @@ export const emptyState = (): SaveState => ({
   found: {},
   materialCounts: {},
   crafting: emptyCraftingState(),
-  habitatBuilds: {},
+  habitatLocations: {},
+  habitatLocationMigrationVersion: 1,
   plans: {},
   housematePlan: null,
   availableKitIds: null,
@@ -125,12 +148,16 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
     throw Error("Backup has invalid material quantities.");
   if (data.shoppingChecklists !== undefined)
     validateShoppingChecklists(data.shoppingChecklists);
-  if (data.habitatBuilds !== undefined)
-    validateHabitatBuilds(data.habitatBuilds);
-  if (data.houseShopping !== undefined) validateHouseShopping(data.houseShopping);
-  const migratedHouseShopping = migrateHouseShopping(data.houseShopping);
   if (data.shoppingLegacySnapshot !== undefined)
     validateShoppingChecklists(data.shoppingLegacySnapshot);
+  if (data.habitatBuilds !== undefined)
+    validateLegacyHabitatBuilds(data.habitatBuilds);
+  if (data.habitatBuildLegacySnapshot !== undefined)
+    validateLegacyHabitatBuilds(data.habitatBuildLegacySnapshot);
+  if (data.houseShopping !== undefined)
+    validateHouseShopping(data.houseShopping);
+  if (data.houseShoppingLegacySnapshot !== undefined)
+    validateHouseShopping(data.houseShoppingLegacySnapshot);
   for (const [area, p] of Object.entries(data.plans)) {
     if (
       !catalog.areas.includes(area) ||
@@ -210,11 +237,16 @@ export function validateBackup(raw: unknown, catalog: Catalog): SaveState {
     data.craftingQuarantine !== undefined
       ? readQuarantine(data.craftingQuarantine)
       : undefined;
+  const migratedState = migrateHabitatLocations(data, catalog);
+  const habitatLocations = validateHabitatLocations(
+    migratedState.habitatLocations || {},
+    catalog,
+  );
   return JSON.parse(
     JSON.stringify({
-      ...data,
+      ...migratedState,
+      habitatLocations,
       housematePlan: migratedPlan,
-      houseShopping: migratedHouseShopping,
       crafting: craftingRead.crafting,
       craftingQuarantine,
       craftingLegacySnapshot:
@@ -291,14 +323,9 @@ function validateHouseShopping(value: HouseQuantityList) {
     throw Error("Backup has invalid house shopping list.");
 }
 
-function migrateHouseShopping(
-  value: HouseQuantityList | undefined,
-): HouseQuantityList | undefined {
-  if (!value) return value;
-  return { ...value, environment: value.environment ?? [] };
-}
-
-function validateHabitatBuilds(builds: Record<string, HabitatBuildRecord>) {
+function validateLegacyHabitatBuilds(
+  builds: Record<string, LegacyHabitatBuildRecord>,
+) {
   if (!builds || typeof builds !== "object" || Array.isArray(builds))
     throw Error("Backup has invalid habitat build records.");
   const ids = new Set<string>();
@@ -333,6 +360,70 @@ function validateHabitatBuilds(builds: Record<string, HabitatBuildRecord>) {
         throw Error("Backup has invalid habitat allocations.");
     }
   }
+}
+
+const LOCATION_FLAGS = new Set<HabitatLocationFlag>([
+  "Choose a region",
+  "Habitat missing from catalog",
+  "Possible duplicate",
+]);
+
+/**
+ * Validates the migrated `habitatLocations` map and returns a normalized
+ * copy: a record whose habitat is no longer in the catalog gets
+ * `Habitat missing from catalog` added (rather than being rejected) so a
+ * later catalog change never destroys user-owned location data.
+ */
+function validateHabitatLocations(
+  locations: Record<string, HabitatLocationRecord>,
+  catalog: Catalog,
+): Record<string, HabitatLocationRecord> {
+  if (!locations || typeof locations !== "object" || Array.isArray(locations))
+    throw Error("Backup has invalid habitat location records.");
+  const next: Record<string, HabitatLocationRecord> = {};
+  const ids = new Set<string>();
+  for (const [id, record] of Object.entries(locations)) {
+    if (
+      !record ||
+      record.id !== id ||
+      typeof record.habitatId !== "string" ||
+      !record.habitatId ||
+      typeof record.habitatNameSnapshot !== "string" ||
+      typeof record.note !== "string" ||
+      !Number.isSafeInteger(record.copies) ||
+      record.copies < 1 ||
+      typeof record.createdAt !== "string" ||
+      Number.isNaN(Date.parse(record.createdAt)) ||
+      typeof record.updatedAt !== "string" ||
+      Number.isNaN(Date.parse(record.updatedAt)) ||
+      (record.reviewFlags !== undefined &&
+        (!Array.isArray(record.reviewFlags) ||
+          record.reviewFlags.some(
+            (flag) => !LOCATION_FLAGS.has(flag as HabitatLocationFlag),
+          )))
+    )
+      throw Error("Backup has invalid habitat location records.");
+    if (record.region !== null) {
+      if (
+        typeof record.region !== "string" ||
+        !catalog.areas.includes(record.region)
+      )
+        throw Error("Backup has an invalid habitat location region.");
+    } else if (!record.reviewFlags?.includes("Choose a region")) {
+      throw Error("Backup has an invalid habitat location region.");
+    }
+    if (ids.has(id)) throw Error("Backup has duplicate habitat location IDs.");
+    ids.add(id);
+    const inCatalog = !!getCanonicalHabitat(catalog, record.habitatId);
+    const flags = new Set(record.reviewFlags || []);
+    if (inCatalog) flags.delete("Habitat missing from catalog");
+    else flags.add("Habitat missing from catalog");
+    next[id] = {
+      ...record,
+      reviewFlags: flags.size ? [...flags] : undefined,
+    };
+  }
+  return next;
 }
 
 function validShoppingRows(rows: unknown): rows is ShoppingRow[] {

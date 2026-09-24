@@ -8,7 +8,7 @@ import {
 } from "react";
 import type { Catalog } from "../catalog/types";
 import { useCatalog } from "../catalog/context";
-import { ensureMigratedState } from "../habitats/migration";
+import { migrateHabitatLocations } from "../habitats/migration";
 import { migrateHousematePlan } from "../planner/recommend";
 import {
   emptyState,
@@ -18,10 +18,6 @@ import {
 } from "../persistence/store";
 import { loadCraftingFields } from "../crafting/migration";
 import { emptyCraftingState } from "../crafting/types";
-import {
-  migrateHouseChecklist,
-  reconcileHouseQuantityList,
-} from "../shopping/checklists";
 
 export type { UndoField } from "../crafting/undo";
 import { applyUndoStack, type UndoField } from "../crafting/undo";
@@ -39,12 +35,12 @@ interface Progress {
   status: string;
   error: string;
   undoError: string;
-  update: (fn: (s: SaveState) => SaveState) => void;
+  update: (fn: (s: SaveState) => SaveState) => Promise<boolean>;
   updateWithUndo: (
     label: string,
     fn: (s: SaveState) => SaveState,
     fields?: UndoField[],
-  ) => void;
+  ) => Promise<boolean>;
   undo: () => UndoEntry | null;
   pendingUndo: UndoEntry | null;
   replaceNotebook: (next: SaveState) => void;
@@ -53,31 +49,13 @@ interface Progress {
 const Context = createContext<Progress | null>(null);
 
 function normalizeLoadedState(state: SaveState, catalog: Catalog): SaveState {
-  const migrated = ensureMigratedState(
-    catalog,
-    state.shoppingChecklists,
-    state.habitatBuilds,
-    state.shoppingLegacySnapshot,
-  );
-  let next: SaveState = {
-    ...state,
-    habitatBuilds: migrated.habitatBuilds || {},
-    shoppingLegacySnapshot: migrated.shoppingLegacySnapshot,
-    housematePlan: state.housematePlan
-      ? migrateHousematePlan(state.housematePlan)
-      : state.housematePlan,
+  let next: SaveState = migrateHabitatLocations(state, catalog);
+  next = {
+    ...next,
+    housematePlan: next.housematePlan
+      ? migrateHousematePlan(next.housematePlan)
+      : next.housematePlan,
   };
-  if (next.houseShopping && !next.houseShopping.environment)
-    next = { ...next, houseShopping: { ...next.houseShopping, environment: [] } };
-  if (next.housematePlan && !next.houseShopping) {
-    const fromLegacy = migrateHouseChecklist(
-      state.shoppingChecklists?.house,
-      next.housematePlan,
-      catalog,
-      next.envLevels,
-    );
-    next = { ...next, houseShopping: fromLegacy };
-  }
   next = {
     ...next,
     ...loadCraftingFields(next, catalog),
@@ -119,51 +97,58 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
       });
   }, [catalog.version]);
 
-  const persist = (next: SaveState) => {
+  const persist = (next: SaveState): Promise<boolean> => {
     ref.current = next;
     setState(next);
     setStatus("Saving…");
-    queue.current = queue.current
+    const attempt = queue.current
       .catch(() => {})
-      .then(() => writeState(next))
+      .then(() => writeState(next));
+    queue.current = attempt.catch(() => {});
+    return attempt
       .then(() => {
         if (ref.current === next) {
           setStatus("Saved on this device");
           setError("");
         }
+        return true;
       })
       .catch(() => {
         setStatus("Not saved");
         setError(
           "Could not save. Export a backup now to preserve your changes.",
         );
+        return false;
       });
   };
 
-  const update = (fn: (s: SaveState) => SaveState) => {
-    if (!ready) return;
-    persist(fn(ref.current));
+  const update = (fn: (s: SaveState) => SaveState): Promise<boolean> => {
+    if (!ready) return Promise.resolve(false);
+    return persist(fn(ref.current));
   };
 
   const updateWithUndo = (
     label: string,
     fn: (s: SaveState) => SaveState,
     fields?: UndoField[],
-  ) => {
-    if (!ready) return;
+  ): Promise<boolean> => {
+    if (!ready) return Promise.resolve(false);
     const before = structuredClone(ref.current);
     const next = fn(ref.current);
     const after: Partial<Pick<SaveState, UndoField>> = {};
     if (fields?.includes("crafting")) after.crafting = next.crafting;
-    if (fields?.includes("materialCounts")) after.materialCounts = next.materialCounts;
+    if (fields?.includes("materialCounts"))
+      after.materialCounts = next.materialCounts;
     if (fields?.includes("collected")) after.collected = next.collected;
+    if (fields?.includes("habitatLocations"))
+      after.habitatLocations = next.habitatLocations;
     undoStack.current = [
       { label, state: before, fields, after: fields ? after : undefined },
       ...undoStack.current,
     ].slice(0, 12);
     setPendingUndo(undoStack.current[0] || null);
     setUndoError("");
-    persist(next);
+    return persist(next);
   };
 
   const undo = () => {
@@ -214,21 +199,4 @@ export function useProgress() {
   const c = useContext(Context);
   if (!c) throw Error("Missing progress provider");
   return c;
-}
-
-export function useHouseShoppingUpdate() {
-  const catalog = useCatalog();
-  const { state, update } = useProgress();
-  return (plan = state.housematePlan) => {
-    if (!plan) return;
-    update((saved) => ({
-      ...saved,
-      houseShopping: reconcileHouseQuantityList(
-        saved.houseShopping || migrateHouseChecklist(saved.shoppingChecklists?.house, plan, catalog, saved.envLevels),
-        plan,
-        catalog,
-        saved.envLevels,
-      ),
-    }));
-  };
 }

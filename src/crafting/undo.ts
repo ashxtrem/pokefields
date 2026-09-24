@@ -3,10 +3,15 @@ import type { SaveState } from "../persistence/store";
 function undoFieldLabel(field: UndoField) {
   if (field === "crafting") return "crafting";
   if (field === "collected") return "collected marks";
+  if (field === "habitatLocations") return "habitat locations";
   return "material notes";
 }
 
-export type UndoField = "crafting" | "materialCounts" | "collected";
+export type UndoField =
+  | "crafting"
+  | "materialCounts"
+  | "collected"
+  | "habitatLocations";
 
 export interface ScopedUndoSnapshot {
   label: string;
@@ -44,6 +49,8 @@ export function applyScopedUndo(
     if (field === "crafting") next.crafting = snapshot.before.crafting;
     if (field === "materialCounts") next.materialCounts = snapshot.before.materialCounts;
     if (field === "collected") next.collected = snapshot.before.collected;
+    if (field === "habitatLocations")
+      next.habitatLocations = snapshot.before.habitatLocations;
   }
   return { ok: true, next };
 }

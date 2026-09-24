@@ -14,6 +14,8 @@ import {
   type UnlockMethod,
 } from "./types";
 
+const SHOW_SOURCE_LINKS = import.meta.env.VITE_DISTRIBUTION === "web";
+
 export function RecipeDetail({
   recipe,
   crafting,
@@ -102,12 +104,16 @@ function UnlockBlock({ recipe }: { recipe: NormalizedRecipe }) {
         <p>Sources disagree. Both records are shown, and neither is chosen.</p>
         <ul>
           {conflicts.map((row) => (
-            <li key={`${row.provider}:${row.text}`}>
+            <li key={row.text}>
               <p>{row.text}</p>
               <p className="why">
-                <a href={row.sourceUrl} target="_blank" rel="noreferrer">
-                  {sourceName(row)}
-                </a>
+                {SHOW_SOURCE_LINKS ? (
+                  <a href={row.sourceUrl} target="_blank" rel="noreferrer">
+                    {sourceName(row)}
+                  </a>
+                ) : (
+                  "Recorded in the bundled reference data."
+                )}
               </p>
             </li>
           ))}
@@ -119,9 +125,13 @@ function UnlockBlock({ recipe }: { recipe: NormalizedRecipe }) {
     return (
       <div className="crafting-learn">
         {methods.map((row) => (
-          <p key={`${row.provider}:${row.text}`}>{row.text}</p>
+          <p key={row.text}>{row.text}</p>
         ))}
-        <p className="why">Recorded on the source page for this item.</p>
+        <p className="why">
+          {SHOW_SOURCE_LINKS
+            ? "Recorded on the source page for this item."
+            : "Recorded in the bundled reference data."}
+        </p>
       </div>
     );
   }

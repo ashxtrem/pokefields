@@ -11,8 +11,18 @@ import { normalizeItemName } from "../types";
 
 let workerPromise: Promise<Worker> | null = null;
 
+const androidOcrOptions =
+  import.meta.env.VITE_DISTRIBUTION === "android"
+    ? {
+        workerPath: "/tesseract/worker.min.js",
+        corePath: "/tesseract/core",
+        langPath: "/tesseract/lang",
+        gzip: false,
+      }
+    : undefined;
+
 async function getWorker(): Promise<Worker> {
-  if (!workerPromise) workerPromise = createWorker("eng");
+  if (!workerPromise) workerPromise = createWorker("eng", 1, androidOcrOptions);
   return workerPromise;
 }
 

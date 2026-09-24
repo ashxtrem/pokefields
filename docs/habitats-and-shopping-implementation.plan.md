@@ -1,7 +1,7 @@
 # Habitats browser, build records and quantity shopping lists
 
 Date: 9 September 2026
-Status: Phase 1–5 implemented in code; Phase 6 browser verification pending.
+Status: Superseded. The habitat build lifecycle and habitat/house checklist portions of this plan were removed and replaced by lightweight habitat location records; see `docs/habitat-location-and-build-tracker-removal-plan.md`. Kept as historical context only.
 
 ## Direction and authority
 

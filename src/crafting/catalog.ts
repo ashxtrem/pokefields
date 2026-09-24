@@ -108,12 +108,10 @@ function kindFromItem(
 
 function unlockFromItem(item: Item, overlay: ItemRecipeMeta): RecipeUnlock {
   const methods = (overlay.unlock?.methods || []).filter(
-    (row): row is UnlockMethod =>
-      Boolean(row?.text && row.provider && row.sourceUrl && row.retrievedAt),
+    (row): row is UnlockMethod => Boolean(row?.text),
   );
   const conflicts = (overlay.unlock?.conflicts || []).filter(
-    (row): row is UnlockMethod =>
-      Boolean(row?.text && row.provider && row.sourceUrl && row.retrievedAt),
+    (row): row is UnlockMethod => Boolean(row?.text),
   );
   if (methods.length || conflicts.length) return { methods, conflicts };
   const legacy = item.recipeLocation?.trim() || "";

@@ -75,15 +75,9 @@ export function specialtyImageUrl(value: string) {
 
 export function habitatImageUrl(image: string | null) {
   if (!image) return null;
-  try {
-    const name = new URL(image, "https://www.serebii.net").pathname
-      .split("/")
-      .pop();
-    if (!name || !/\.png$/i.test(name)) return null;
-    return `/images/habitats/${name}`;
-  } catch {
-    return null;
-  }
+  const name = image.split(/[/?#]/).filter(Boolean).pop();
+  if (!name || !/\.png$/i.test(name)) return null;
+  return `/images/habitats/${name}`;
 }
 
 export function contentLabel(event?: string | null, contentSource?: string) {

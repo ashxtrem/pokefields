@@ -1,7 +1,5 @@
 import type { Habitat } from "../catalog/types";
 
-export type BuildStatus = "planned" | "built";
-
 export interface NormalizedRequirement {
   id: string;
   signature: string;
@@ -12,36 +10,21 @@ export interface NormalizedRequirement {
   quantity: number | null;
 }
 
-export interface RequirementAllocation {
-  requirementId: string;
-  signature: string;
-  raw: string;
-  label: string;
-  kind: NormalizedRequirement["kind"];
-  required: number;
-  gathered: number;
-}
+export type HabitatLocationFlag =
+  | "Choose a region"
+  | "Habitat missing from catalog"
+  | "Possible duplicate";
 
-export interface HabitatBuildSnapshot {
-  habitatName: string;
-  source: string;
-  catalogVersion: string;
-  requirements: NormalizedRequirement[];
-}
-
-export interface HabitatBuildRecord {
+export interface HabitatLocationRecord {
   id: string;
   habitatId: string;
-  status: BuildStatus;
+  habitatNameSnapshot: string;
   region: string | null;
+  note: string;
   copies: number;
-  locationNote: string;
   createdAt: string;
   updatedAt: string;
-  snapshot: HabitatBuildSnapshot;
-  allocations: RequirementAllocation[];
-  originPokemonId?: string;
-  reviewFlags?: string[];
+  reviewFlags?: HabitatLocationFlag[];
 }
 
 export interface HabitatAssociation {
@@ -68,25 +51,18 @@ export interface CanonicalHabitat {
   representative: Habitat;
 }
 
-export type BuildBadge = {
-  planned: number;
-  built: number;
-};
-
 export type HabitatCatalogFilters = {
   search: string;
   region: string;
-  status: "all" | "none" | "planned" | "built";
   unfoundOnly: boolean;
-  regionMode: "available" | "builds";
+  scope: "available" | "saved";
   sort: "id" | "name" | "unfound";
 };
 
 export const defaultHabitatFilters = (): HabitatCatalogFilters => ({
   search: "",
   region: "",
-  status: "all",
   unfoundOnly: false,
-  regionMode: "available",
+  scope: "available",
   sort: "id",
 });

@@ -6,7 +6,7 @@ import { recipesForOutputItem } from "../crafting/catalog";
 import { recipeHref } from "../crafting/types";
 import { itemHref } from "../items/tabs";
 import { useProgress } from "../progress/context";
-import { reconcileHouseQuantityList } from "../shopping/checklists";
+import { storageSearchHref } from "../storage/search";
 import {
   catalogEnvLevelAreas,
   explainTerm,
@@ -344,24 +344,12 @@ export function EnvLevelsModal({
   highlightArea?: string | null;
   onClose: () => void;
 }) {
-  const catalog = useCatalog();
   const { state, update, ready } = useProgress();
   const setLevel = (area: string, level: number) => {
-    update((s) => {
-      const envLevels = { ...(s.envLevels || {}), [area]: level };
-      return {
-        ...s,
-        envLevels,
-        houseShopping: s.housematePlan
-          ? reconcileHouseQuantityList(
-              s.houseShopping,
-              s.housematePlan,
-              catalog,
-              envLevels,
-            )
-          : s.houseShopping,
-      };
-    });
+    update((s) => ({
+      ...s,
+      envLevels: { ...(s.envLevels || {}), [area]: level },
+    }));
   };
   return (
     <Modal title="Town environment levels" onClose={onClose}>
@@ -525,11 +513,18 @@ export function ExplainDialog({
           </div>
         </>
       )}
-      {recipeLink ? (
-        <p>
-          <a href={recipeHref(recipeLink.id)} onClick={onClose}>
-            View recipe
-          </a>
+      {recipeLink || catalogItem ? (
+        <p className="explain-links">
+          {recipeLink ? (
+            <a href={recipeHref(recipeLink.id)} onClick={onClose}>
+              View recipe
+            </a>
+          ) : null}
+          {catalogItem ? (
+            <a href={storageSearchHref(catalogItem.name)} onClick={onClose}>
+              Find in Storage
+            </a>
+          ) : null}
         </p>
       ) : null}
       {stack.length > 1 && (

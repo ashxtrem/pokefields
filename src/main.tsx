@@ -43,7 +43,11 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>,
 );
 
-if (import.meta.env.PROD && "serviceWorker" in navigator) {
+if (
+  import.meta.env.PROD &&
+  import.meta.env.VITE_DISTRIBUTION === "web" &&
+  "serviceWorker" in navigator
+) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {
       /* Core app and local saves remain usable without offline caching. */

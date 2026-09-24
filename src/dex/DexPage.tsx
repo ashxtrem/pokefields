@@ -1,6 +1,5 @@
 import { useViewState } from "../ui/navigation";
-import { SupplyIcon } from "../shopping/SupplyIcon";
-import { BuildModal } from "../habitats/BuildModal";
+import { SupplyIcon } from "../ui/SupplyIcon";
 import { HabitatPokemonChips } from "../habitats/HabitatPokemon";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -41,7 +40,7 @@ import {
   type TermRef,
 } from "./glossary";
 import { habitatDetailHref } from "../habitats/search";
-import { recordsForHabitat, buildBadges } from "../habitats/builds";
+import { locationsForHabitat } from "../habitats/locations";
 
 function typeClass(type?: string) {
   const slug = type?.trim().toLowerCase();
@@ -348,13 +347,12 @@ function PrefExamples({
 
 export function PokemonDetail({ id }: { id: string }) {
   const catalog = useCatalog();
-  const { state, ready } = useProgress();
+  const { state } = useProgress();
   const p = catalog.pokemon.find((p) => p.id === id);
   const [tab, setTab] = useViewState<string>(
     `pokemon.${id}.tab`,
     "Habitats & Spawns",
   );
-  const [planHabitat, setPlanHabitat] = useState<Habitat | null>(null);
   const [term, setTerm] = useState<TermRef | null>(null);
   const [marking, setMarking] = useState(false);
   if (!p)
@@ -478,10 +476,8 @@ export function PokemonDetail({ id }: { id: string }) {
                   habitat={h}
                   pokemon={p}
                   onOpen={open}
-                  builds={state.habitatBuilds || {}}
+                  locations={state.habitatLocations || {}}
                   found={state.found}
-                  canEdit={ready}
-                  onPlan={() => setPlanHabitat(h)}
                 />
               ))
             ) : (
@@ -579,15 +575,6 @@ export function PokemonDetail({ id }: { id: string }) {
           </button>
         </Modal>
       )}
-      {planHabitat && (
-        <BuildModal
-          habitatId={planHabitat.id}
-          habitatName={planHabitat.name}
-          mode="planned"
-          originPokemonId={p.id}
-          onClose={() => setPlanHabitat(null)}
-        />
-      )}
       {term && <ExplainDialog term={term} onClose={() => setTerm(null)} />}
     </div>
   );
@@ -597,24 +584,19 @@ function HabitatCard({
   habitat,
   pokemon,
   onOpen,
-  builds,
+  locations,
   found,
-  canEdit,
-  onPlan,
 }: {
   habitat: Habitat;
   pokemon: Pokemon;
   onOpen: (term: TermRef) => void;
-  builds: Record<string, import("../habitats/types").HabitatBuildRecord>;
+  locations: Record<string, import("../habitats/types").HabitatLocationRecord>;
   found: Record<string, string[]>;
-  canEdit: boolean;
-  onPlan: () => void;
 }) {
   const catalog = useCatalog();
   const times = habitat.times.length ? habitat.times : pokemon.times;
   const weather = habitat.weather.length ? habitat.weather : pokemon.weather;
-  const records = recordsForHabitat(builds, habitat.id);
-  const badge = buildBadges(records);
+  const savedCount = locationsForHabitat(locations, habitat.id).length;
   const canonical = getCanonicalHabitat(catalog, habitat.id);
   return (
     <article className="habitat-card">
@@ -639,12 +621,11 @@ function HabitatCard({
             {habitat.rarity === "CommonCommon" ? "Common" : habitat.rarity}
           </button>
         </div>
-        <p className="muted">
-          {badge.built ? `${badge.built} built` : ""}
-          {badge.built && badge.planned ? " · " : ""}
-          {badge.planned ? `${badge.planned} planned` : ""}
-          {!badge.built && !badge.planned ? "Not started" : ""}
-        </p>
+        {savedCount > 0 && (
+          <p className="muted">
+            {savedCount} saved location{savedCount === 1 ? "" : "s"}
+          </p>
+        )}
         {canonical && (
           <HabitatPokemonChips
             habitat={canonical}
@@ -742,14 +723,6 @@ function HabitatCard({
           </div>
         </dl>
         <div className="habitat-actions">
-          <button
-            type="button"
-            className="button secondary"
-            disabled={!canEdit}
-            onClick={onPlan}
-          >
-            Plan build
-          </button>
           <a className="text-button" href={habitatDetailHref(habitat.id)}>
             Open habitat page
           </a>

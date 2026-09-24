@@ -119,6 +119,3 @@ export const ITEM_MATCH_UNDOCUMENTED = "Item match not yet documented.";
 export const UNLOCK_RECORDED = "Unlock recorded";
 export const UNLOCK_EMPTY_WHY =
   "Unlock guidance has not yet been documented in this companion. It is not guessed from where the finished item can be found.";
-
-export const HABITAT_HOUSE_GATHERED_DISCLOSURE =
-  "Gathered counts here are list progress only — how much of this list you consider covered.";

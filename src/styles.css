@@ -922,6 +922,22 @@ footer span {
 .modal p {
   font-size: 12px;
 }
+.legal-action {
+  margin: 4px 0 0;
+}
+.legal-link {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #35583f;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-link:hover {
+  color: #274532;
+}
 .icon-button {
   width: 34px;
   height: 34px;
@@ -3131,12 +3147,6 @@ hr {
   margin: 14px 0;
   align-items: center;
 }
-.shopping-reset-all {
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
 .chip {
   border: 1px solid #d5dcc9;
   background: #f7faf2;
@@ -3183,28 +3193,16 @@ hr {
   position: relative;
 }
 .status-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
   margin-bottom: 8px;
-}
-.status-none {
-  background: #eceee8;
-  color: #70786c;
-}
-.status-planned {
-  background: #f7efd3;
-  color: #8a6d1d;
-}
-.status-built {
   background: #e3f0df;
   color: #356842;
-}
-.status-mixed {
-  background: linear-gradient(90deg, #e3f0df 0 50%, #f7efd3 50% 100%);
-  color: #45633a;
 }
 .habitat-card-actions {
   display: flex;
@@ -3231,18 +3229,6 @@ hr {
   grid-template-columns: minmax(180px, 320px) minmax(0, 1fr);
   gap: 24px;
   margin-bottom: 24px;
-}
-.habitat-build-actions {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-  width: fit-content;
-  max-width: 100%;
-  padding: 14px 18px;
-  border: 1px solid #dde5d3;
-  border-radius: 12px;
-  background: #fafcf6;
 }
 /* Found reads as collected, the rest stay recognisable but washed out so the
    remaining hunt is obvious at a glance. Shared by the detail hero (with names)
@@ -3389,35 +3375,6 @@ hr {
       background-color 140ms ease;
   }
 }
-.build-record-card {
-  border: 1px solid #dde5d3;
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  background: #fafcf6;
-}
-.build-record-head {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-.quantity-row {
-  display: grid;
-  gap: 10px;
-  padding: 12px 0;
-  border-bottom: 1px solid #e7ecdf;
-}
-.quantity-copy span {
-  display: block;
-  color: #65745b;
-  font-size: 12px;
-}
-.quantity-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-}
 .qty-btn {
   min-width: 44px;
   min-height: 44px;
@@ -3430,99 +3387,12 @@ hr {
   border-radius: 8px;
   font-size: 16px;
 }
-.qty-action {
-  min-height: 44px;
-  margin: 0;
-  padding: 8px 12px;
-}
-.checklist-fab {
-  position: fixed;
-  right: max(12px, env(safe-area-inset-right));
-  bottom: max(12px, env(safe-area-inset-bottom));
-  z-index: 30;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: #294f3e;
-  box-shadow: none;
-}
-.checklist-fab:hover,
-.checklist-fab:focus-visible {
-  background: rgba(41, 79, 62, 0.08);
-}
-body:has(dialog[open]) .checklist-fab {
-  visibility: hidden;
-  pointer-events: none;
-}
-.fab-badge {
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  background: #e7ac4b;
-  color: #2b3d28;
-  border-radius: 999px;
-  min-width: 16px;
-  height: 16px;
-  padding: 0 4px;
-  font-size: 9px;
-  font-weight: 700;
-  line-height: 16px;
-  text-align: center;
-}
-.shopping-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  border: 0;
-  background: rgba(38, 61, 49, 0.28);
-}
-.shopping-panel {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 50;
-  width: min(420px, 100vw);
-  padding: 20px;
-  overflow: auto;
-  background: #fafcf6;
-  border-left: 1px solid #dde5d3;
-  box-shadow: -8px 0 30px rgba(38, 61, 49, 0.12);
-}
-.shopping-panel-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  align-items: start;
-  margin-bottom: 12px;
-}
-.combined-row,
-.contribution-block {
-  border: 1px solid #e3ead8;
-  border-radius: 10px;
-  padding: 10px;
-  margin-bottom: 10px;
-}
 .toggle-label {
   display: flex;
   gap: 8px;
   align-items: center;
 }
 @media (max-width: 600px) {
-  .shopping-panel {
-    top: auto;
-    left: 0;
-    width: 100%;
-    max-height: 85vh;
-    border-left: 0;
-    border-top: 1px solid #dde5d3;
-    border-radius: 16px 16px 0 0;
-  }
   .habitat-detail-hero {
     grid-template-columns: 1fr;
   }
@@ -3568,9 +3438,6 @@ body:has(dialog[open]) .checklist-fab {
 .supply-label strong {
   display: block;
 }
-.quantity-copy > span {
-  margin: 0;
-}
 .copy-stepper {
   display: flex;
   align-items: center;
@@ -3591,80 +3458,109 @@ body:has(dialog[open]) .checklist-fab {
 .build-region-chips {
   margin: 0;
 }
-.build-mini-record {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid #dde5d3;
-}
-.build-mini-record span {
-  display: block;
-  font-size: 13px;
-  margin-top: 5px;
-}
-.build-mini-record .button {
-  flex: 0 0 auto;
-  min-height: 44px;
-}
-.build-modal-records {
-  margin: 20px 0;
-}
-.build-modal-form .button.full {
-  margin-top: 8px;
-}
-.build-contributions summary {
-  padding: 12px 0;
-  cursor: pointer;
-  color: #49653d;
-}
-.gathering-hint {
-  margin: 0 0 4px;
-}
-.build-filter-chips {
-  margin: 0 0 12px;
-}
-.shopping-panel {
-  width: min(480px, 100vw);
-  padding-bottom: max(24px, env(safe-area-inset-bottom));
-}
-.shopping-panel .text-button,
-.build-record-card .text-button,
-.build-mini-record .text-button {
-  min-height: 44px;
-}
 .modal .field input,
 .modal .field select,
 .modal .qty-input {
   min-height: 48px;
 }
-.build-record-card .button.secondary {
-  margin-top: 10px;
-  min-height: 44px;
-}
 @media (max-width: 600px) {
-  .shopping-panel {
-    width: 100%;
-    max-height: 90dvh;
-  }
-  .habitat-build-actions {
-    align-items: stretch;
-    flex-direction: column;
-    width: auto;
-  }
   .habitat-requirement-grid {
     grid-template-columns: 1fr;
   }
-  .habitat-build-actions .button-row {
-    flex-wrap: wrap;
-  }
-  .habitat-build-actions .button {
-    flex: 1;
-    min-height: 44px;
-  }
   .modal {
     max-height: 90dvh;
+  }
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.saved-summary {
+  background: #e3f0df;
+  color: #356842;
+}
+.saved-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.my-locations-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+.count-pill {
+  white-space: nowrap;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: #e3f0df;
+  color: #356842;
+  font-size: 12px;
+  font-weight: 700;
+}
+.location-row-view {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto 44px;
+  gap: 14px;
+  align-items: center;
+  min-height: 68px;
+  padding: 10px 0;
+  border-bottom: 1px solid #e6ebe2;
+}
+.location-row-view .pin {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #365943;
+  background: #edf3e8;
+}
+.location-row-view .place strong,
+.location-row-view .place span {
+  display: block;
+}
+.location-row-view .place span {
+  margin-top: 2px;
+  color: #687469;
+  font-size: 13px;
+}
+.location-row-view .copies {
+  padding: 5px 9px;
+  border: 1px solid #d7dfcf;
+  border-radius: 999px;
+  color: #516153;
+  background: #fffefa;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.location-row-edit {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid #dde5d3;
+  border-radius: 12px;
+  background: #fafcf6;
+}
+@media (max-width: 600px) {
+  .location-row-view {
+    grid-template-columns: 36px minmax(0, 1fr) 44px;
+  }
+  .location-row-view .copies {
+    grid-column: 2;
+    width: fit-content;
   }
 }
 

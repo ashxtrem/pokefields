@@ -1,6 +1,6 @@
 import type { Habitat, Item } from "../catalog/types";
 import { parseRequirement, resolveItem } from "../dex/glossary";
-import type { NormalizedRequirement, RequirementAllocation } from "./types";
+import type { NormalizedRequirement } from "./types";
 
 export function requirementSignature(
   raw: string,
@@ -47,34 +47,3 @@ export function normalizeRequirements(
   });
 }
 
-export function shoppingRequirements(requirements: NormalizedRequirement[]) {
-  return requirements.filter((req) => req.kind === "item" && req.quantity);
-}
-
-export function buildAllocations(
-  requirements: NormalizedRequirement[],
-  copies: number,
-  previous: RequirementAllocation[] = [],
-): RequirementAllocation[] {
-  const prev = new Map(previous.map((row) => [row.requirementId, row]));
-  return shoppingRequirements(requirements).map((req) => {
-    const required = (req.quantity || 0) * copies;
-    const old = prev.get(req.id);
-    const gathered = old ? Math.min(Math.max(0, old.gathered), required) : 0;
-    return {
-      requirementId: req.id,
-      signature: req.signature,
-      raw: req.raw,
-      label: req.label,
-      kind: req.kind,
-      required,
-      gathered,
-    };
-  });
-}
-
-export function allocationItemKey(row: RequirementAllocation) {
-  return row.kind === "item"
-    ? `item:${row.signature.split(":")[1]}`
-    : row.requirementId;
-}

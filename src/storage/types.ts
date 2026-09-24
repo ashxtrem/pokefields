@@ -103,8 +103,8 @@ export type RecognitionOutcome =
 /**
  * crypto.randomUUID() requires a secure context (HTTPS or localhost) — it's undefined when the
  * app is opened over plain HTTP on a LAN address (e.g. `vite --host` for testing on a phone).
- * crypto.getRandomValues() has no such restriction, so it's the fallback. Mirrors
- * src/habitats/builds.ts's newBuildId().
+ * crypto.getRandomValues() has no such restriction, so it's the fallback. Shared by every
+ * generated ID in the app, including habitat location records (see src/habitats/locations.ts).
  */
 export function newUid(): string {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();

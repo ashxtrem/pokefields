@@ -34,13 +34,7 @@ import {
   readState,
   writeState,
 } from "../src/persistence/store";
-import {
-  habitatChecklist,
-  houseQuantityList,
-  reconcileHabitatChecklist,
-  reconcileHouseChecklist,
-  toggleRow,
-} from "../src/shopping/checklists";
+import type { ShoppingChecklists } from "../src/persistence/legacy";
 const p = (
   id: string,
   environment: string | null = "Bright",
@@ -409,29 +403,23 @@ describe("backup and persistence", () => {
       validateBackup({ ...saved(), materialCounts: { plant: 1.5 } }, catalog),
     ).toThrow();
   });
-  it("round-trips independent shopping checks while accepting old backups", () => {
-    const habitat = {
-      id: "garden",
-      name: "Garden",
-      image: null,
-      source: "https://example.com",
-      requirements: ["3 × Plant", "1 × High-up Location"],
-      areas: [],
-      rarity: "Common",
-      times: [],
-      weather: [],
+  it("preserves legacy checkbox shopping-checklist data untouched, for compatibility only", () => {
+    const legacy: ShoppingChecklists = {
+      habitats: {
+        "a:garden": {
+          id: "a:garden",
+          pokemonId: "a",
+          habitatId: "garden",
+          habitatName: "Garden",
+          rows: [
+            { id: "item:plant:3:0", label: "Plant", quantity: 3, checked: true },
+          ],
+        },
+      },
     };
-    const list = habitatChecklist("a", habitat, catalog.items);
-    const checked = { ...list, rows: toggleRow(list.rows, list.rows[0].id) };
-    const data = {
-      ...saved(),
-      shoppingChecklists: { habitats: { [checked.id]: checked } },
-    };
-    expect(validateBackup(JSON.parse(JSON.stringify(data)), catalog)).toEqual(
-      data,
-    );
-    expect(reconcileHabitatChecklist(checked, "a", habitat, catalog.items).rows[0].checked).toBe(true);
-    expect(reconcileHabitatChecklist(checked, "a", { ...habitat, requirements: ["4 × Plant"] }, catalog.items).rows[0].checked).toBe(false);
+    const data = { ...saved(), shoppingChecklists: legacy };
+    const result = validateBackup(JSON.parse(JSON.stringify(data)), catalog);
+    expect(result.shoppingChecklists).toEqual(legacy);
   });
   it("rejects unsupported versions", () => {
     expect(() =>
@@ -626,20 +614,6 @@ describe("housemate recommendations", () => {
     );
     const split = splitResident(plan, "home-1", "b", catalog);
     expect(combinedSupplies(split, catalog).furnishings[0].quantity).toBe(2);
-  });
-  it("resets a house checklist row when a home's construction changes", () => {
-    const plan = recommendHousemates(input, catalog, now);
-    const checked = reconcileHouseChecklist(undefined, plan, catalog);
-    checked.construction[0].checked = true;
-    const changed = {
-      ...plan,
-      homes: [{ ...plan.homes[0], kitId: "other" }, ...plan.homes.slice(1)],
-    };
-    const otherCatalog = {
-      ...catalog,
-      kits: [...catalog.kits, { ...kit, id: "other", materials: [{ name: "Wood", quantity: 7 }] }],
-    };
-    expect(reconcileHouseChecklist(checked, changed, otherCatalog).construction[0].checked).toBe(false);
   });
   it("rejects capacity overflow and duplicate residents", () => {
     const plan = recommendHousemates(input, catalog, now);
@@ -843,9 +817,8 @@ describe("environment guidance and manual builds", () => {
     expect(homeEnvironment(plan.homes[0], withEnvItems)).toBe("Bright");
     const supplies = environmentSupplies(plan, withEnvItems);
     expect(supplies.some((row) => row.name === "Desk light")).toBe(true);
-    const list = houseQuantityList(plan, withEnvItems);
-    expect(list.environment.some((row) => row.label === "Desk light")).toBe(true);
-    expect(list.construction.some((row) => row.label === "Desk light")).toBe(false);
+    const construction = combinedSupplies(plan, withEnvItems).construction;
+    expect(construction.some((row) => row.name === "Desk light")).toBe(false);
   });
   it("flags environment guidance items above the recorded level without hiding them", () => {
     const gated = {

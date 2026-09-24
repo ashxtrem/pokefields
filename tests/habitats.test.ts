@@ -11,30 +11,19 @@ import {
   habitatDexNumber,
 } from "../src/habitats/search";
 import { defaultHabitatFilters } from "../src/habitats/types";
+import type { HabitatLocationRecord } from "../src/habitats/types";
 import {
-  buildBadges,
-  createPlannedBuild,
-  createBuiltRecord,
-  recordsForHabitat,
-  setAllocationGathered,
-  splitPartialBuilt,
-} from "../src/habitats/builds";
-import { migrateLegacyShopping } from "../src/habitats/migration";
-import {
-  combinedHabitatShopping,
-  redistributeCombinedGathered,
-  resetHabitatGathered,
-} from "../src/shopping/allocations";
-import {
-  habitatChecklist,
-  toggleRow,
-  reconcileHouseChecklist,
-  migrateHouseChecklist,
-  resetHouseGathered,
-  setHouseRowGathered,
-} from "../src/shopping/checklists";
-import { recommendHousemates } from "../src/planner/recommend";
-import { validateBackup, emptyState } from "../src/persistence/store";
+  addQuickSaveLocation,
+  createLocation,
+  hasLocationInRegion,
+  locationsForHabitat,
+  orderedRegionOptions,
+  savedLocationCount,
+  updateLocation,
+} from "../src/habitats/locations";
+import { migrateHabitatLocations } from "../src/habitats/migration";
+import type { LegacyHabitatBuildRecord } from "../src/persistence/legacy";
+import { validateBackup, emptyState, type SaveState } from "../src/persistence/store";
 
 const habitatA: Habitat = {
   id: "garden",
@@ -96,6 +85,38 @@ const catalog: Catalog = {
   sources: [],
 };
 
+/** A legacy (unmigrated) SaveState: no habitatLocations, no migration marker. */
+function legacyState(overrides: Partial<SaveState>): SaveState {
+  const base = emptyState();
+  const { habitatLocationMigrationVersion: _v, habitatLocations: _l, ...rest } =
+    base;
+  return { ...rest, ...overrides } as SaveState;
+}
+
+function legacyBuild(
+  overrides: Partial<LegacyHabitatBuildRecord> & {
+    id: string;
+    habitatId: string;
+  },
+): LegacyHabitatBuildRecord {
+  return {
+    status: "built",
+    region: "Beach",
+    copies: 1,
+    locationNote: "",
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    snapshot: {
+      habitatName: "Garden",
+      source: "https://example.com/garden",
+      catalogVersion: "test",
+      requirements: [],
+    },
+    allocations: [],
+    ...overrides,
+  };
+}
+
 describe("habitat catalog", () => {
   it("merges shared habitat ids into one card with distinct associations", () => {
     const canonical = getCanonicalHabitat(catalog, "tallgrass");
@@ -154,194 +175,361 @@ describe("habitat catalog sort", () => {
   });
 });
 
-describe("build records and shopping quantities", () => {
-  it("tracks partial gathered amounts", () => {
-    const build = createPlannedBuild(catalog, "garden", "Beach", 1);
-    const rowId = build.allocations[0].requirementId;
-    const updated = setAllocationGathered(build, rowId, 5);
-    expect(updated.allocations[0].gathered).toBe(5);
+describe("habitat catalog scope filtering", () => {
+  it("lists a habitat under Saved here / All regions once it has any saved location", () => {
+    const loc = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const locations = { [loc.id]: loc };
     expect(
-      updated.allocations[0].required - updated.allocations[0].gathered,
-    ).toBe(5);
-  });
-
-  it("allocates combined gathered totals to oldest plans first", () => {
-    const a = createPlannedBuild(catalog, "garden", "Beach", 1);
-    const b = createPlannedBuild(catalog, "tallgrass", "Ridges", 1);
-    const builds = { [a.id]: a, [b.id]: b };
-    const key = combinedHabitatShopping(builds)[0]?.key;
-    expect(key).toBeTruthy();
-    const next = redistributeCombinedGathered(builds, key!, 5);
-    const rows = combinedHabitatShopping(next);
-    expect(rows[0].gathered).toBe(5);
-    expect(rows[0].contributions[0].gathered).toBe(5);
-    expect(rows[0].contributions[1]?.gathered || 0).toBe(0);
-  });
-
-  it("resets all habitat gathered quantities, or only a selected plan", () => {
-    const first = createPlannedBuild(catalog, "garden", "Beach", 1);
-    const second = createPlannedBuild(catalog, "tallgrass", "Ridges", 1);
-    const withA = setAllocationGathered(
-      first,
-      first.allocations[0].requirementId,
-      5,
-    );
-    const withB = setAllocationGathered(
-      second,
-      second.allocations[0].requirementId,
-      3,
-    );
-    const builds = { [withA.id]: withA, [withB.id]: withB };
-    const all = resetHabitatGathered(builds);
+      filterHabitats(catalog, locations, {}, {
+        ...defaultHabitatFilters(),
+        scope: "saved",
+      }).map((h) => h.id),
+    ).toEqual(["garden"]);
     expect(
-      combinedHabitatShopping(all).every((row) => row.gathered === 0),
-    ).toBe(true);
-    const one = resetHabitatGathered(builds, [withA.id]);
-    expect(one[withA.id].allocations.every((row) => row.gathered === 0)).toBe(
-      true,
-    );
-    expect(one[withB.id].allocations[0].gathered).toBe(3);
+      filterHabitats(catalog, {}, {}, {
+        ...defaultHabitatFilters(),
+        scope: "saved",
+      }),
+    ).toEqual([]);
   });
 
-  it("shows mixed badges from independent regions", () => {
-    const built = createBuiltRecord(catalog, "garden", "Beach", 2);
-    const planned = createPlannedBuild(catalog, "garden", "Ridges", 1);
-    const badge = buildBadges([built, planned]);
-    expect(badge).toEqual({ built: 2, planned: 1 });
+  it("filters Saved here by the location's own region, not catalog discovery regions", () => {
+    const loc = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const locations = { [loc.id]: loc };
+    expect(
+      filterHabitats(catalog, locations, {}, {
+        ...defaultHabitatFilters(),
+        scope: "saved",
+        region: "Beach",
+      }).map((h) => h.id),
+    ).toEqual(["garden"]);
+    expect(
+      filterHabitats(catalog, locations, {}, {
+        ...defaultHabitatFilters(),
+        scope: "saved",
+        region: "Ridges",
+      }),
+    ).toEqual([]);
   });
 
-  it("records built without inventing material progress", () => {
-    const built = createBuiltRecord(catalog, "garden", "Beach", 1);
-    expect(built.allocations).toEqual([]);
-    expect(built.status).toBe("built");
+  it("Region not recorded means a catalog gap under Available here, and a null-region location under Saved here", () => {
+    const flagged: HabitatLocationRecord = {
+      ...createLocation({ id: "garden", name: "Garden" }, "Beach"),
+      region: null,
+      reviewFlags: ["Choose a region"],
+    };
+    const locations = { [flagged.id]: flagged };
+    expect(
+      filterHabitats(catalog, {}, {}, {
+        ...defaultHabitatFilters(),
+        scope: "available",
+        region: "__none__",
+      }),
+    ).toEqual([]);
+    expect(
+      filterHabitats(catalog, locations, {}, {
+        ...defaultHabitatFilters(),
+        scope: "saved",
+        region: "__none__",
+      }).map((h) => h.id),
+    ).toEqual(["garden"]);
   });
 
-  it("splits partial completion into built and remaining planned copies", () => {
-    const planned = createPlannedBuild(catalog, "garden", "Beach", 3);
-    const withGathered = setAllocationGathered(
-      planned,
-      planned.allocations[0].requirementId,
-      15,
-    );
-    const { built, remaining } = splitPartialBuilt(withGathered, 1);
-    expect(built.copies).toBe(1);
-    expect(remaining?.copies).toBe(2);
+  it("parses the old regionMode=builds query as Saved here and ignores old status query values", () => {
+    expect(filtersFromQuery("regionMode=builds").scope).toBe("saved");
+    expect(filtersFromQuery("status=built").scope).toBe("available");
+    expect(
+      filtersToQuery({ ...defaultHabitatFilters(), scope: "saved" }),
+    ).toBe("scope=saved");
   });
 });
 
-describe("legacy migration", () => {
-  it("migrates checkbox lists once and preserves ambiguous duplicates", () => {
-    const listA = habitatChecklist("c", habitatA, items);
-    listA.rows = toggleRow(listA.rows, listA.rows[0].id);
-    const listB = habitatChecklist("a", habitatA, items);
-    const legacy = {
-      habitats: {
-        [listA.id]: listA,
-        [listB.id]: listB,
-      },
-    };
-    const first = migrateLegacyShopping(catalog, legacy);
-    const second = migrateLegacyShopping(catalog, legacy, first.builds);
-    expect(Object.keys(first.builds)).toHaveLength(2);
-    expect(Object.keys(second.builds)).toHaveLength(2);
-    expect(
-      Object.values(first.builds).some((r) =>
-        r.reviewFlags?.includes("Review imported copies"),
-      ),
-    ).toBe(true);
+describe("habitat location records", () => {
+  it("creates a quick-save location with a stable id, count 1 and a blank note", () => {
+    const record = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    expect(record.region).toBe("Beach");
+    expect(record.copies).toBe(1);
+    expect(record.note).toBe("");
+    expect(record.habitatNameSnapshot).toBe("Garden");
+    expect(record.id).toBeTruthy();
   });
 
-  it("round-trips habitat builds in backups", () => {
-    const build = createPlannedBuild(catalog, "garden", "Beach", 1);
-    const data = {
-      ...emptyState(),
-      habitatBuilds: { [build.id]: build },
+  it("guards a quick save against creating a duplicate for the same habitat and region", () => {
+    const first = addQuickSaveLocation({}, { id: "garden", name: "Garden" }, "Beach")!;
+    expect(first).toBeTruthy();
+    const second = addQuickSaveLocation(
+      first.locations,
+      { id: "garden", name: "Garden" },
+      "Beach",
+    );
+    expect(second).toBeNull();
+    expect(hasLocationInRegion(first.locations, "garden", "Beach")).toBe(true);
+  });
+
+  it("allows an explicit second location in the same region", () => {
+    const first = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const second = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const locations = { [first.id]: first, [second.id]: second };
+    expect(locationsForHabitat(locations, "garden")).toHaveLength(2);
+  });
+
+  it("writes region/note/count edits once on Save while preserving id and createdAt", () => {
+    const record = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const updated = updateLocation(record, {
+      region: "Ridges",
+      note: "  by the well  ",
+      copies: 3,
+    });
+    expect(updated.id).toBe(record.id);
+    expect(updated.createdAt).toBe(record.createdAt);
+    expect(updated.region).toBe("Ridges");
+    expect(updated.note).toBe("by the well");
+    expect(updated.copies).toBe(3);
+  });
+
+  it("clears the Choose a region flag once a region is assigned, and Possible duplicate on any save", () => {
+    const record: HabitatLocationRecord = {
+      ...createLocation({ id: "garden", name: "Garden" }, "Beach"),
+      region: null,
+      reviewFlags: ["Choose a region", "Possible duplicate"],
     };
+    const updated = updateLocation(record, { region: "Beach" });
+    expect(updated.reviewFlags).toBeUndefined();
+  });
+
+  it("orders the region picker with the habitat's discovery towns first, each group alphabetical", () => {
+    expect(
+      orderedRegionOptions(["Ridges", "Beach", "Basin"], ["Beach"]),
+    ).toEqual(["Beach", "Basin", "Ridges"]);
+  });
+
+  it("counts saved locations per habitat as rows, not summed copies", () => {
+    const a = createLocation({ id: "garden", name: "Garden" }, "Beach", 5);
+    const locations = { [a.id]: a };
+    expect(savedLocationCount(locations, "garden")).toBe(1);
+    expect(savedLocationCount(locations, "tallgrass")).toBe(0);
+  });
+});
+
+describe("habitat location migration", () => {
+  it("is a no-op once the migration marker is set", () => {
+    const state = emptyState();
+    expect(migrateHabitatLocations(state, catalog)).toBe(state);
+  });
+
+  it("converts a built record into a location and preserves user-entered fields", () => {
+    const build = legacyBuild({
+      id: "build-1",
+      habitatId: "garden",
+      region: "Beach",
+      copies: 2,
+      locationNote: " behind the shop ",
+    });
+    const state = legacyState({ habitatBuilds: { [build.id]: build } });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatBuilds).toBeUndefined();
+    expect(migrated.habitatLocationMigrationVersion).toBe(1);
+    expect(migrated.habitatLocations!["build-1"]).toMatchObject({
+      id: "build-1",
+      habitatId: "garden",
+      region: "Beach",
+      copies: 2,
+      note: "behind the shop",
+    });
+    expect(migrated.habitatBuildLegacySnapshot!["build-1"]).toEqual(build);
+  });
+
+  it("archives a planned record without turning it into a location", () => {
+    const build = legacyBuild({
+      id: "build-2",
+      habitatId: "garden",
+      status: "planned",
+    });
+    const state = legacyState({ habitatBuilds: { [build.id]: build } });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations).toEqual({});
+    expect(migrated.habitatBuildLegacySnapshot!["build-2"]).toEqual(build);
+  });
+
+  it("flags a regionless or no-longer-catalogued region as Choose a region", () => {
+    const regionless = legacyBuild({
+      id: "build-3",
+      habitatId: "garden",
+      region: null,
+    });
+    const stale = legacyBuild({
+      id: "build-4",
+      habitatId: "garden",
+      region: "Nowhere",
+    });
+    const state = legacyState({
+      habitatBuilds: { [regionless.id]: regionless, [stale.id]: stale },
+    });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations!["build-3"].region).toBeNull();
+    expect(migrated.habitatLocations!["build-3"].reviewFlags).toContain(
+      "Choose a region",
+    );
+    expect(migrated.habitatLocations!["build-4"].region).toBeNull();
+    expect(migrated.habitatLocations!["build-4"].reviewFlags).toContain(
+      "Choose a region",
+    );
+  });
+
+  it("flags an orphaned habitat id instead of dropping the record", () => {
+    const orphan = legacyBuild({ id: "build-5", habitatId: "ghost-habitat" });
+    const state = legacyState({ habitatBuilds: { [orphan.id]: orphan } });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations!["build-5"].reviewFlags).toContain(
+      "Habitat missing from catalog",
+    );
+  });
+
+  it("maps Review imported copies to Possible duplicate and drops Needs review", () => {
+    const dup = legacyBuild({
+      id: "build-6",
+      habitatId: "garden",
+      reviewFlags: ["Review imported copies", "Needs review"],
+    });
+    const state = legacyState({ habitatBuilds: { [dup.id]: dup } });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations!["build-6"].reviewFlags).toEqual([
+      "Possible duplicate",
+    ]);
+  });
+
+  it("does not merge separate built records sharing a habitat, region and note", () => {
+    const a = legacyBuild({ id: "build-7", habitatId: "garden", region: "Beach" });
+    const b = legacyBuild({ id: "build-8", habitatId: "garden", region: "Beach" });
+    const state = legacyState({ habitatBuilds: { [a.id]: a, [b.id]: b } });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(Object.keys(migrated.habitatLocations!)).toHaveLength(2);
+  });
+
+  it("keeps an existing location and skips a converted one sharing its id", () => {
+    const build = legacyBuild({
+      id: "shared-id",
+      habitatId: "garden",
+      region: "Beach",
+    });
+    const existing = {
+      ...createLocation({ id: "garden", name: "Garden" }, "Ridges"),
+      id: "shared-id",
+    };
+    const state = legacyState({
+      habitatBuilds: { [build.id]: build },
+      habitatLocations: { "shared-id": existing },
+    });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations!["shared-id"].region).toBe("Ridges");
+  });
+
+  it("does not generate locations from legacy boolean checklists", () => {
+    const state = legacyState({
+      shoppingChecklists: {
+        habitats: {
+          x: {
+            id: "x",
+            pokemonId: "a",
+            habitatId: "garden",
+            habitatName: "Garden",
+            rows: [],
+          },
+        },
+      },
+    });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.habitatLocations).toEqual({});
+    expect(migrated.shoppingChecklists).toEqual(state.shoppingChecklists);
+  });
+
+  it("moves houseShopping into a legacy snapshot verbatim", () => {
+    const houseShopping = {
+      planId: "p",
+      construction: [],
+      furnishings: [],
+      environment: [],
+    };
+    const state = legacyState({ houseShopping });
+    const migrated = migrateHabitatLocations(state, catalog);
+    expect(migrated.houseShopping).toBeUndefined();
+    expect(migrated.houseShoppingLegacySnapshot).toEqual(houseShopping);
+  });
+
+  it("does not duplicate or modify locations on a second run", () => {
+    const build = legacyBuild({ id: "build-9", habitatId: "garden" });
+    const state = legacyState({ habitatBuilds: { [build.id]: build } });
+    const once = migrateHabitatLocations(state, catalog);
+    const twice = migrateHabitatLocations(once, catalog);
+    expect(twice).toBe(once);
+  });
+});
+
+describe("habitat location backups", () => {
+  it("round-trips habitat locations in backups", () => {
+    const record = createLocation({ id: "garden", name: "Garden" }, "Beach");
+    const data = { ...emptyState(), habitatLocations: { [record.id]: record } };
     expect(validateBackup(JSON.parse(JSON.stringify(data)), catalog)).toEqual(
       data,
     );
   });
-});
 
-describe("house quantity migration", () => {
-  it("migrates boolean house rows to gathered quantities", () => {
-    const withKit: Catalog = {
-      ...catalog,
-      kits: [
-        {
-          id: "home",
-          name: "Home",
-          kind: "residence" as const,
-          width: 4,
-          depth: 3,
-          height: 3,
-          capacity: 2,
-          helpers: 1,
-          specialties: [],
-          materials: [{ name: "Glass", quantity: 3 }],
-          buildTime: "1 day",
-          source: "https://example.com",
-        },
-      ],
-    };
-    const plan = recommendHousemates(
-      { roster: ["a"], sourceRoster: ["a"], areaFilter: null },
-      withKit,
-      () => "2026-09-09T00:00:00.000Z",
-    );
-    const legacy = reconcileHouseChecklist(undefined, plan, withKit);
-    legacy.construction[0].checked = true;
-    const migrated = migrateHouseChecklist(legacy, plan, withKit);
-    expect(migrated.construction[0].gathered).toBe(
-      migrated.construction[0].quantity,
-    );
-    const gathered = setHouseRowGathered(
-      migrated,
-      "construction",
-      migrated.construction[0].id,
-      migrated.construction[0].quantity,
-    );
-    const reset = resetHouseGathered(gathered);
-    expect(reset.construction.every((row) => row.gathered === 0)).toBe(true);
-    expect(reset.furnishings.every((row) => row.gathered === 0)).toBe(true);
+  it("migrates a legacy backup on import, matching what a reload would produce", () => {
+    const build = legacyBuild({ id: "build-1", habitatId: "garden" });
+    const legacy = legacyState({ habitatBuilds: { [build.id]: build } });
+    const result = validateBackup(JSON.parse(JSON.stringify(legacy)), catalog);
+    expect(Object.keys(result.habitatLocations!)).toHaveLength(1);
+    expect(result.habitatBuilds).toBeUndefined();
+    expect(result.habitatBuildLegacySnapshot!["build-1"]).toBeTruthy();
   });
-});
 
-describe("gathering item identity", () => {
-  it("keeps different items with the same required quantity separate", () => {
-    const planned = createPlannedBuild(catalog, "garden", "Beach", 1);
-    planned.allocations = [
-      {
-        requirementId: "a",
-        signature: "item:lamp:1",
-        raw: "1 lamp",
-        label: "Lamp",
-        kind: "item",
-        required: 1,
-        gathered: 0,
-      },
-      {
-        requirementId: "b",
-        signature: "item:bed:1",
-        raw: "1 bed",
-        label: "Bed",
-        kind: "item",
-        required: 1,
-        gathered: 0,
-      },
-    ];
-    const builds = { [planned.id]: planned };
-    expect(combinedHabitatShopping(builds)).toHaveLength(2);
-    const next = redistributeCombinedGathered(builds, "item:lamp", 1);
-    expect(next[planned.id].allocations.map((row) => row.gathered)).toEqual([
-      1, 0,
-    ]);
+  it("allows an unknown habitatId on import and flags it instead of rejecting", () => {
+    const record = createLocation({ id: "ghost-habitat", name: "Ghost" }, "Beach");
+    const data = { ...emptyState(), habitatLocations: { [record.id]: record } };
+    const result = validateBackup(JSON.parse(JSON.stringify(data)), catalog);
+    expect(result.habitatLocations![record.id].reviewFlags).toContain(
+      "Habitat missing from catalog",
+    );
+  });
+
+  it("rejects a location whose region is neither a catalog area nor a flagged null", () => {
+    const bad = {
+      ...createLocation({ id: "garden", name: "Garden" }, "Beach"),
+      region: "Nowhere",
+    };
+    const data = { ...emptyState(), habitatLocations: { [bad.id]: bad } };
+    expect(() =>
+      validateBackup(JSON.parse(JSON.stringify(data)), catalog),
+    ).toThrow();
+  });
+
+  it("accepts a null region only when the record carries Choose a region", () => {
+    const bad = {
+      ...createLocation({ id: "garden", name: "Garden" }, "Beach"),
+      region: null,
+    };
+    const data = { ...emptyState(), habitatLocations: { [bad.id]: bad } };
+    expect(() =>
+      validateBackup(JSON.parse(JSON.stringify(data)), catalog),
+    ).toThrow();
+    const flagged = { ...bad, reviewFlags: ["Choose a region"] as const };
+    expect(() =>
+      validateBackup(
+        JSON.parse(
+          JSON.stringify({
+            ...emptyState(),
+            habitatLocations: { [flagged.id]: flagged },
+          }),
+        ),
+        catalog,
+      ),
+    ).not.toThrow();
   });
 });
 
 describe("copy counts", () => {
   it("treats a cleared copies field as empty instead of 1", async () => {
-    const { parseCopyCount } = await import("../src/habitats/BuildForm");
+    const { parseCopyCount } = await import("../src/habitats/LocationForm");
     expect(parseCopyCount("")).toBeNull();
     expect(parseCopyCount(" ")).toBeNull();
     expect(parseCopyCount("1")).toBe(1);

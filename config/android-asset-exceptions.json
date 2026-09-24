@@ -1,0 +1,6 @@
+{
+  "itemImageExceptions": {
+    "coppeingot": "The upstream index contains the typo record 'Coppe ingot', but its documented icon URL returns 404. Keep the existing text fallback rather than substituting a different item's art.",
+    "gold": "The upstream index contains a separate 'Gold' record, but its documented icon URL returns 404. Keep the existing text fallback rather than guessing that Gold ingot art is equivalent."
+  }
+}

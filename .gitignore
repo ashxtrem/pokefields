@@ -1,6 +1,8 @@
 .DS_Store
 node_modules/
 dist/
+dist-android/
+dist-legal/
 .cache/
 public/images/pokemon/
 public/images/habitats/
@@ -16,3 +18,5 @@ graphify-out/
 .cursor/
 .impeccable/
 .artifacts/
+.release-private/
+.android-build/

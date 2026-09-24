@@ -1,25 +1,31 @@
 import { useViewState } from "../ui/navigation";
-import { BuildModal } from "./BuildModal";
 import { HabitatPokemonChips } from "./HabitatPokemon";
 import { useEffect, useMemo, useState } from "react";
-import { Search, SlidersHorizontal, TreePine } from "lucide-react";
+import { Check, MapPin, Search, SlidersHorizontal, TreePine } from "lucide-react";
 import { useCatalog } from "../catalog/context";
 import { habitatImageUrl } from "../dex/glossary";
 import { useProgress } from "../progress/context";
-import { buildBadges, recordsForHabitat } from "../habitats/builds";
-import { Empty } from "../ui/components";
+import {
+  addQuickSaveLocation,
+  hasLocationInRegion,
+  locationsForHabitat,
+  orderedRegionOptions,
+  savedLocationCount,
+} from "./locations";
+import { Empty, Modal } from "../ui/components";
 import {
   filterHabitats,
   filtersFromQuery,
   filtersToQuery,
   habitatCatalogHref,
   habitatDetailHref,
-} from "../habitats/search";
+} from "./search";
 import {
   defaultHabitatFilters,
   type HabitatCatalogFilters,
-} from "../habitats/types";
-import type { CanonicalHabitat } from "../habitats/types";
+  type HabitatLocationRecord,
+} from "./types";
+import type { CanonicalHabitat } from "./types";
 
 function readFiltersFromHash() {
   const query = location.hash.includes("?")
@@ -28,16 +34,70 @@ function readFiltersFromHash() {
   return filtersFromQuery(query);
 }
 
+function withQueryParam(href: string, key: string, value: string) {
+  const [base, query] = href.split("?");
+  const params = new URLSearchParams(query || "");
+  params.set(key, value);
+  return `${base}?${params.toString()}`;
+}
+
+type CardAction =
+  | { kind: "save"; region: string }
+  | { kind: "saved"; href: string }
+  | { kind: "choose" }
+  | { kind: "review"; href: string };
+
+function resolveCardAction(
+  habitat: CanonicalHabitat,
+  filters: HabitatCatalogFilters,
+  locations: Record<string, HabitatLocationRecord>,
+): CardAction {
+  const region = filters.region;
+  if (!region || region === "__none__") {
+    if (filters.scope === "saved" && region === "__none__") {
+      const record = locationsForHabitat(locations, habitat.id).find(
+        (r) => r.region === null,
+      );
+      return {
+        kind: "review",
+        href: withQueryParam(
+          habitatDetailHref(habitat.id, filters),
+          "edit",
+          record?.id || "",
+        ),
+      };
+    }
+    return { kind: "choose" };
+  }
+  if (hasLocationInRegion(locations, habitat.id, region)) {
+    return {
+      kind: "saved",
+      href: withQueryParam(
+        habitatDetailHref(habitat.id, filters),
+        "focus",
+        "my-locations",
+      ),
+    };
+  }
+  return { kind: "save", region };
+}
+
 export function HabitatsPage() {
   const catalog = useCatalog();
-  const { state, ready } = useProgress();
+  const { state, ready, updateWithUndo } = useProgress();
   const [filters, setFilters] = useViewState(
     "habitats.filters",
     readFiltersFromHash,
   );
   const [expanded, setExpanded] = useViewState("habitats.expanded", false);
-  const [buildMode, setBuildMode] = useState<"planned" | "built">("planned");
-  const [planTarget, setPlanTarget] = useState<CanonicalHabitat | null>(null);
+  const [picking, setPicking] = useState<CanonicalHabitat | null>(null);
+  const [savingIds, setSavingIds] = useState<Record<string, boolean>>({});
+  const [savedFeedback, setSavedFeedback] = useState<{
+    habitatId: string;
+    recordId: string;
+    region: string;
+  } | null>(null);
+  const [announcement, setAnnouncement] = useState("");
 
   useEffect(() => {
     const sync = (event?: HashChangeEvent) => {
@@ -55,10 +115,10 @@ export function HabitatsPage() {
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
   }, []);
-  const builds = state.habitatBuilds || {};
+  const locations = state.habitatLocations || {};
   const results = useMemo(
-    () => filterHabitats(catalog, builds, state.found, filters),
-    [catalog, builds, state.found, filters],
+    () => filterHabitats(catalog, locations, state.found, filters),
+    [catalog, locations, state.found, filters],
   );
   const syncFilters = (next: HabitatCatalogFilters) => {
     setFilters(next);
@@ -68,10 +128,50 @@ export function HabitatsPage() {
   const active =
     Number(!!filters.search) +
     Number(!!filters.region) +
-    Number(filters.status !== "all") +
     Number(filters.unfoundOnly) +
-    Number(filters.regionMode !== "available") +
+    Number(filters.scope !== "available") +
     Number(filters.sort !== "id");
+
+  const quickSave = async (habitat: CanonicalHabitat, region: string) => {
+    const result = addQuickSaveLocation(locations, habitat, region);
+    if (!result) return;
+    setSavingIds((m) => ({ ...m, [habitat.id]: true }));
+    setAnnouncement("");
+    const ok = await updateWithUndo(
+      `Saved ${habitat.name} in ${region}`,
+      (saved) => ({ ...saved, habitatLocations: result.locations }),
+      ["habitatLocations"],
+    );
+    setSavingIds((m) => {
+      const next = { ...m };
+      delete next[habitat.id];
+      return next;
+    });
+    if (ok) {
+      setSavedFeedback({
+        habitatId: habitat.id,
+        recordId: result.record.id,
+        region,
+      });
+      setAnnouncement(`Saved ${habitat.name} in ${region}`);
+    } else {
+      setAnnouncement("Not saved to this device. Export a backup to keep it.");
+    }
+  };
+
+  const chooseLocation = (habitat: CanonicalHabitat, region: string) => {
+    setPicking(null);
+    if (hasLocationInRegion(locations, habitat.id, region)) {
+      location.hash = withQueryParam(
+        habitatDetailHref(habitat.id, filters),
+        "focus",
+        "my-locations",
+      );
+      return;
+    }
+    void quickSave(habitat, region);
+  };
+
   return (
     <>
       <div className="page-title">
@@ -80,16 +180,19 @@ export function HabitatsPage() {
           <h1>
             Choose a habitat,
             <br />
-            prepare its supplies<span className="dot">.</span>
+            save where it's built<span className="dot">.</span>
           </h1>
           <p>
-            Browse attracting habitats, plan builds, and see which Pokémon you
-            might still find there.
+            Browse attracting habitats and see which Pokémon you might still
+            find there.
           </p>
         </div>
         <div className="hero-garden" aria-hidden="true">
           <TreePine size={72} strokeWidth={1.2} />
         </div>
+      </div>
+      <div aria-live="polite" className="sr-only">
+        {announcement}
       </div>
       <section className="dex-section habitats-section">
         <div className="search-row">
@@ -142,36 +245,18 @@ export function HabitatsPage() {
         {expanded && (
           <div className="filter-panel">
             <label className="filter-label">
-              Status
+              Scope
               <select
-                value={filters.status}
+                value={filters.scope}
                 onChange={(e) =>
                   syncFilters({
                     ...filters,
-                    status: e.target.value as HabitatCatalogFilters["status"],
-                  })
-                }
-              >
-                <option value="all">All</option>
-                <option value="none">Not started</option>
-                <option value="planned">Planned</option>
-                <option value="built">Built</option>
-              </select>
-            </label>
-            <label className="filter-label">
-              Region mode
-              <select
-                value={filters.regionMode}
-                onChange={(e) =>
-                  syncFilters({
-                    ...filters,
-                    regionMode: e.target
-                      .value as HabitatCatalogFilters["regionMode"],
+                    scope: e.target.value as HabitatCatalogFilters["scope"],
                   })
                 }
               >
                 <option value="available">Available here</option>
-                <option value="builds">My builds here</option>
+                <option value="saved">Saved here</option>
               </select>
             </label>
             <label className="filter-label">
@@ -215,8 +300,8 @@ export function HabitatsPage() {
         </div>
         {!results.length ? (
           <Empty title="No habitats match these filters">
-            Try another search or clear a filter. This is not the same as having
-            no build history.
+            Try another search or clear a filter. This is not the same as
+            having no saved locations.
           </Empty>
         ) : (
           <div className="habitat-grid">
@@ -225,66 +310,57 @@ export function HabitatsPage() {
                 key={habitat.id}
                 habitat={habitat}
                 filters={filters}
-                badge={buildBadges(recordsForHabitat(builds, habitat.id))}
-                onPlan={() => {
-                  setBuildMode("planned");
-                  setPlanTarget(habitat);
-                }}
-                onRecord={() => {
-                  setBuildMode("built");
-                  setPlanTarget(habitat);
-                }}
+                savedCount={savedLocationCount(locations, habitat.id)}
+                action={resolveCardAction(habitat, filters, locations)}
+                saving={!!savingIds[habitat.id]}
+                justSaved={
+                  savedFeedback?.habitatId === habitat.id ? savedFeedback : null
+                }
                 disabled={!ready}
+                onSave={(region) => void quickSave(habitat, region)}
+                onChoose={() => setPicking(habitat)}
               />
             ))}
           </div>
         )}
       </section>
-      {planTarget && (
-        <BuildModal
-          habitatId={planTarget.id}
-          habitatName={planTarget.name}
-          mode={buildMode}
-          onClose={() => setPlanTarget(null)}
+      {picking && (
+        <RegionPickerModal
+          habitat={picking}
+          areas={catalog.areas}
+          onClose={() => setPicking(null)}
+          onChoose={(region) => chooseLocation(picking, region)}
         />
       )}
     </>
   );
 }
 
-function statusLabel(badge: ReturnType<typeof buildBadges>) {
-  if (!badge.planned && !badge.built) return "Not started";
-  const parts = [];
-  if (badge.built) parts.push(`${badge.built} built`);
-  if (badge.planned) parts.push(`${badge.planned} planned`);
-  return parts.join(" · ");
-}
-
 function HabitatCatalogCard({
   habitat,
   filters,
-  badge,
-  onPlan,
-  onRecord,
+  savedCount,
+  action,
+  saving,
+  justSaved,
   disabled,
+  onSave,
+  onChoose,
 }: {
   habitat: CanonicalHabitat;
   filters: HabitatCatalogFilters;
-  badge: ReturnType<typeof buildBadges>;
-  onPlan: () => void;
-  onRecord: () => void;
+  savedCount: number;
+  action: CardAction;
+  saving: boolean;
+  justSaved: { recordId: string; region: string } | null;
   disabled: boolean;
+  onSave: (region: string) => void;
+  onChoose: () => void;
 }) {
   const src = habitatImageUrl(habitat.image);
-  const status = statusLabel(badge);
-  const statusClass =
-    badge.built && badge.planned
-      ? "mixed"
-      : badge.built
-        ? "built"
-        : badge.planned
-          ? "planned"
-          : "none";
+  const summary = savedCount
+    ? `${savedCount} saved location${savedCount === 1 ? "" : "s"}`
+    : "No saved locations yet";
   return (
     <article className="habitat-catalog-card">
       <a
@@ -299,7 +375,9 @@ function HabitatCatalogCard({
           )}
         </div>
         <div className="habitat-card-body">
-          <span className={`status-badge status-${statusClass}`}>{status}</span>
+          <span className="status-badge saved-summary">
+            <MapPin size={12} /> {summary}
+          </span>
           <h3>{habitat.name}</h3>
           {!!habitat.conflicts.length && <p>Needs review</p>}
         </div>
@@ -308,24 +386,87 @@ function HabitatCatalogCard({
         <HabitatPokemonChips habitat={habitat} region={filters.region} />
       </div>
       <div className="habitat-card-actions">
-        <button
-          type="button"
-          className="button secondary"
-          disabled={disabled}
-          onClick={onPlan}
-        >
-          Plan build
-        </button>
-        <button
-          type="button"
-          className="button secondary"
-          disabled={disabled}
-          onClick={onRecord}
-        >
-          Record built
-        </button>
+        {justSaved ? (
+          <>
+            <span className="button secondary saved-check">
+              <Check size={15} /> Saved here
+            </span>
+            <a
+              className="text-button"
+              href={withQueryParam(
+                habitatDetailHref(habitat.id, filters),
+                "edit",
+                justSaved.recordId,
+              )}
+            >
+              Add landmark
+            </a>
+          </>
+        ) : action.kind === "save" ? (
+          <button
+            type="button"
+            className="button"
+            disabled={disabled || saving}
+            aria-label={`Save ${habitat.name} in ${action.region}`}
+            onClick={() => onSave(action.region)}
+          >
+            {saving ? "Saving…" : `Save in ${action.region}`}
+          </button>
+        ) : action.kind === "saved" ? (
+          <a className="button secondary saved-check" href={action.href}>
+            <Check size={15} /> Saved here
+          </a>
+        ) : action.kind === "review" ? (
+          <a className="button secondary" href={action.href}>
+            Review location
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="button secondary"
+            disabled={disabled}
+            aria-label={`Choose a location for ${habitat.name}`}
+            onClick={onChoose}
+          >
+            Choose location
+          </button>
+        )}
       </div>
     </article>
+  );
+}
+
+function RegionPickerModal({
+  habitat,
+  areas,
+  onClose,
+  onChoose,
+}: {
+  habitat: CanonicalHabitat;
+  areas: string[];
+  onClose: () => void;
+  onChoose: (region: string) => void;
+}) {
+  const ordered = orderedRegionOptions(areas, habitat.discoveryRegions);
+  return (
+    <Modal title={`Choose a region for ${habitat.name}`} onClose={onClose}>
+      <p className="muted">
+        Towns where this habitat is known to appear are listed first.
+      </p>
+      <div className="region-chips">
+        {ordered.map((area) => (
+          <button
+            type="button"
+            key={area}
+            className="chip"
+            aria-label={`Save ${habitat.name} in ${area}`}
+            onClick={() => onChoose(area)}
+          >
+            {area}
+          </button>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

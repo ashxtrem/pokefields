@@ -10,6 +10,7 @@ import stepReview from "./guide/06-review.png";
 import stepSearch from "./guide/07-search.png";
 
 const SEEN_KEY = "pkm.storage.guideSeen";
+const SHOW_EXTERNAL_HELP = import.meta.env.VITE_DISTRIBUTION === "web";
 
 /** Device-local, one-time-ever flag — mirrors the try/catch storage pattern used throughout the
  * app (e.g. src/ui/navigation.ts's sessionStorage reads) since storage can be missing or blocked. */
@@ -85,14 +86,19 @@ const STEPS: GuideStep[] = [
     body: (
       <ul>
         <li>
-          Capture it with the Capture Button on Joy-Con 2 (L) —{" "}
-          <a
-            href="https://www.nintendo.com/en-gb/Support/Nintendo-Switch-2/How-to-Capture-and-View-Screenshots-on-Nintendo-Switch-2-2909826.html"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Nintendo's capture guide ↗
-          </a>
+          Capture it with the Capture Button on Joy-Con 2 (L)
+          {SHOW_EXTERNAL_HELP ? (
+            <>
+              {" — "}
+              <a
+                href="https://www.nintendo.com/en-gb/Support/Nintendo-Switch-2/How-to-Capture-and-View-Screenshots-on-Nintendo-Switch-2-2909826.html"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Nintendo's capture guide ↗
+              </a>
+            </>
+          ) : null}
           .
         </li>
         <li>Phone photos of the screen aren't supported and won't scan reliably — screenshot only.</li>
@@ -114,14 +120,19 @@ const STEPS: GuideStep[] = [
     body: (
       <p>
         The location photo you added covers the room. For faster identification without opening
-        every box, try hanging a wall frame with one representative item above each box —{" "}
-        <a
-          href="https://pokopia.center/posts/pokopia-storage-organization-guide-2026/"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Pokopia Center's storage guide ↗
-        </a>
+        every box, try hanging a wall frame with one representative item above each box
+        {SHOW_EXTERNAL_HELP ? (
+          <>
+            {" — "}
+            <a
+              href="https://pokopia.center/posts/pokopia-storage-organization-guide-2026/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Pokopia Center's storage guide ↗
+            </a>
+          </>
+        ) : null}
         .
       </p>
     ),
