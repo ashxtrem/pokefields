@@ -4,9 +4,14 @@ import { PAGE_COUNT } from "./constants";
 import { checkNativeScreenshotShape, decodeImage, sha256Hex } from "./recognition/normalize";
 import { terminateOcrWorker } from "./recognition/ocr";
 import type { SlotResult } from "./recognition/matcher";
-import type { ScanWorkerRequest, ScanWorkerResponse } from "./recognition/protocol";
+import { prepareScanSlots } from "./recognition/scanPrepare";
+import { cancelScan, runMatchTasks } from "./recognition/scanWorkerPool";
 import { ScanReview } from "./ScanReview";
 import { newUid, type StorageChest } from "./types";
+
+function taskKey(page: number, slot: number) {
+  return `${page}:${slot}`;
+}
 
 interface PageSlot {
   page: number;
@@ -30,13 +35,24 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
   const [error, setError] = useState("");
   const [results, setResults] = useState<Array<{ page: number; slots: SlotResult[] }> | null>(null);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
-  const workerRef = useRef<Worker | null>(null);
   const scanIdRef = useRef("");
+  // The recognition worker pool is a persistent, module-level singleton now (see
+  // scanWorkerPool.ts) — it deliberately outlives this component so its warmed-up OpenCV/reference
+  // index state carries over to the next scan. An in-flight scan's promise can therefore still be
+  // running after this component unmounts; guard state updates on that.
+  const mountedRef = useRef(true);
 
   useEffect(
-    () => () => {
-      workerRef.current?.terminate();
-      terminateOcrWorker();
+    () => {
+      // Explicitly re-arm on every effect setup, not just the initial useRef value — React 18
+      // StrictMode double-invokes effects in development (mount, cleanup, mount again), which
+      // would otherwise leave this permanently false after that dev-only simulated remount.
+      mountedRef.current = true;
+      return () => {
+        mountedRef.current = false;
+        if (scanIdRef.current) cancelScan(scanIdRef.current);
+        terminateOcrWorker();
+      };
     },
     [],
   );
@@ -86,40 +102,68 @@ export function ScanFlow({ chest, onClose }: { chest: StorageChest; onClose: () 
     setProgress({ done: 0, total: scannedSlots.length * 20 });
     const scanId = newUid();
     scanIdRef.current = scanId;
-    if (!workerRef.current)
-      workerRef.current = new Worker(new URL("./recognition/worker.ts", import.meta.url), { type: "module" });
-    const worker = workerRef.current;
-    const bitmaps = await Promise.all(scannedSlots.map((slot) => decodeImage(slot.file!)));
 
-    worker.onmessage = (event: MessageEvent<ScanWorkerResponse>) => {
-      const message = event.data;
-      if (message.type === "progress" && message.scanId === scanId) {
-        setProgress({ done: message.done, total: message.total });
-      } else if (message.type === "result" && message.scanId === scanId) {
-        setResults(message.pages);
-        setStage("review");
-      } else if (message.type === "cancelled" && message.scanId === scanId) {
+    try {
+      const bitmaps = await Promise.all(scannedSlots.map((slot) => decodeImage(slot.file!)));
+      const pages = scannedSlots.map((slot, index) => ({ page: slot.page, bitmap: bitmaps[index]! }));
+      // Cropping, shared-background estimation, and occupied/empty classification all run here on
+      // the main thread — no OpenCV needed for any of it (see scanPrepare.ts) — so the worker pool
+      // only ever spends time on the CV-dependent matching step, for occupied slots only.
+      const prepared = await prepareScanSlots(pages);
+      if (!mountedRef.current) return;
+
+      const emptyCount = prepared.filter((slot) => !slot.occupied).length;
+      setProgress({ done: emptyCount, total: prepared.length });
+
+      const tasks = prepared
+        .filter((slot) => slot.occupied)
+        .map((slot) => ({
+          id: taskKey(slot.page, slot.slot),
+          grey: slot.grey!,
+          histogram: slot.descriptor!.histogram,
+          shape: slot.descriptor!.shape,
+          aspect: slot.descriptor!.aspect,
+        }));
+
+      const outcomeById = await runMatchTasks(scanId, tasks, (done) => {
+        if (mountedRef.current) setProgress({ done: emptyCount + done, total: prepared.length });
+      });
+      scanIdRef.current = "";
+      if (!mountedRef.current) return;
+
+      if (outcomeById === "cancelled") {
         setStage("capture");
-      } else if (message.type === "error") {
-        setError(message.message);
-        setStage("capture");
+        return;
       }
-    };
 
-    const request: ScanWorkerRequest = {
-      type: "scan",
-      scanId,
-      pages: scannedSlots.map((slot, index) => ({ page: slot.page, bitmap: bitmaps[index]! })),
-    };
-    worker.postMessage(request, bitmaps);
+      const byPage = new Map<number, SlotResult[]>();
+      for (const slot of prepared) {
+        const list = byPage.get(slot.page) ?? [];
+        list.push({
+          slot: slot.slot,
+          bounds: slot.bounds,
+          outcome: slot.occupied ? (outcomeById.get(taskKey(slot.page, slot.slot)) ?? null) : null,
+          thumbnail: slot.thumbnail,
+        });
+        byPage.set(slot.page, list);
+      }
+      setResults([...byPage.entries()].map(([page, slots]) => ({ page, slots })));
+      setStage("review");
+    } catch (err) {
+      scanIdRef.current = "";
+      if (!mountedRef.current) return;
+      setError(err instanceof Error ? err.message : "Recognition failed on this page.");
+      setStage("capture");
+    }
   };
 
   const confirmCancelScan = () => {
     setConfirmingCancel(false);
-    // Terminate outright rather than waiting for the worker's graceful "cancelled" acknowledgment
-    // — the player has already confirmed they want out, so don't make them wait on it.
-    workerRef.current?.terminate();
-    workerRef.current = null;
+    // Soft-cancel only — the recognition worker pool is a persistent, module-level singleton (see
+    // scanWorkerPool.ts) that deliberately outlives this modal, so canceling a scan must not
+    // terminate it; that would throw away its warmed-up OpenCV/reference-index state and force the
+    // next scan to pay that cost all over again.
+    cancelScan(scanIdRef.current);
     onClose();
   };
 

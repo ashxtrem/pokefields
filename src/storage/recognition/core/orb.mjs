@@ -18,10 +18,15 @@ export function makeOrbDescriptor(cv, mat) {
   return descriptor;
 }
 
-export function matchOrb(cv, target, reference) {
+/**
+ * `matcher` is caller-owned (constructed once and reused across every candidate in one
+ * rankCandidates() call, instead of once per candidate) — BFMatcher is stateless per knnMatch
+ * call, so sharing one instance is safe and avoids ~400-500 WASM object allocations per scanned
+ * slot. See docs/storage-scan-performance-plan.md.
+ */
+export function matchOrb(cv, matcher, target, reference) {
   if (!target.rows || !reference.rows)
     return { orbScore: 0, goodMatches: 0, averageDistance: null };
-  const matcher = new cv.BFMatcher(cv.NORM_HAMMING, false);
   const matches = new cv.DMatchVectorVector();
   matcher.knnMatch(target, reference, matches, 2);
   let goodMatches = 0;
@@ -38,7 +43,6 @@ export function matchOrb(cv, target, reference) {
     }
     pair.delete();
   }
-  matcher.delete();
   matches.delete();
   const averageDistance = goodMatches ? distanceTotal / goodMatches : null;
   return {

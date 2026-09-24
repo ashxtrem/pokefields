@@ -51,10 +51,13 @@ export function rankCandidates({ cv, target, references, lshBuckets, retrieval }
     }
   }
 
-  return [...candidates.values()]
+  // One BFMatcher shared across every candidate here (instead of one per candidate) — stateless
+  // per knnMatch call, so reuse is safe and avoids hundreds of WASM allocations per scanned slot.
+  const matcher = new cv.BFMatcher(cv.NORM_HAMMING, false);
+  const ranked = [...candidates.values()]
     .map((candidate) => {
       const reference = references[candidate.referenceIndex];
-      const orb = matchOrb(cv, target.orb, reference.orb);
+      const orb = matchOrb(cv, matcher, target.orb, reference.orb);
       return {
         referenceIndex: candidate.referenceIndex,
         id: reference.id,
@@ -64,4 +67,6 @@ export function rankCandidates({ cv, target, references, lshBuckets, retrieval }
       };
     })
     .sort((left, right) => right.score - left.score);
+  matcher.delete();
+  return ranked;
 }

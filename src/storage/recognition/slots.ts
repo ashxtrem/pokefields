@@ -1,7 +1,6 @@
 import { NATIVE_GRID, ORB_SIDE } from "./core/constants.mjs";
 import { slotBounds, type CropRect } from "./core/grid.mjs";
 import { buildMedianBackground, targetDescriptor } from "./core/foreground.mjs";
-import { makeOrbDescriptor } from "./core/orb.mjs";
 import type { Descriptor } from "./core/descriptor.mjs";
 
 export interface SlotPixels {
@@ -57,12 +56,6 @@ export function classifySlot(entry: SlotPixels, background: Uint8ClampedArray): 
   return { slot: entry.slot, bounds: entry.bounds, occupied: descriptor !== null, descriptor };
 }
 
-/**
- * Greyscale coefficients match sharp's default (Rec.709: 0.2126/0.7152/0.0722) as closely as a
- * canvas-based decode can — the only platform difference from the Node benchmark/build path,
- * which uses sharp's own greyscale conversion. Not covered by the pinned native-screenshot
- * benchmark (that runs entirely in Node); flagged as a known small cross-platform difference.
- */
 /** Small compressed crop of one slot, kept for review (and persisted for any unresolved slot). */
 export function cropThumbnailBlob(bitmap: ImageBitmap, bounds: CropRect): Promise<Blob> {
   const canvas = new OffscreenCanvas(bounds.width, bounds.height);
@@ -71,7 +64,18 @@ export function cropThumbnailBlob(bitmap: ImageBitmap, bounds: CropRect): Promis
   return canvas.convertToBlob({ type: "image/webp", quality: 0.85 });
 }
 
-export function orbDescriptorForSlot(cv: any, bitmap: ImageBitmap, bounds: CropRect) {
+/**
+ * Greyscale coefficients match sharp's default (Rec.709: 0.2126/0.7152/0.0722) as closely as a
+ * canvas-based decode can — the only platform difference from the Node benchmark/build path,
+ * which uses sharp's own greyscale conversion. Not covered by the pinned native-screenshot
+ * benchmark (that runs entirely in Node); flagged as a known small cross-platform difference.
+ *
+ * Deliberately has no `cv` dependency — this runs on the main thread (see scanPrepare.ts) so the
+ * recognition worker pool only ever has to do CV-dependent work. The resulting bytes are handed to
+ * a pool worker, which turns them into an ORB descriptor via `cv.matFromArray` + `makeOrbDescriptor`
+ * (see core/orb.mjs) — same math as before, just relocated across the main-thread/worker boundary.
+ */
+export function greyscaleSlotForOrb(bitmap: ImageBitmap, bounds: CropRect): Uint8Array {
   const { data } = drawSlot(bitmap, bounds, ORB_SIDE);
   const grey = new Uint8Array(ORB_SIDE * ORB_SIDE);
   for (let pixel = 0; pixel < grey.length; pixel += 1) {
@@ -79,5 +83,5 @@ export function orbDescriptorForSlot(cv: any, bitmap: ImageBitmap, bounds: CropR
       0.2126 * data[pixel * 4] + 0.7152 * data[pixel * 4 + 1] + 0.0722 * data[pixel * 4 + 2],
     );
   }
-  return makeOrbDescriptor(cv, cv.matFromArray(ORB_SIDE, ORB_SIDE, cv.CV_8UC1, grey));
+  return grey;
 }
