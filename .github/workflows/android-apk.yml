@@ -40,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Bake reference images
+        run: npm run images:bake
+
       - name: Sync the Android project
         run: npm run cap:sync:android
 
