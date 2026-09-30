@@ -65,8 +65,7 @@ const allowedExternalReferences = [
     reason: "embedded dependency diagnostic reference",
   },
   {
-    pattern:
-      /^https:\/\/pokefields-privacy\.pages\.dev\/privacy(?:[?#]|$)/,
+    pattern: /^https:\/\/pokefields-privacy\.pages\.dev\/privacy(?:[?#]|$)/,
     reason: "explicit privacy action opened by the Capacitor Browser plugin",
   },
 ];
@@ -120,7 +119,9 @@ function classifyExternalReference(reference, path) {
 const issues = [];
 const allowedReferences = [];
 const files = await listFiles(OUTPUT);
-const relativeFiles = files.map((path) => relative(OUTPUT, path));
+const relativeFiles = files.map((path) =>
+  relative(OUTPUT, path).replaceAll("\\", "/"),
+);
 
 for (const forbidden of FORBIDDEN_FILES)
   if (relativeFiles.includes(forbidden))
@@ -156,7 +157,7 @@ const referencePattern =
 for (const absolutePath of files) {
   const extension = extname(absolutePath).toLowerCase();
   if (!TEXT_EXTENSIONS.has(extension)) continue;
-  const path = relative(OUTPUT, absolutePath);
+  const path = relative(OUTPUT, absolutePath).replaceAll("\\", "/");
   const contents = await readFile(absolutePath, "utf8");
   for (const reference of contents.match(referencePattern) || []) {
     const reason = classifyExternalReference(reference, path);

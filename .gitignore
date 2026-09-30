@@ -20,3 +20,5 @@ graphify-out/
 .artifacts/
 .release-private/
 .android-build/
+android/keystores/
+android/keystore.properties

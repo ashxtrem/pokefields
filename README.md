@@ -76,4 +76,6 @@ The deploy script targets the Pages project `pokefields`, served at `https://pok
 
 The production web deployment is live at `https://pokefields.pages.dev/`. Privacy and support pages are deployed separately at `https://pokefields-privacy.pages.dev/`.
 
+Pushes to `main` run the GitHub Actions workflows in `.github/workflows/`. The Cloudflare Pages workflow tests and builds the web app, stores `dist/` as a 14-day workflow artifact, and deploys it to the `pokefields` Pages project. It requires the repository secrets `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`. The Android workflow builds the Capacitor debug APK and stores `pokefields-debug-apk` as a 30-day workflow artifact. Pull requests run both build checks without deploying to Cloudflare.
+
 See `docs/pokopia-companion-plan.md` for scope and research decisions. Crafting coverage, licensing, and remaining data gaps are in `docs/research/crafting-audit.json` and `docs/research/crafting-licensing.md`. Navigation continuity notes are in `docs/navigation-ux.md`.
