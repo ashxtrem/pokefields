@@ -2,6 +2,16 @@
 
 A responsive, local-first Pokémon Pokopia companion: searchable Pokédex and a Cozy Planner. React + TypeScript + Tailwind, built with Node/Vite for Cloudflare Pages.
 
+## Screenshots
+
+| Pokédex | Pokémon details |
+|---|---|
+| <img src="docs/screenshots/pokedex.png" alt="Pokédex showing Bulbasaur and Ivysaur" width="360"> | <img src="docs/screenshots/pokemon-detail.png" alt="Charizard detail page with habitats and spawn information" width="360"> |
+| **Habitat catalog** | **Crafting recipes** |
+| <img src="docs/screenshots/habitats.png" alt="Habitat catalog with region filters" width="360"> | <img src="docs/screenshots/crafting-recipes.png" alt="Crafting recipe catalog with unlock tracking" width="360"> |
+| **Homes planner** | **Local notebook** |
+| <img src="docs/screenshots/homes-planner.png" alt="Homes planner showing residents and suggested furnishings" width="360"> | <img src="docs/screenshots/notebook.png" alt="Local notebook summary with backup import and export controls" width="360"> |
+
 ## Run
 
 Use Node 22 (see `.node-version`).
